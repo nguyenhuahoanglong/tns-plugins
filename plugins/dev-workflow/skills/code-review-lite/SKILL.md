@@ -17,10 +17,10 @@ SITUATION?
 |   -> Use original `code-review` skill instead
 |
 +-- Received code review feedback
-|   -> Feedback reception protocol in `code-review/references/feedback-reception.md`
+|   -> Feedback reception protocol in `references/feedback-reception.md`
 |
 +-- Need others to review my work
-    -> Requesting review protocol in `code-review/references/requesting-review.md`
+    -> Requesting review protocol in `references/requesting-review.md`
 ```
 
 ## Agent Pipeline

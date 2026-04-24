@@ -4,8 +4,6 @@ description: "Testing specialist that generates test cases from PRD/specs, write
 model: sonnet
 iconColor: "#E91E63"
 tools: Read, Edit, Write, Bash, Grep, Glob
-skills:
-  - browser-skill
 ---
 
 # QA Engineer

@@ -13,7 +13,7 @@ In Claude Code:
 /plugin install dev-workflow@team-marketplace
 ```
 
-That's it. The `dev-workflow` plugin registers three skills (`code-review`, `implement-plan`, `implement-feature`) and three sub-agents (`code-reviewer`, `code-implementer`, `qa-engineer`).
+That's it. The `dev-workflow` plugin registers three skills (`code-review-lite`, `implement-plan-lite`, `implement-feature`) and three sub-agents (`code-reviewer`, `code-implementer`, `qa-engineer`).
 
 ## Authentication (first time, per machine)
 

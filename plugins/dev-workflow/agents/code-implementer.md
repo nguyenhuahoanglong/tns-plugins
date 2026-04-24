@@ -5,8 +5,8 @@ model: sonnet
 iconColor: "#9C27B0"
 tools: Read, Edit, Write, Bash, Grep, Glob
 skills:
-  - code-review
-  - git-skill
+  - implement-plan-lite
+  - code-review-lite
 ---
 
 # Code Implementer
@@ -28,7 +28,7 @@ The orchestrator MUST provide:
 2. **Read referenced files** — Understand the existing code before modifying
 3. **Read coding standards** — Check `.instructions.md` files if referenced in the plan
 4. **Implement per plan** — Execute each step of the orchestrator's plan in order
-5. **Self-review** — Use the `code-review` skill to check your own work against project standards
+5. **Self-review** — Use the `code-review-lite` skill to check your own work against project standards
 6. **Report back** — Summarize what was done, flag any issues or deviations from the plan
 
 ## Guidelines
