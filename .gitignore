@@ -1,0 +1,4 @@
+*.encrypted
+.env
+secrets/
+node_modules/
