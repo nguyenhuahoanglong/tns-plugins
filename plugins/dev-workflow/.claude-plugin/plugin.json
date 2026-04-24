@@ -1,7 +1,7 @@
 {
   "name": "dev-workflow",
-  "version": "1.0.1",
-  "description": "Team dev loop: plan with implement-feature, execute with implement-plan, review with code-review. Bundles the code-reviewer, code-implementer, and qa-engineer sub-agents.",
+  "version": "2.0.0",
+  "description": "Pro-friendly team dev loop: plan with implement-feature, execute with implement-plan-lite, review with code-review-lite. Bundles the code-reviewer, code-implementer, and qa-engineer sub-agents.",
   "author": {
     "name": "Yana Team"
   }
