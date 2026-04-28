@@ -1,4 +1,4 @@
-# claude-plugins
+# tns-plugins
 
 Team Claude Code plugin marketplace.
 
@@ -9,8 +9,8 @@ Team Claude Code plugin marketplace.
 In Claude Code:
 
 ```
-/plugin marketplace add nguyenhuahoanglong/claude-plugins
-/plugin install dev-workflow@team-marketplace
+/plugin marketplace add nguyenhuahoanglong/tns-plugins
+/plugin install dev-workflow@rd-team
 ```
 
 That's it. The `dev-workflow` plugin registers three skills (`code-review-lite`, `implement-plan-lite`, `implement-feature`) and three sub-agents (`code-reviewer`, `code-implementer`, `qa-engineer`).
