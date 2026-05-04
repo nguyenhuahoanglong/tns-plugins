@@ -31,6 +31,13 @@ The orchestrator runs at whatever model is active in the session (sonnet on Pro)
 
 ## Changelog
 
+### 2026-04-26 - v1.1.0 — Plan-as-source-of-truth
+
+- Phase 1.5 added: ensure plan has `Status` fields per task; auto-augment if missing
+- Implementer now reads plan.md from disk and updates its task `Status` field (`pending` → `in-progress` → `complete`/`blocked`) so progress is durable and visible between runs
+- Phase 3 reads plan.md to verify all tasks complete before declaring done; updates AC checkboxes and Meta Status
+- Implementer prompt template references plan path instead of inlining plan context
+
 ### 2026-04-24 - Initial creation
 
 - New skill: lightweight single-agent implementer for Claude Pro sessions

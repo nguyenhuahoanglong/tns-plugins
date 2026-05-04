@@ -1,7 +1,7 @@
 {
   "name": "dev-workflow",
-  "version": "3.1.0",
-  "description": "Pro-friendly team dev loop: plan with implement-feature, execute with implement-plan-lite, review with code-review-lite. Bundles the code-reviewer, code-implementer, and qa-engineer sub-agents.",
+  "version": "4.0.0",
+  "description": "Team dev kit: workflow loop (plan/implement/review) + Dataverse & Power Platform dev. Authoring (C# IPlugin pipeline, JS web resources, PCF controls — DanielKerridge) + ops (env/schema/CRUD/solution/admin/security via Dataverse MCP — Microsoft).",
   "author": {
     "name": "Yana Team"
   }
