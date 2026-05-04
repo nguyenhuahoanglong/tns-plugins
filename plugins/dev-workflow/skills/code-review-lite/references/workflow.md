@@ -32,6 +32,16 @@ git log --oneline -10
 git merge-base origin/main HEAD
 ```
 
+## 1.5 Neighbor Discovery
+
+For each changed file, glob 2–3 exemplar files (cap 3 per changed file):
+
+- Same folder
+- Same suffix (e.g., `*Service.cs`, `*Handler.ts`, `*.test.tsx`)
+- Same feature folder
+
+Skip if no siblings exist (brand-new folder, isolated file). Output a map `{changed_file: [exemplar_paths]}`. Pass exemplar paths + brief excerpts to the Quality Reviewer in Phase 3.
+
 ## 2. Collect Changes
 
 ### Primary: Target Branch from PR

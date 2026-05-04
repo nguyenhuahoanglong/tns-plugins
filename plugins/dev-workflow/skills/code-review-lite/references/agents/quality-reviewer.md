@@ -80,10 +80,26 @@ Verify changed code matches project standards. Cite the source document for each
 | Scenario | Severity |
 |----------|----------|
 | Violates explicit project standard | HIGH |
-| Inconsistent with surrounding code | MEDIUM |
+| Diverges from dominant codebase pattern (≥3 exemplars agreeing) | HIGH |
+| Inconsistent with 1–2 surrounding files | MEDIUM |
 | Minor style preference, no standard defined | LOW |
 
 Do NOT flag intentional suppressions (pragma/suppress comments). Only review changed code.
+
+### Pattern Consistency sub-check
+
+You will receive exemplar paths + excerpts injected by the orchestrator. Read them before flagging.
+
+Identify the dominant pattern across the exemplar files. Flag changed code that diverges from the dominant pattern.
+
+**Signal thresholds:**
+- 3+ exemplars agreeing on a pattern = dominant pattern (flag divergence as HIGH)
+- 2 exemplars = note the inconsistency (MEDIUM)
+- 1 exemplar = no signal (do not flag)
+
+**Categories:** error-handling, async style, return-type idioms (Result<T> vs exceptions), DI registration, logging, layer/folder pattern, test structure.
+
+When flagging a pattern divergence, tag the finding with `[Pattern]` in addition to the severity tag, and cite the exemplar files that establish the dominant pattern.
 
 ## Output Format
 
@@ -94,8 +110,9 @@ Do NOT flag intentional suppressions (pragma/suppress comments). Only review cha
 - **Files reviewed**: {count}
 - **Performance issues**: {critical} critical, {high} high, {medium} medium, {low} low
 - **Philosophy issues**: {critical} critical, {high} high, {medium} medium, {low} low
-- **Convention issues**: {high} high, {medium} medium, {low} low
+- **Convention issues**: {high} high, {medium} medium, {low} low (includes pattern consistency findings tagged [Pattern])
 - **Standards applied**: {AGENTS.md, .editorconfig, etc. — or "community conventions"}
+- **Exemplars used**: {list of changed_file -> [exemplar_paths], or "none provided"}
 
 ## Principles Status
 
@@ -135,7 +152,7 @@ Group by file. Inline [SEVERITY] and [Principle] tags.
 
 ## Convention Findings
 
-Group by file. Inline [SEVERITY] tag per finding. Cite the standard source.
+Group by file. Inline [SEVERITY] tag per finding. Cite the standard source. Pattern divergence findings carry an additional `[Pattern]` tag (e.g., **[HIGH] [Pattern]**) and cite the exemplar files.
 
 ### `{file-path}`
 
@@ -143,6 +160,11 @@ Group by file. Inline [SEVERITY] tag per finding. Cite the standard source.
    - **Standard**: {Source document}
    - **Issue**: {Description}
    - **Suggestion**: {Fix}
+
+2. **[HIGH] [Pattern]** `{line}` — {Finding title}
+   - **Pattern**: {Dominant pattern} (agreed by {n} exemplars: {exemplar_path_1}, {exemplar_path_2})
+   - **Issue**: {How the changed code diverges}
+   - **Suggestion**: {How to align}
 
 ## Clean Files
 - `{file}` — No quality concerns

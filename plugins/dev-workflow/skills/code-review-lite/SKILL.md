@@ -49,6 +49,7 @@ Run all steps in parallel:
 - **Diff** — full diff with context (`references/workflow.md` §2)
 - **Project types** — detect `.csproj`/`.sln` for .NET; `package.json` with `build` for Node/React
 - **Standards** — discover AGENTS.md, CLAUDE.md, `.editorconfig`, linter configs; capture for Quality Reviewer
+- **Neighbors** — Glob 2–3 exemplars per changed file (same folder, same suffix e.g. `*Service.cs` / `*Handler.ts` / `*.test.tsx`, same feature folder); cap 3 per file; skip if no siblings exist (`references/workflow.md` §1.5). Output: `{changed_file: [exemplar_paths]}` map.
 - **Worktree** — create IFF (target branch ≠ HEAD) OR (working tree dirty) OR (staged changes present); full recipe in `references/workflow.md` §3
 
 ## Phase 2: Build Gate
@@ -73,7 +74,7 @@ MUST spawn exactly 2 sonnet sub-agents in a single message for true parallelism:
 - Inject: full diff, changed file list, requirement text (if provided in Phase 0, else omit)
 
 **Quality Reviewer** (`references/agents/quality-reviewer.md`):
-- Inject: full diff, project type, discovered standards content
+- Inject: full diff, project type, discovered standards content, **exemplar paths + excerpts (from Neighbor Discovery)**
 
 Both agents work from the worktree path. They do not run git commands.
 

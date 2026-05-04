@@ -38,6 +38,13 @@ Lite writes to `.CodeReview/{BranchName}.lite.md` to avoid overwriting a prior f
 
 ## Changelog
 
+### 2026-05-03 — Pattern consistency added to Quality Reviewer
+
+- Added Phase 1 Neighbor Discovery step (Glob 2-3 exemplars per changed file)
+- Quality Reviewer Lens 3 now reads exemplars and flags divergence from dominant codebase patterns
+- Severity: divergence from >=3-neighbor dominant pattern -> HIGH
+- No new agent — keeps the 2-reviewer Pro-quota budget
+
 ### 2026-04-24 — Initial creation
 
 - Created `code-review-lite` as the lightweight sibling of `code-review`
