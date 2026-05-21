@@ -14,7 +14,7 @@ SITUATION?
 |   -> This skill: Phases 0-5 below
 |
 +-- Full review with ADO work items, requirement validation
-|   -> Use original `code-review` skill instead
+|   -> Use original `code-review-pro` skill instead
 |
 +-- Received code review feedback
 |   -> Feedback reception protocol in `references/feedback-reception.md`
@@ -103,4 +103,4 @@ If Task tool calls = 0 at the end of Phase 3, the workflow is INCOMPLETE.
 
 **NEVER write to `.CodeReview/{BranchName}.md`** — always use `.CodeReview/{BranchName}.lite.md` to avoid overwriting full review reports.
 
-**DO NOT duplicate** feedback-reception or requesting-review protocols here — those live in the original `code-review` skill references.
+**DO NOT duplicate** feedback-reception or requesting-review protocols here — those live in the original `code-review-pro` skill references.

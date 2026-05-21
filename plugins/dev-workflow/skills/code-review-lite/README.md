@@ -6,9 +6,9 @@ Lightweight parallel code review skill optimized for Claude Pro users. Dispatche
 
 ## Pain Points
 
-- **Pro quota burn from full pipeline** — the original `code-review` skill dispatches 6 sub-agents (2 opus inline + 4 sonnet + 1 haiku) per review. On a 5-hour Pro quota window this can consume most of the budget in a single review.
+- **Pro quota burn from full pipeline** — the original `code-review-pro` skill dispatches 6 sub-agents (2 opus inline + 4 sonnet + 1 haiku) per review. On a 5-hour Pro quota window this can consume most of the budget in a single review.
 - **Opus is expensive for routine checks** — the Approach Gate and synthesis in the full skill use opus inline. Most pre-merge checks don't need that depth.
-- **Quick mode rehomed** — "quick review" / "quick code review" triggers previously routed to the original skill's Quick Mode. That mode has been removed from `code-review` and is now served entirely by this skill.
+- **Quick mode rehomed** — "quick review" / "quick code review" triggers previously routed to the original skill's Quick Mode. That mode has been removed from `code-review-pro` and is now served entirely by this skill.
 - **Multi-project reviews (BE+FE) still needed** — lite preserves the N-parallel-haiku build pattern so a .NET + React repo pair still gets a build gate per project type.
 - **No ADO integration needed for sanity checks** — full skill pulls work items, validates acceptance criteria, and runs a requirement validator. Lite skips ADO entirely — no network dependency, no work item resolution, faster startup.
 
@@ -47,8 +47,8 @@ Lite writes to `.CodeReview/{BranchName}.lite.md` to avoid overwriting a prior f
 
 ### 2026-04-24 — Initial creation
 
-- Created `code-review-lite` as the lightweight sibling of `code-review`
-- Rehomed "quick review" / "quick code review" trigger from original `code-review` (Quick Mode removed there)
+- Created `code-review-lite` as the lightweight sibling of `code-review-pro` (then named `code-review`; renamed 2026-05-21)
+- Rehomed "quick review" / "quick code review" trigger from original `code-review-pro` (Quick Mode removed there)
 - 2-sonnet reviewer design (Critical + Quality with 3 merged lenses) replaces 5-agent deep dive
 - N-haiku build gate preserved; opus removed; synthesis inline
 - `.lite.md` report path avoids collision with full review reports
