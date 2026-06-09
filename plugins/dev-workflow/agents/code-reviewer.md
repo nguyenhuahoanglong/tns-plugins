@@ -1,9 +1,9 @@
 ---
 name: code-reviewer
 description: "Thorough PR/code review agent. Follows review criteria from the orchestrator. Analyzes diffs against project standards, SOLID/DRY/KISS, security, and correctness. Reports findings back to orchestrator for synthesis."
-model: sonnet
+modelIntent: standard
 iconColor: "#FF5722"
-tools: Read, Bash, Grep, Glob
+capabilities: [read_files, run_shell, search_files]
 skills:
   - code-review-lite
 ---
@@ -27,11 +27,13 @@ Determine what to review from the orchestrator's input — PR, branch diff, or s
 
 ### Step 2: Discover Project Standards
 
-Read project-root documents in priority order: `AGENTS.md`, `CLAUDE.md`, `.instructions.md` files, anything under `.docs/`. Capture naming conventions, patterns, and explicit rules. Fall back to language community conventions if none found.
+Read project-root documents in priority order: `AGENTS.md`, `CLAUDE.md`, `.codex/AGENTS.md`, `.github/copilot-instructions.md`, `.instructions.md` files, anything under `.docs/`. Capture naming conventions, patterns, and explicit rules. Fall back to language community conventions if none found.
 
 ### Step 3: Collect Changes
 
 Use `git diff` against the target branch for the full diff. For each changed file, read enough surrounding context to understand impact.
+
+If the orchestrator provides a full diff and explicitly says agents must not run git commands, treat that diff as authoritative and do not run git commands.
 
 ### Step 4: Track Progress
 
