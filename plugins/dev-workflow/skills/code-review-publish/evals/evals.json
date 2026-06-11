@@ -1,0 +1,38 @@
+{
+  "skill_name": "code-review-publish",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Post the code review in .CodeReview/US-410849.md as a comment on PR 75324.",
+      "expected_output": "A new active PR thread on PR 75324 whose comment body is the greeting line `Hi @<GUID>, please help me check this code review result:` followed by `---` and the full report, mentioning the PR author. No file is attached.",
+      "expectations": [
+        "Routes to PR mode (target is a PR, not a work item) and reads references/pr-publish.md",
+        "Uses scripts/pr_publish.py to compose and post — does not hand-build az rest calls",
+        "The comment body is the greeting + '---' + the FULL report inline (not summarized, no Must Fix shortlist extraction)",
+        "Runs ado_autolink_guard.py fix + check before composing the inline body so accidental #number refs are escaped",
+        "The mention token is `@<GUID>` using PR.createdBy resolved via az repos pr show (no identity-cache/Graph lookup)",
+        "Runs with --dry-run first to preview body + mention GUID before the real post",
+        "Persists state to .CodeReview/.{branch}.pr-publish.json with prId, threadId, commentId, iteration"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "The dev pushed fixes — follow up the review on PR 75324 with the updated report.",
+      "expected_output": "A fresh PR thread with the new report is posted AND the prior thread is resolved (status closed); state file iteration is bumped and the resolved thread id is recorded.",
+      "expectations": [
+        "Detects prior PR state (threadId present) and runs followup behaviour",
+        "Posts a NEW thread (does not edit the prior comment in place)",
+        "Resolves the prior thread via pr_publish.py publish --prior-thread <id> (PATCH status=closed)",
+        "Updates state: bumps iteration and appends the resolved thread id to priorThreadIds[]"
+      ]
+    }
+  ],
+  "non_goals": [
+    "Does not change the PR vote, status, or auto-complete settings — only thread status",
+    "Does not summarize, truncate, or drop report sections in PR mode (full report inline)",
+    "Does not publish accidental raw #number refs; only explicit work-item contexts keep raw #number",
+    "Does not attach a file in PR mode (attachment is WI-mode only)",
+    "Does not mention multiple reviewers unless explicitly asked (default = PR.createdBy)",
+    "Does not modify the existing work-item publish flow"
+  ]
+}
