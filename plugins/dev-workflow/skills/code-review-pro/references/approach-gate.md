@@ -59,7 +59,7 @@ Recommendation: {refactor approach / restart from spec / proceed to deep dive}
 Evidence:
 - {file}:{line} — {what's wrong}
 - AGENTS.md / standard: "{rule text}"
-- AC #{n}: "{criterion text}"
+- AC \#{n}: "{criterion text}"
 ```
 
 On PASS with concerns, append a "Pre-Findings (P1)" block listing approach observations the Requirement Validator should consider.

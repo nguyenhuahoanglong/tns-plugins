@@ -92,7 +92,7 @@ Pass the worktree path to each agent. Build Validator runs builds there; deep-di
 
 ## Phase 4: Priority-weighted Synthesis (Orchestrator, {{effort.deep}})
 
-**Read `references/report-template.md` in full before writing anything.** The template defines the exact section order, the by-file organization rule, and the Must Fix shortlist shape — without it loaded, severity-bucketed agent inputs will bias the output.
+**Read `references/report-template.md` in full before writing anything.** The template defines the exact section order, the by-file organization rule, the ADO autolink safety rule, and the Must Fix shortlist shape — without it loaded, severity-bucketed agent inputs will bias the output.
 
 Apply effort scaling from `references/analysis-framework.md`:
 
@@ -102,6 +102,15 @@ Apply effort scaling from `references/analysis-framework.md`:
 - **P5 (Standard Reviewer)** — spot-check pattern consistency findings against exemplars; trust convention findings unless they look off
 
 Deduplicate (same `file:line` from multiple agents → one entry with multi-tag, highest severity wins). Build errors → CRITICAL, warnings → MEDIUM. Approach pre-findings get `[Approach]` tag and feed the Requirement Fulfillment section. Write the final report to `.CodeReview/{BranchName}.md`.
+
+After writing any report, run the ADO autolink guard from the `code-review-publish` skill:
+
+```bash
+python <code-review-publish-skill>/scripts/ado_autolink_guard.py fix ".CodeReview/{BranchName}.md"
+python <code-review-publish-skill>/scripts/ado_autolink_guard.py check ".CodeReview/{BranchName}.md"
+```
+
+Do not declare the review complete until the guard passes. Raw `#123` is allowed only for intentional work-item links.
 
 **Organize Detailed Findings by file, never by severity.** Each agent emits severity-tagged findings per file; the report has one `### {file-path}` subsection per touched file. Severity appears only as an inline tag — never as a section heading. The Must Fix Before Merge shortlist at the top gives the at-a-glance severity view.
 

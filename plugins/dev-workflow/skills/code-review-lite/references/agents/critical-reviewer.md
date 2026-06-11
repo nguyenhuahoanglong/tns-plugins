@@ -1,8 +1,8 @@
 ---
 name: critical-reviewer
 description: Prompt template for the critical review agent — OWASP security checks, input tracing, secrets, and correctness gap analysis against user-provided requirements
-model: sonnet
-subagent_type: code-reviewer
+modelIntent: standard
+agentRole: code-reviewer
 ---
 
 # Critical Reviewer

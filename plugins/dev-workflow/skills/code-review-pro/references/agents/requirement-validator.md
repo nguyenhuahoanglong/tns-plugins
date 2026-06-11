@@ -88,12 +88,12 @@ Return your findings in this exact format:
 
 ## Findings
 
-Group findings by file. Within each file, list by severity (Critical → Low). Every finding carries an inline `[SEVERITY]` and `[finding-type]` tag (finding-type ∈ `Breaking change`, `Missing criterion AC #n`, `Partial criterion AC #n`, `Scope creep`, `Implicit requirement`) — do not use severity as a section heading. The orchestrator concatenates your findings with other agents' and deduplicates by `file:line`.
+Group findings by file. Within each file, list by severity (Critical → Low). Every finding carries an inline `[SEVERITY]` and `[finding-type]` tag (finding-type ∈ `Breaking change`, `Missing criterion AC \#n`, `Partial criterion AC \#n`, `Scope creep`, `Implicit requirement`) — do not use severity as a section heading. The orchestrator concatenates your findings with other agents' and deduplicates by `file:line`.
 
 ### `{file-path}`
 
 1. **[CRITICAL] [Breaking change]** `{line}` — {Finding title} — {Description}
-2. **[HIGH] [Missing criterion AC #3]** `{line}` — {Finding title} — {Description}
+2. **[HIGH] [Missing criterion AC \#3]** `{line}` — {Finding title} — {Description}
 
 ### `{next-file-path}`
 
@@ -103,7 +103,7 @@ If a finding is not tied to a specific file (e.g., an entire criterion has no im
 
 ### `[no file]`
 
-1. **[HIGH] [Missing criterion AC #5]** {Finding title} — {Description of what's missing and why no file could implement it}
+1. **[HIGH] [Missing criterion AC \#5]** {Finding title} — {Description of what's missing and why no file could implement it}
 
 ## Summary
 - **Criteria total**: {count}

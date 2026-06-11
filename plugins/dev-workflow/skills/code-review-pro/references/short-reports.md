@@ -9,6 +9,15 @@ Used when the orchestrator stops before deep dive because a gate failed.
 
 All variants write to `.CodeReview/{BranchName}.md` (same path as the full report; the file content differs).
 
+After writing either short report, run:
+
+```bash
+python <code-review-publish-skill>/scripts/ado_autolink_guard.py fix ".CodeReview/{BranchName}.md"
+python <code-review-publish-skill>/scripts/ado_autolink_guard.py check ".CodeReview/{BranchName}.md"
+```
+
+Raw `#number` is allowed only for intentional work-item links.
+
 ## Reject Report — Phase 2a fail
 
 Used when the Approach Gate fires REJECT. See `approach-gate.md` for the criteria.
@@ -29,7 +38,7 @@ Used when the Approach Gate fires REJECT. See `approach-gate.md` for the criteri
 
 - `{file}:{line}` — {what's wrong}
 - {standards file}: "{rule text}"
-- AC #{n}: "{criterion text}"
+- AC \#{n}: "{criterion text}"
 
 ## Recommendation
 

@@ -136,3 +136,10 @@ Write this report when any build validator returns `Gate Result: FAIL`. Then run
 
 Fix the build errors and re-run the review. Deep dive skipped to avoid reviewing broken code.
 ```
+
+After writing the build-fail report, run:
+
+```bash
+python <code-review-publish-skill>/scripts/ado_autolink_guard.py fix ".CodeReview/{BranchName}.lite.md"
+python <code-review-publish-skill>/scripts/ado_autolink_guard.py check ".CodeReview/{BranchName}.lite.md"
+```

@@ -1,6 +1,6 @@
 ---
 name: code-review-lite
-description: "Lightweight parallel code review: N haiku build gates + 2 sonnet reviewers (critical + quality). Use for quick review, lite review, pre-merge sanity checks."
+description: "Lightweight parallel code review: N fast build gates + 2 standard reviewers (critical + quality). Use for quick review, lite review, pre-merge sanity checks."
 ---
 
 # Code Review Lite
@@ -29,8 +29,8 @@ SITUATION?
 |-------|-------|-------|
 | 0. Scope Clarify | Orchestrator inline | — |
 | 1. Gather | Orchestrator inline | — |
-| 2. Build Gate | N sub-agents (1 per project type) | haiku |
-| 3. Review | 2 sub-agents (parallel) | sonnet |
+| 2. Build Gate | N sub-agents (1 per project type) | {{effort.fast}} |
+| 3. Review | 2 sub-agents (parallel) | {{effort.standard}} |
 | 4. Synthesize | Orchestrator inline | — |
 | 5. Cleanup | Orchestrator inline | — |
 
@@ -48,16 +48,20 @@ Run all steps in parallel:
 - **Scope** — PR metadata, target branch, or staged diff (`references/workflow.md` §1)
 - **Diff** — full diff with context (`references/workflow.md` §2)
 - **Project types** — detect `.csproj`/`.sln` for .NET; `package.json` with `build` for Node/React
-- **Standards** — discover AGENTS.md, CLAUDE.md, `.editorconfig`, linter configs; capture for Quality Reviewer
-- **Neighbors** — Glob 2–3 exemplars per changed file (same folder, same suffix e.g. `*Service.cs` / `*Handler.ts` / `*.test.tsx`, same feature folder); cap 3 per file; skip if no siblings exist (`references/workflow.md` §1.5). Output: `{changed_file: [exemplar_paths]}` map.
+- **Standards** — discover {{standards.discoveryFiles}}; capture for Quality Reviewer
+- **Neighbors** — use {{tool.fileSearch}} to find 2–3 exemplars per changed file (same folder, same suffix e.g. `*Service.cs` / `*Handler.ts` / `*.test.tsx`, same feature folder); cap 3 per file; skip if no siblings exist (`references/workflow.md` §1.5). Output: `{changed_file: [exemplar_paths]}` map.
 - **Worktree** — create IFF (target branch ≠ HEAD) OR (working tree dirty) OR (staged changes present); full recipe in `references/workflow.md` §3
 
 ## Phase 2: Build Gate
 
-MUST spawn one haiku `build-validator` sub-agent per detected project type. No cap on count. Run all in parallel.
+MUST spawn one {{effort.fast}} `build-validator` sub-agent per detected project type. No cap on count. Run all in parallel.
 
 ```
-Task(subagent_type="code-reviewer", prompt="[references/agents/build-validator.md content]\n\nProject path: {path}\nWorktree: {WORKTREE_PATH}", description="Build: {ProjectName}")
+{{agent.spawn.codeReviewer}}
+Prompt content: [references/agents/build-validator.md content]
+Project path: {path}
+Worktree: {WORKTREE_PATH}
+Description: Build: {ProjectName}
 ```
 
 **Decision after all build agents return:**
@@ -68,7 +72,7 @@ Task(subagent_type="code-reviewer", prompt="[references/agents/build-validator.m
 
 ## Phase 3: Review
 
-MUST spawn exactly 2 sonnet sub-agents in a single message for true parallelism:
+MUST spawn exactly 2 {{effort.standard}} sub-agents in a single message for true parallelism:
 
 **Critical Reviewer** (`references/agents/critical-reviewer.md`):
 - Inject: full diff, changed file list, requirement text (if provided in Phase 0, else omit)
@@ -87,6 +91,14 @@ Read `references/report-template.md` before writing. Then:
 3. Write Must Fix shortlist (Critical + High only, severity-sorted, capped ~10)
 4. Organize Detailed Findings by file (never by severity)
 5. Write report to `.CodeReview/{BranchName}.lite.md` — **never** `.CodeReview/{BranchName}.md`
+6. Run the ADO autolink guard from the `code-review-publish` skill:
+
+```bash
+python <code-review-publish-skill>/scripts/ado_autolink_guard.py fix ".CodeReview/{BranchName}.lite.md"
+python <code-review-publish-skill>/scripts/ado_autolink_guard.py check ".CodeReview/{BranchName}.lite.md"
+```
+
+Do not declare the review complete until the guard passes. Raw `#123` is allowed only for intentional work-item links.
 
 ## Phase 5: Cleanup
 
@@ -97,9 +109,9 @@ Read `references/report-template.md` before writing. Then:
 ## Enforcement
 
 **NEVER run review lenses yourself — DELEGATE all review work to sub-agents.**
-If Task tool calls = 0 at the end of Phase 3, the workflow is INCOMPLETE.
+If delegation calls = 0 at the end of Phase 3, the workflow is INCOMPLETE.
 
-**NEVER use opus in any phase.** Lite is designed for Pro quota budgets — opus is excluded by design.
+**NEVER use {{effort.deep}} in any phase.** Lite is designed for fast quota budgets — deep-effort orchestration is excluded by design.
 
 **NEVER write to `.CodeReview/{BranchName}.md`** — always use `.CodeReview/{BranchName}.lite.md` to avoid overwriting full review reports.
 

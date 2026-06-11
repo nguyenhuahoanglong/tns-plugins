@@ -13,6 +13,15 @@ Write the final report to: `.CodeReview/{BranchName}.md`
 
 If the `.CodeReview/` directory doesn't exist, create it. Use the current branch name (sanitized for filesystem) as the filename.
 
+## ADO Autolink Safety
+
+ADO renders raw `#123` as a work-item link. Emit raw `#number` only when the text intentionally links a work item, e.g. `Work Item #1795` or `Parent #1696`. Escape all other number references with a backslash: `PR \#1489`, `AC \#4`, `Philosophy \#23`. After writing the report, run:
+
+```bash
+python <code-review-publish-skill>/scripts/ado_autolink_guard.py fix ".CodeReview/{BranchName}.md"
+python <code-review-publish-skill>/scripts/ado_autolink_guard.py check ".CodeReview/{BranchName}.md"
+```
+
 ## Final Report Template
 
 ```markdown
@@ -147,3 +156,4 @@ Apply priority-tier effort scaling from `analysis-framework.md` (P1 Requirement 
 5. **Agent attribution** — every finding tagged with source agent
 6. **Skipped agents** — mark "Skipped" in Summary; omit empty sections
 7. **Approach pre-findings** — concerns from a PASS-with-concerns gate → P1 findings tagged `[Approach]`
+8. **ADO autolink guard** — run `ado_autolink_guard.py fix` then `check` before declaring the report complete

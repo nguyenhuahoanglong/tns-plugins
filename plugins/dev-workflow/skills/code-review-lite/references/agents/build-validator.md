@@ -1,8 +1,8 @@
 ---
 name: build-validator
 description: Prompt template for the build validation agent — runs clean build to detect errors and warnings
-model: haiku
-subagent_type: code-reviewer
+modelIntent: fast
+agentRole: code-reviewer
 ---
 
 # Build Validator

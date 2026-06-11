@@ -337,7 +337,7 @@ All custom schema names must use your solution's publisher prefix (e.g., `new_`,
 ```
 pac solution list --environment <url>
 ```
-Or check `solutions/<SOLUTION_NAME>/Other/Solution.xml` after the first pull — look for `<CustomizationPrefix>`.
+Or check `solutions/<SOLUTION_NAME>/lib/Solution.xml` after the first pull — look for `<CustomizationPrefix>`.
 
 ---
 

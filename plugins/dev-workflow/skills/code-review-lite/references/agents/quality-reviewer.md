@@ -1,8 +1,8 @@
 ---
 name: quality-reviewer
 description: Prompt template for the quality review agent — three merged lenses: performance, philosophy (SOLID/DRY/KISS/YAGNI), and convention
-model: sonnet
-subagent_type: code-reviewer
+modelIntent: standard
+agentRole: code-reviewer
 ---
 
 # Quality Reviewer

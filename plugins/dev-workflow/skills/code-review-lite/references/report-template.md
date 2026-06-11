@@ -11,6 +11,15 @@ Write the final report to: `.CodeReview/{BranchName}.lite.md`
 
 If the `.CodeReview/` directory doesn't exist, create it. Use the current branch name (sanitized for filesystem) as the filename. **Always use the `.lite.md` suffix** — never write to `.CodeReview/{BranchName}.md` (that path is reserved for full reviews).
 
+## ADO Autolink Safety
+
+ADO renders raw `#123` as a work-item link. Emit raw `#number` only when the text intentionally links a work item, e.g. `Work Item #1795` or `Parent #1696`. Escape all other number references with a backslash: `PR \#1489`, `AC \#4`, `Quality finding \#23`. After writing the report, run:
+
+```bash
+python <code-review-publish-skill>/scripts/ado_autolink_guard.py fix ".CodeReview/{BranchName}.lite.md"
+python <code-review-publish-skill>/scripts/ado_autolink_guard.py check ".CodeReview/{BranchName}.lite.md"
+```
+
 ## Final Report Template
 
 ~~~markdown
@@ -90,3 +99,4 @@ One subsection per file that has findings. Files with zero findings are omitted 
 4. **Must Fix shortlist** — Critical and High findings only, severity-sorted, capped ~10
 5. **Agent attribution** — tag every finding: `[Critical]` for Critical Reviewer, `[Quality]` for Quality Reviewer, `[Build]` for Build Validator
 6. **Skipped sections** — if no findings for a file, omit from Detailed Findings; show "Clean" in Files Changed
+7. **ADO autolink guard** — run `ado_autolink_guard.py fix` then `check` before declaring the report complete
