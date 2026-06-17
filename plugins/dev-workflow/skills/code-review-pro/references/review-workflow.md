@@ -54,6 +54,8 @@ gh pr view --json targetBranch,title,body
 
 ## 2. Collect Changes
 
+Write the full diff ONCE to `.CodeReview/.{BranchName}.diff` (create `.CodeReview/` if missing; `SAFE_BRANCH="${SOURCE_BRANCH//\//-}"` — same sanitization as the report filename). Dispatch prompts pass this file's absolute path — never the diff content. Agents and the orchestrator read it from disk.
+
 ### Primary: Target Branch from PR
 
 ```bash
@@ -63,8 +65,8 @@ TARGET_BRANCH=$(az repos pr show --id <pr-id> --query targetRefName -o tsv | sed
 # List changed files
 git diff --name-only $(git merge-base origin/$TARGET_BRANCH HEAD)..HEAD
 
-# Full diff with generous context
-git diff --no-prefix -U50 $(git merge-base origin/$TARGET_BRANCH HEAD)..HEAD
+# Full diff with generous context, written once to the diff file
+git diff --no-prefix -U50 $(git merge-base origin/$TARGET_BRANCH HEAD)..HEAD > ".CodeReview/.${SAFE_BRANCH}.diff"
 ```
 
 ### Fallback: No PR
@@ -75,7 +77,7 @@ When no PR exists, ask the user for the target branch (default to `main`/`master
 
 ```bash
 git diff --cached --name-only
-git diff --cached --no-prefix -U50
+git diff --cached --no-prefix -U50 > ".CodeReview/.${SAFE_BRANCH}.diff"
 ```
 
 ### Large Diffs
@@ -88,7 +90,7 @@ If the diff is large, process files in batches. Prioritize:
 
 ## 3. Track Progress
 
-For multi-file reviews, use {{tool.progress}}:
+For multi-file reviews, use TodoWrite:
 - Create one item per file to review
 - Mark in-progress while analyzing
 - Mark completed after documenting findings
@@ -134,6 +136,9 @@ For each worktree from step 4:
 
 ```bash
 git worktree remove "$WORKTREE_PATH"
+rm -f ".CodeReview/.${SAFE_BRANCH}.diff"
 ```
+
+Delete only the diff file. KEEP `.CodeReview/{BranchName}.md` (the report) and `.CodeReview/.{BranchName}.review-meta.json` (the follow-up sidecar).
 
 Synthesis (Phase 4) re-reads flagged code, so cleanup runs AFTER synthesis — not after Phase 3.

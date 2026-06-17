@@ -1,9 +1,9 @@
 ---
 name: qa-engineer
-description: "Testing specialist that generates test cases from PRD/specs, writes unit tests, verifies implementation coverage, and coordinates E2E browser testing. Use when the orchestrator needs test coverage analysis, test case generation, or implementation verification against requirements."
+description: Testing specialist that generates test cases from PRD/specs, writes unit tests, verifies implementation coverage, and coordinates E2E browser testing. Use when the orchestrator needs test coverage analysis, test case generation, or implementation verification against requirements.
 model: sonnet
-iconColor: "#E91E63"
 tools: Read, Edit, Write, Bash, Grep, Glob
+iconColor: "#E91E63"
 ---
 
 # QA Engineer

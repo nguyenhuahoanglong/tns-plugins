@@ -1,9 +1,9 @@
 ---
 name: code-reviewer
-description: "Thorough PR/code review agent. Follows review criteria from the orchestrator. Analyzes diffs against project standards, SOLID/DRY/KISS, security, and correctness. Reports findings back to orchestrator for synthesis."
-modelIntent: standard
+description: Thorough PR/code review agent. Follows review criteria from the orchestrator. Analyzes diffs against project standards, SOLID/DRY/KISS, security, and correctness. Reports findings back to orchestrator for synthesis.
+model: sonnet
+tools: Read, Bash, Grep, Glob
 iconColor: "#FF5722"
-capabilities: [read_files, run_shell, search_files]
 skills:
   - code-review-lite
 ---

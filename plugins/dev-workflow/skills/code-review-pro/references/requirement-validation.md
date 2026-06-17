@@ -7,73 +7,55 @@ description: Orchestrator-side workflow for detecting, retrieving, and confirmin
 
 This file covers the orchestrator's pre-work: finding the work item, fetching its details, and confirming with the user. The actual validation against code changes is performed by the Requirement Validator agent (see `agents/requirement-validator.md`).
 
-## Phase 1: Detect Work Item
+## Prerequisites
 
-Look for work item IDs in these sources (in priority order):
+Requires Azure CLI. On first run: `az config set extension.use_dynamic_install=yes_without_prompt` (auto-installs the azure-devops extension). Auth via `az login` or set `AZURE_DEVOPS_EXT_PAT`.
 
-### Primary: From PR Linked Work Items (Azure DevOps CLI)
+## Phase 1 + 2: Detect and Retrieve (Script-driven)
+
+Run a single command — it detects the work item ID, fetches it (plus its parent), strips ADO's HTML, and returns prompt-ready markdown:
+
 ```bash
-# Get work items linked to the PR (most reliable source)
-az repos pr work-item list --id <pr-id>
-
-# Get PR details (description often contains work item references)
-az repos pr show --id <pr-id>
+python <code-review-pro-skill>/scripts/ado_work_item.py context [--pr {pr-id}] --repo {repo-path}
 ```
 
-PRs in Azure DevOps often have work items linked directly via the platform — this is the most reliable detection source.
+Pass `--pr {pr-id}` whenever a PR ID is known — the script reads PR-linked work items, the most reliable source. You may also pass `--id N` to pin a specific work item and skip detection.
 
-### From Commit Messages
-```bash
-# Check recent commits for work item patterns
-git log --oneline -20
+**Detection priority (what the script does internally):**
+1. PR linked work items via `az repos pr work-item list` (most reliable)
+2. Branch name patterns — e.g. `feature/1234-add-login`, `bug/WI-1234`
+3. Commit message patterns — `AB#1234`, `[WI:1234]`, `Fixes #1234`, `#1234` — scanned across the last 20 commit subjects
+
+One call handles detection + fetch + parent fetch + HTML stripping and prints a markdown block:
+
+```
+## Work Item #1234 — {title}
+- **Type/State**: User Story / Active
+- **Parent**: #1200 — {parent title} (Feature)
+- **Detected from**: branch name 'feature/1234-x'   (only when auto-detected)
+
+### Description
+{plain text}
+
+### Acceptance Criteria
+{plain text}
 ```
 
-Common patterns:
-- `#1234` — Generic work item reference
-- `AB#1234` — Azure DevOps format
-- `[WI:1234]` — Bracketed format
-- `Fixes #1234` / `Closes #1234` — GitHub format
+Extracted fields: Title, Description, Acceptance Criteria, State, plus Parent for broader context (why the work matters).
 
-### From Branch Name
-```bash
-git branch --show-current
-# Extract numeric ID from patterns like: feature/1234-add-login, bug/WI-1234
-```
+## Fallback Chain
 
-### Alternative: GitHub CLI
-```bash
-gh pr view --json body,title
-```
+Used when the script exits non-zero.
 
-### Fallback
-If no work item is detected, ask the user:
-> "I couldn't find a linked work item. Could you provide the requirement context — a work item ID, acceptance criteria, or description of what this change should accomplish?"
+### Exit 3 — no work item ID detectable
 
-## Phase 2: Retrieve Requirement
+1. Read `{repo}/.docs/ado-context.md` if present — match branch name or changed-path keywords against its epic/feature/story alias tables and propose a candidate to the user, e.g.: "This looks like User Story #2197 — correct?"
+2. If still nothing, ask the user:
+   > "I couldn't find a linked work item. Could you provide the requirement context — a work item ID, acceptance criteria, or description of what this change should accomplish?"
 
-Use the azdevops-operations skill to fetch work item details:
+### Exit 2 — az CLI not installed or not authenticated
 
-### Get Work Item
-```
-AzDevOps-GetWorkItemById -Id <detected-id>
-```
-
-Extract from the work item:
-- **Title** — What the work item is about
-- **Description** — Detailed requirement context
-- **Acceptance Criteria** — Specific conditions for completion
-- **State** — Current workflow state
-- **Priority** — Business priority level
-
-### Get Parent Work Item
-```
-AzDevOps-GetWorkItemById -Id <parent-id>
-```
-
-The parent (Feature or Epic) provides broader context:
-- Why this work is being done
-- How it fits into a larger initiative
-- Additional constraints or dependencies
+Report the az problem to the user and go straight to step 2 above.
 
 ## Phase 3: Confirm with User
 

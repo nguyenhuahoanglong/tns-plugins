@@ -2,31 +2,31 @@
 
 ## Purpose
 
-Lightweight parallel code review skill optimized for repeated low-cost reviews. Dispatches 2 {{effort.standard}} reviewers (Critical + Quality) and N {{effort.fast}} build validators (1 per detected project type) in parallel, synthesizes inline without {{effort.deep}}, and writes the result to `.CodeReview/{Branch}.lite.md`. Designed for repeated use within a single quota window — pre-merge sanity checks, quick review cycles, and multi-project (BE+FE) reviews that would burn too much quota on the full 6-agent pipeline.
+Lightweight parallel code review skill optimized for repeated low-cost reviews. Dispatches 2 sonnet reviewers (Critical + Quality) and N haiku build validators (1 per detected project type) in parallel, synthesizes inline without opus, and writes the result to `.CodeReview/{Branch}.lite.md`. Designed for repeated use within a single quota window — pre-merge sanity checks, quick review cycles, and multi-project (BE+FE) reviews that would burn too much quota on the full 6-agent pipeline.
 
 ## Pain Points
 
-- **Quota burn from full pipeline** — the original `code-review-pro` skill dispatches 6 sub-agents (2 {{effort.deep}} inline + 4 {{effort.standard}} + 1 {{effort.fast}}) per review. On a constrained quota window this can consume most of the budget in a single review.
-- **Deep reasoning is expensive for routine checks** — the Approach Gate and synthesis in the full skill use {{effort.deep}} inline. Most pre-merge checks don't need that depth.
+- **Quota burn from full pipeline** — the original `code-review-pro` skill dispatches 6 sub-agents (2 opus inline + 4 sonnet + 1 haiku) per review. On a constrained quota window this can consume most of the budget in a single review.
+- **Deep reasoning is expensive for routine checks** — the Approach Gate and synthesis in the full skill use opus inline. Most pre-merge checks don't need that depth.
 - **Quick mode rehomed** — "quick review" / "quick code review" triggers previously routed to the original skill's Quick Mode. That mode has been removed from `code-review-pro` and is now served entirely by this skill.
-- **Multi-project reviews (BE+FE) still needed** — lite preserves the N-parallel-{{effort.fast}} build pattern so a .NET + React repo pair still gets a build gate per project type.
-- **No ADO integration needed for sanity checks** — full skill pulls work items, validates acceptance criteria, and runs a requirement validator. Lite skips ADO entirely — no network dependency, no work item resolution, faster startup.
+- **Multi-project reviews (BE+FE) still needed** — lite preserves the N-parallel-haiku build pattern so a .NET + React repo pair still gets a build gate per project type.
+- **Lightweight ADO integration** — lite now auto-detects and fetches the linked user story via the bundled `scripts/ado_work_item.py` (az CLI), non-blocking — failure or skip never stops a review. Full work item confirmation and a dedicated requirement validator agent remain in `code-review-pro`.
 
 ## Design Notes
 
 ### 2-reviewer architecture
 
-Two {{effort.standard}} sub-agents run in parallel after the build gate passes:
+Two sonnet sub-agents run in parallel after the build gate passes:
 - **Critical Reviewer** — security (OWASP Top 10, input tracing, secrets) + correctness (gap analysis against any user-provided requirement text; skipped if none provided)
 - **Quality Reviewer** — 3 lenses merged into one agent: performance (algorithmic/DB/async checks), philosophy (SOLID/DRY/KISS/YAGNI), and convention (project AGENTS.md / .editorconfig / linter configs)
 
 ### N fast builds, no cap
 
-One {{effort.fast}} build-validator sub-agent per detected project type (`.csproj`/`.sln` for .NET, `package.json` with `build` script for Node/React). Fast validation is cheap enough that there is no reason to limit. Any `FAIL` → short Build Fail report + cleanup + STOP.
+One haiku build-validator sub-agent per detected project type (`.csproj`/`.sln` for .NET, `package.json` with `build` script for Node/React). Fast validation is cheap enough that there is no reason to limit. Any `FAIL` → short Build Fail report + cleanup + STOP.
 
 ### No deep reasoning
 
-Synthesis is done inline by the orchestrator. Deduplication, severity tagging, and report writing don't require deep reasoning — they're mechanical. {{effort.deep}} is intentionally excluded to stay within quota.
+Synthesis is done inline by the orchestrator. Deduplication, severity tagging, and report writing don't require deep reasoning — they're mechanical. opus is intentionally excluded to stay within quota.
 
 ### Worktree clean-state rule
 
@@ -49,6 +49,6 @@ Lite writes to `.CodeReview/{BranchName}.lite.md` to avoid overwriting a prior f
 
 - Created `code-review-lite` as the lightweight sibling of `code-review-pro` (then named `code-review`; renamed 2026-05-21)
 - Rehomed "quick review" / "quick code review" trigger from original `code-review-pro` (Quick Mode removed there)
-- 2-{{effort.standard}} reviewer design (Critical + Quality with 3 merged lenses) replaces 5-agent deep dive
-- N-{{effort.fast}} build gate preserved; {{effort.deep}} removed; synthesis inline
+- 2-sonnet reviewer design (Critical + Quality with 3 merged lenses) replaces 5-agent deep dive
+- N-haiku build gate preserved; opus removed; synthesis inline
 - `.lite.md` report path avoids collision with full review reports

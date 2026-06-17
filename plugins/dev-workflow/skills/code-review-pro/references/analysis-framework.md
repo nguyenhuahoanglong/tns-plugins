@@ -1,58 +1,11 @@
 ---
 name: analysis-framework
-description: Shared priority levels and review aspect definitions used across the multi-agent review pipeline and during synthesis
+description: Priority levels, P1-P5 verification tiers, synthesis effort scaling, and action classification used by the orchestrator during synthesis
 ---
 
 # Analysis Framework
 
-> **Note**: Individual agent review criteria are in `agents/`. This framework defines the shared priority levels and review aspects used by the orchestrator during the synthesis phase (Phase 3).
-
-For each changed file, the following aspects are covered by specialized agents:
-
-## Changes Overview
-
-| Field | Value |
-|-------|-------|
-| **File** | `{relative/path}` |
-| **Type** | New / Modified / Deleted / Renamed |
-| **Lines** | +{added} / -{removed} |
-
-## Behavior Analysis
-
-- **Before**: Previous behavior (or "N/A - New file")
-- **After**: Current behavior after change
-
-Understanding behavioral changes is critical — it reveals whether changes are intentional and whether side effects exist.
-
-## Review Aspects
-
-| Aspect | What to Check |
-|--------|---------------|
-| **Standards** | Naming conventions, formatting, documentation, consistency with project patterns |
-| **Performance** | Algorithm efficiency, resource management, async patterns, redundant operations, N+1 queries |
-| **Security** | Input validation, secrets exposure, injection risks (SQL, XSS, command), auth/authz checks |
-| **Requirements** | Business logic correctness, edge cases, acceptance criteria fulfillment |
-| **Domain** | Business terminology accuracy, architectural pattern compliance, workflow correctness |
-| **Maintainability** | Readability, testability, appropriate abstraction level, clear intent |
-
-## Principle Violations
-
-Flag violations of these principles:
-
-| Principle | Focus |
-|-----------|-------|
-| **SOLID** | Single responsibility, dependency inversion, interface segregation |
-| **DRY** | Duplicated logic, copy-paste code, repeated patterns that should be extracted |
-| **KISS** | Unnecessary complexity, over-engineering, premature optimization |
-| **YAGNI** | Unused code, speculative features, dead code paths |
-| **Separation of Concerns** | Layer boundaries, mixing business logic with infrastructure |
-| **Fail Fast** | Input validation at boundaries, early error detection, defensive programming |
-
-When flagging a violation:
-- Identify the specific code location
-- Explain why it's a violation
-- Suggest a concrete fix
-- Assess the impact (does it cause bugs, or just reduce maintainability?)
+> **Note**: Individual agent review criteria (review aspects, principles, technology checks) live in `agents/` — they are NOT repeated here. This framework defines only what the orchestrator needs for synthesis: priority levels, P1-P5 tiers, effort scaling, and action classification.
 
 ## Priority Levels
 
@@ -95,7 +48,7 @@ For each tier the orchestrator does (scaled — most rigor on P1):
 | **Fix suggestion quality** | Concrete patch sketch | Describe fix with example pattern | One-line note | One-line note |
 | **Cross-checking against spec/standards** | Re-quote the relevant criterion | Check standards doc if cited | Skip | Skip |
 
-This is why sub-agents use {{effort.standard}} for the broad scan, and the orchestrator uses {{effort.deep}} for the heavy verification on what matters most.
+This is why sub-agents use sonnet for the broad scan, and the orchestrator uses opus for the heavy verification on what matters most.
 
 ## Action Classification
 

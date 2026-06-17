@@ -42,6 +42,26 @@ For each changed file, glob 2–3 exemplar files (cap 3 per changed file):
 
 Skip if no siblings exist (brand-new folder, isolated file). Output a map `{changed_file: [exemplar_paths]}`. Pass exemplar paths + brief excerpts to the Quality Reviewer in Phase 3.
 
+## 1.6 Story Context
+
+Run after §1 (PR ID is known at this point):
+
+```bash
+python <code-review-lite-skill>/scripts/ado_work_item.py context [--pr {pr-id}]
+```
+
+**Exit-code semantics:**
+
+| Exit | Meaning | Action |
+|------|---------|--------|
+| 0 | Work item found and fetched | Use stdout markdown block as story context in Phase 3 |
+| 3 | No ID detectable from PR/branch/commits | Read `{repo}/.docs/ado-context.md` if present; match branch name or changed-path keywords against its epic/feature/story alias tables to propose ONE candidate. If no file exists or no match found, ask the user once for a work item ID or requirement text (skippable). |
+| 2 | `az` CLI unavailable or auth failure | Mention it once, then ask the same single question as exit 3. |
+
+**Hard rule**: at most ONE question to the user about story context. If they skip (or don't reply), proceed with no story context. Never retry the script.
+
+User-provided text from Phase 0 always wins — skip the script entirely if the user already supplied requirement text.
+
 ## 2. Collect Changes
 
 ### Primary: Target Branch from PR

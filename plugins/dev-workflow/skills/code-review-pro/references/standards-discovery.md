@@ -7,11 +7,13 @@ description: How to discover project-specific coding standards and conventions b
 
 Before reviewing code, discover what standards apply to this project. This ensures findings align with actual project conventions, not just generic best practices.
 
+> **Token rule**: the orchestrator collects **file paths** here (standards docs + exemplar files) and passes them to the Standard Reviewer in the dispatch prompt. The agent reads the content itself — never paste standards or exemplar content into the dispatch.
+
 ## Discovery Steps
 
 ### 1. Search for Instruction Files
 
-Use {{tool.fileSearch}} to find project-specific standards:
+Use Glob/Grep to find project-specific standards:
 
 ```
 Patterns to search:
@@ -45,7 +47,7 @@ Priority directories:
 
 ### 3. Examine Existing Code Patterns (Mandatory)
 
-**Always run this step** — even when explicit standards exist. Use {{tool.fileSearch}} to find 2–3 sibling files per changed file (same folder, same suffix, same feature folder) and read them for dominant patterns. This is the exemplar discovery step that feeds the Standard Reviewer.
+**Always run this step** — even when explicit standards exist. Use Glob/Grep to find 2–3 sibling files per changed file (same folder, same suffix, same feature folder) and read them for dominant patterns. This is the exemplar discovery step that feeds the Standard Reviewer.
 
 Identify dominant patterns across these categories:
 - Naming conventions (camelCase, PascalCase, snake_case)
@@ -73,7 +75,7 @@ Apply standards in this order (highest priority first):
 
 ## What to Extract
 
-From discovered standards, note:
+The Standard Reviewer (not the orchestrator) extracts these from the discovered files:
 
 | Category | Examples |
 |----------|----------|

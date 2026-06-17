@@ -2,8 +2,8 @@
 name: code-implementer
 description: "Multi-file code implementation agent. Follows detailed plans from the orchestrator. Reads project AGENTS.md and coding standards, then executes the provided implementation plan. Does not make architectural decisions — those come from the main agent's plan."
 model: sonnet
-iconColor: "#9C27B0"
 tools: Read, Edit, Write, Bash, Grep, Glob
+iconColor: "#9C27B0"
 skills:
   - implement-plan-lite
   - code-review-lite

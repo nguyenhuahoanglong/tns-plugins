@@ -7,6 +7,8 @@ description: Template for the final synthesized code review report — merges fi
 
 For early-exit variants (gate REJECT, build FAIL), see `short-reports.md`.
 
+Follow-up reviews (`followup-review.md`) regenerate this SAME full report — resolved findings are dropped, remaining findings keep their `[mf:slug]` tags unchanged, new findings get new slugs. `code-review-publish` diffs slug sets across iterations, so a partial/appended report would break it.
+
 ## Output Location
 
 Write the final report to: `.CodeReview/{BranchName}.md`
@@ -30,8 +32,10 @@ python <code-review-publish-skill>/scripts/ado_autolink_guard.py check ".CodeRev
 **Date**: {YYYY-MM-DD}
 **Source**: {branch/commit/PR}
 **Target**: {target-branch}
+**Reviewed Commit**: {HEAD sha at review time}
+**Iteration**: {n — 1 for the initial full review; incremented by follow-up reviews}
 **Files Reviewed**: {count}
-**Agents**: {list of agents that ran, e.g., "Build, Standard Reviewer, Philosophy, Security, Performance, Requirement"}
+**Agents**: {list of agents that ran, e.g., "Build, Standard Reviewer, Philosophy, Security, Performance, Requirement" — or "Build, Delta Reviewer" on follow-up}
 
 ---
 
@@ -65,13 +69,13 @@ python <code-review-publish-skill>/scripts/ado_autolink_guard.py check ".CodeRev
 
 | Dimension | Agent | Status | Notes |
 |-----------|-------|--------|-------|
-| Approach | Orchestrator inline ({{effort.deep}}) | Pass / Pass-with-concerns | {brief} |
-| Build | Build Validator ({{effort.fast}}) | Pass / Fail / Skipped | {brief} |
-| Requirements (P1) | Requirement Validator ({{effort.standard}}) | Pass / Warn / Skipped | {brief} |
-| Performance (P2) | Performance Reviewer ({{effort.standard}}) | Pass / Warn | {brief} |
-| Security (P3) | Security Reviewer ({{effort.standard}}) | Pass / Warn | {brief} |
-| Philosophy (P4) | Philosophy Reviewer ({{effort.standard}}) | Pass / Warn | {brief} |
-| Standards (P5) | Standard Reviewer ({{effort.standard}}) | Pass / Warn | {brief} |
+| Approach | Orchestrator inline (opus) | Pass / Pass-with-concerns | {brief} |
+| Build | Build Validator (haiku) | Pass / Fail / Skipped | {brief} |
+| Requirements (P1) | Requirement Validator (sonnet) | Pass / Warn / Skipped | {brief} |
+| Performance (P2) | Performance Reviewer (sonnet) | Pass / Warn | {brief} |
+| Security (P3) | Security Reviewer (sonnet) | Pass / Warn | {brief} |
+| Philosophy (P4) | Philosophy Reviewer (sonnet) | Pass / Warn | {brief} |
+| Standards (P5) | Standard Reviewer (sonnet) | Pass / Warn | {brief} |
 
 ### Findings Count
 

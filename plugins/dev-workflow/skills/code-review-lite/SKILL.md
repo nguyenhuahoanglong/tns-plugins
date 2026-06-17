@@ -13,8 +13,8 @@ SITUATION?
 +-- "Quick review" / "lite review" / "pre-merge sanity check"
 |   -> This skill: Phases 0-5 below
 |
-+-- Full review with ADO work items, requirement validation
-|   -> Use original `code-review-pro` skill instead
++-- Full review with confirmed work item + dedicated requirement validation
+|   -> Use `code-review-pro` skill instead
 |
 +-- Received code review feedback
 |   -> Feedback reception protocol in `references/feedback-reception.md`
@@ -29,8 +29,8 @@ SITUATION?
 |-------|-------|-------|
 | 0. Scope Clarify | Orchestrator inline | — |
 | 1. Gather | Orchestrator inline | — |
-| 2. Build Gate | N sub-agents (1 per project type) | {{effort.fast}} |
-| 3. Review | 2 sub-agents (parallel) | {{effort.standard}} |
+| 2. Build Gate | N sub-agents (1 per project type) | haiku |
+| 3. Review | 2 sub-agents (parallel) | sonnet |
 | 4. Synthesize | Orchestrator inline | — |
 | 5. Cleanup | Orchestrator inline | — |
 
@@ -40,7 +40,7 @@ If scope is explicit (branch name, PR ID, file list, "staged changes"), skip to 
 
 If scope is vague, ask at most 2 questions:
 1. "What branch or files should I review? (or 'staged changes' to review what's staged)"
-2. "Any specific requirement text to validate against? (optional — skip to focus on security/quality only)"
+2. "Any specific requirement text to validate against? (optional — if skipped, the linked work item is auto-detected in Phase 1)"
 
 ## Phase 1: Gather
 
@@ -48,16 +48,19 @@ Run all steps in parallel:
 - **Scope** — PR metadata, target branch, or staged diff (`references/workflow.md` §1)
 - **Diff** — full diff with context (`references/workflow.md` §2)
 - **Project types** — detect `.csproj`/`.sln` for .NET; `package.json` with `build` for Node/React
-- **Standards** — discover {{standards.discoveryFiles}}; capture for Quality Reviewer
-- **Neighbors** — use {{tool.fileSearch}} to find 2–3 exemplars per changed file (same folder, same suffix e.g. `*Service.cs` / `*Handler.ts` / `*.test.tsx`, same feature folder); cap 3 per file; skip if no siblings exist (`references/workflow.md` §1.5). Output: `{changed_file: [exemplar_paths]}` map.
+- **Standards** — discover AGENTS.md, CLAUDE.md, .editorconfig, *.instructions.md, linter configs; capture for Quality Reviewer
+- **Neighbors** — use Glob/Grep to find 2–3 exemplars per changed file (same folder, same suffix e.g. `*Service.cs` / `*Handler.ts` / `*.test.tsx`, same feature folder); cap 3 per file; skip if no siblings exist (`references/workflow.md` §1.5). Output: `{changed_file: [exemplar_paths]}` map.
+- **Story context** — `python <code-review-lite-skill>/scripts/ado_work_item.py context [--pr {pr-id}]` (`references/workflow.md` §1.6). Exit 0 → keep the markdown block for Phase 3. Exit 3/2 → fallback: check `.docs/ado-context.md` alias tables for a candidate, else ask the user ONCE for a work item ID or requirement text (skippable — skip means review proceeds without story context). User-provided text from Phase 0 always wins over fetched context.
 - **Worktree** — create IFF (target branch ≠ HEAD) OR (working tree dirty) OR (staged changes present); full recipe in `references/workflow.md` §3
+
+> **Prerequisites for story fetch**: Azure CLI required; first run: `az config set extension.use_dynamic_install=yes_without_prompt`; auth via `az login` or `AZURE_DEVOPS_EXT_PAT`. Fetch failure never blocks the review.
 
 ## Phase 2: Build Gate
 
-MUST spawn one {{effort.fast}} `build-validator` sub-agent per detected project type. No cap on count. Run all in parallel.
+MUST spawn one haiku `build-validator` sub-agent per detected project type. No cap on count. Run all in parallel.
 
 ```
-{{agent.spawn.codeReviewer}}
+Task(subagent_type="code-reviewer", prompt="...", description="...")
 Prompt content: [references/agents/build-validator.md content]
 Project path: {path}
 Worktree: {WORKTREE_PATH}
@@ -72,10 +75,10 @@ Description: Build: {ProjectName}
 
 ## Phase 3: Review
 
-MUST spawn exactly 2 {{effort.standard}} sub-agents in a single message for true parallelism:
+MUST spawn exactly 2 sonnet sub-agents in a single message for true parallelism:
 
 **Critical Reviewer** (`references/agents/critical-reviewer.md`):
-- Inject: full diff, changed file list, requirement text (if provided in Phase 0, else omit)
+- Inject: full diff, changed file list, story context (user-provided text from Phase 0, else the fetched work item block, else omit)
 
 **Quality Reviewer** (`references/agents/quality-reviewer.md`):
 - Inject: full diff, project type, discovered standards content, **exemplar paths + excerpts (from Neighbor Discovery)**
@@ -111,7 +114,9 @@ Do not declare the review complete until the guard passes. Raw `#123` is allowed
 **NEVER run review lenses yourself — DELEGATE all review work to sub-agents.**
 If delegation calls = 0 at the end of Phase 3, the workflow is INCOMPLETE.
 
-**NEVER use {{effort.deep}} in any phase.** Lite is designed for fast quota budgets — deep-effort orchestration is excluded by design.
+**NEVER ask more than one story-context question.** If the user skips, proceed without — story fetch must never block a lite review.
+
+**NEVER use opus in any phase.** Lite is designed for fast quota budgets — deep-effort orchestration is excluded by design.
 
 **NEVER write to `.CodeReview/{BranchName}.md`** — always use `.CodeReview/{BranchName}.lite.md` to avoid overwriting full review reports.
 

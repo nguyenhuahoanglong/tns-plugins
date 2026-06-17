@@ -65,7 +65,7 @@ Gate Result: PASS | FAIL
 1. **`{file}:{line},{col}`** — {warning-code}: {message}
 
 ## Notes
-{Any observations — missing SDKs, version mismatches, etc.}
+{Max 3 sentences — missing SDKs, version mismatches, etc.}
 ```
 
 **Gate Result rules:**
