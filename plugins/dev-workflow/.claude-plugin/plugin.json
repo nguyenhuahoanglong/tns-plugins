@@ -1,6 +1,6 @@
 {
   "name": "dev-workflow",
-  "version": "4.2.0",
+  "version": "4.3.0",
   "description": "Team dev kit: workflow loop (plan/implement/review) + Dataverse & Power Platform dev. Authoring (C# IPlugin pipeline, JS web resources, PCF controls — DanielKerridge) + ops (env/schema/CRUD/solution/admin/security via Dataverse MCP — Microsoft).",
   "author": {
     "name": "Yana Team"

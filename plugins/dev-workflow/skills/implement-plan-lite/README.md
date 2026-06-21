@@ -43,6 +43,6 @@ The orchestrator runs at whatever model is active in the session (sonnet on Pro)
 - New skill: lightweight single-agent implementer for Claude Pro sessions
 - Strict input contract: plan file required; inline text and ADO IDs rejected
 - Plan-quality gate: goal + file list + ACs/verification — any missing stops execution
-- Scope cap: 6 files; larger plans redirected to `implement-feature`
+- Scope cap: 6 files; larger plans redirected to `implement-plan`
 - Single sonnet dispatch with SendMessage retry on blocker; fresh agent on build failure
 - References: `implementer-prompt.md` with Context Sizing, Dispatch, Blocker, and Build-Failure templates

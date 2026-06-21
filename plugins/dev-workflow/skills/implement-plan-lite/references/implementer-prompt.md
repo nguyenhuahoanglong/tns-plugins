@@ -1,116 +1,100 @@
 # Implementer Prompt Templates
 
-Prompt templates for dispatching the code-implementer sub-agent in Phase 2. Fill placeholders before dispatching.
+Tool-agnostic templates for the single code-implementer sub-agent in Phase 2. Fill placeholders, then **dispatch the way your tool delegates** (Claude Code spawns a sub-agent; Codex delegates per its own mechanism). Never hardcode a model tier.
 
 The plan file is the single source of truth. The implementer reads it, sets its task `Status` to `in-progress`, implements, then sets `Status` to `complete`.
 
-## Context Sizing Guidelines
+## Context sizing
 
 | Content | Rule |
 |---|---|
 | Plan file | Pass the path — do NOT inline. Agent reads it itself. |
-| File content | Never inject — agent reads files via Read tool |
-| Coding standards | Point to AGENTS.md path — agent reads it itself |
-| Codebase patterns | Brief note on patterns to follow (e.g., "follow existing repository pattern in `UserRepository.cs`") |
+| File content | Never inject — agent reads files via its tools. |
+| Coding standards | Point to AGENTS.md path. |
+| Patterns | Brief note (e.g., "follow `UserRepository.cs`"). |
 
-## Code-Implementer Dispatch
-
-Dispatch a single agent for the full plan scope.
+## Implementer dispatch (single agent, full scope)
 
 ```
-Task({
-  subagent_type: "code-implementer",
-  description: "Implement: {plan-title}",
-  prompt: `
-Implement the plan described in the file below.
+Dispatch a code-implementer sub-agent:
+
+Implement the plan in the file below.
 
 ## Project
-Path: {project-root}
-Read the project's AGENTS.md for coding standards before writing any code.
+Path: {project-root} — read AGENTS.md for coding standards first.
 
 ## Plan
-**File**: {plan-file-path}
-**Your task heading**: ### Task {N}: {task-name}   (typically Task 1 in lite)
+File: {plan-file-path}
+Your task heading: ### Task {N}: {task-name}   (typically Task 1 in lite)
+Read the plan. The Goal and ACs apply; your work covers the files under your task heading.
 
-Read the plan file first. The Goal and ACs at the top apply; your work covers the
-files listed under your task heading.
-
-## Patterns to Follow
-{brief note on existing patterns to match, if identified in Phase 1}
+## Patterns to follow
+{brief note, if identified in Phase 1}
 
 ## Workflow
-1. Read {plan-file-path}
-2. Edit plan.md to set your task's **Status** from \`pending\` to \`in-progress\`
-3. Implement the task — only modify files listed under your task heading
-4. When done, edit plan.md to set your task's **Status** to \`complete\`
-5. Return a brief summary of what you changed
+1. Read {plan-file-path}.
+2. Set your task's Status from `pending` to `in-progress` in the plan.
+3. Implement — only modify files listed under your task heading.
+4. Set your task's Status to `complete` when done.
+5. Return a brief summary of what changed.
 
 ## Rules
-- ONLY modify files listed under your task heading in plan.md (plus plan.md itself for status updates)
-- Follow existing code patterns and project conventions
-- No unnecessary abstractions — match the codebase style
-- If you hit a blocking issue you cannot resolve (architectural decision, ambiguous
-  requirement, conflicting patterns), set your task **Status** to \`blocked\` in plan.md,
-  return your partial progress, and describe the specific blocker. You will receive
-  guidance and continue.
-  `
-})
+- Only modify files under your task heading (plus the plan's status line). Match existing patterns;
+  no unnecessary abstractions.
+- If you hit a blocker you cannot resolve, set Status to `blocked`, return partial progress and the
+  specific question.
 ```
 
-## Blocker Resolution (SendMessage)
+> Lite is single-agent, so the implementer updating its own status line is safe (no parallel writers). This differs from the flagship `implement-plan`, where the main agent owns status writes.
 
-When the agent reports a blocker, continue it with guidance — this preserves all context (files read, partial edits, mental model). Use only once; if still blocked, set task Status to `blocked` in plan.md and report to user.
+## Blocker resolution (fresh agent)
 
-```
-SendMessage({
-  to: "{agent-id}",
-  message: `
-Guidance on your blocker:
-
-{analysis and decision on the specific question}
-
-Continue implementing. When done, set your task **Status** in {plan-file-path}
-to \`complete\`. If you encounter another issue, report what you have completed and
-the new blocker.
-  `
-})
-```
-
-**When to use SendMessage vs fresh agent:**
-- **SendMessage** — agent hit a design/pattern question; has partial work done
-- **Fresh agent** — build failure retry (clean slate with error output is more effective)
-
-## Build-Failure Retry
-
-When Phase 3 build check fails, dispatch a fresh code-implementer with the error context.
+When the agent reports a blocker, decide the question and dispatch a **fresh** code-implementer — this works in both Claude Code and Codex (no reliance on resuming a live agent). Use once; if still blocked, set the task `Status: blocked` and report to the user.
 
 ```
-Task({
-  subagent_type: "code-implementer",
-  description: "Fix build: {error-summary}",
-  prompt: `
-Fix the build error in project: {project-root}
-Read the project's AGENTS.md for coding standards.
+Dispatch a code-implementer sub-agent:
+
+Continue the plan — a prior attempt hit a blocker.
+
+## Project / Plan
+{project-root}; plan file {plan-file-path}; task heading ### Task {N}.
+
+## Blocker + decision
+{the specific question} → {your decision/approach}
+
+## Prior progress
+{partial-progress summary the blocked agent returned}
+
+## Workflow
+Finish per the decision; set the task Status to `complete`; return a summary.
+If you hit a new blocker, report it.
+```
+
+## Build-failure retry (fresh agent)
+
+When the Phase 3 build check fails, dispatch a fresh code-implementer with the error context.
+
+```
+Dispatch a code-implementer sub-agent:
+
+Fix the build error in project: {project-root}. Read AGENTS.md for standards.
 
 ## Plan
-**File**: {plan-file-path} — read for context on what was being built.
+File: {plan-file-path} — read for context on what was being built.
 
-## Build Error
+## Build error
 {full error output}
 
-## Files Involved
-{files from the failed task that likely caused the error}
+## Files involved
+{files from the task that likely caused the error}
 
 ## Workflow
-1. Read plan.md for context
-2. Diagnose and fix the build error
-3. If a specific task in plan.md was the cause, update its **Status** to reflect the fix
-4. Return a brief summary
+1. Read the plan for context.
+2. Diagnose and fix the build error.
+3. If a specific task caused it, update that task's Status to reflect the fix.
+4. Return a brief summary.
 
 ## Rules
-- Focus ONLY on fixing the build error
-- Do not refactor or add features beyond what is needed for the fix
-- If the error requires an architectural change, report it instead of guessing
-  `
-})
+- Focus ONLY on fixing the build error. No refactors or new features.
+- If the fix needs an architectural change, report it instead of guessing.
 ```

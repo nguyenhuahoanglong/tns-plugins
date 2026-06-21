@@ -91,7 +91,7 @@ Core rules (full detail in `best-practices.md`):
 
 ## Step 5: Spec-first / parallel mode
 
-When generating tests *while* an implementer builds the function (e.g. dispatched concurrently from `implement-plan` / `implement-feature`):
+When generating tests *while* an implementer builds the function (e.g. dispatched concurrently from `implement-plan`):
 
 - Derive tests from the **spec/acceptance criteria**, not from code that may not exist yet.
 - It is expected and correct for these tests to be **RED** (failing/not-compiling) until the implementation lands — they encode the contract.

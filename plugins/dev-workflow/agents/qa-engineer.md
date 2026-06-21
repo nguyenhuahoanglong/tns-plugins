@@ -138,7 +138,7 @@ All artifacts are grouped by feature under `.qa/`:
 **Use the `unit-testing` skill** for unit/component tests — it carries the best-practice depth (per-stack syntax via `detect_test_framework.py`, AAA/naming/mock-at-boundary rules, the **legacy characterization** strategy, and **spec-first/parallel** generation). This phase routes the work; the skill does the *how*. Two modes worth calling out:
 
 - **Legacy mode** — target has no/low coverage and is about to change: generate **characterization tests** that pin current behavior first (regression net), labeled as such, *before* any behavior-changing work.
-- **Spec-first/parallel mode** — invoked alongside an implementer (e.g. from `implement-plan`/`implement-feature`): derive tests from the spec/acceptance criteria; they are expected to be RED until the code lands. Never write the source files the implementer owns.
+- **Spec-first/parallel mode** — invoked alongside an implementer (e.g. from `implement-plan`): derive tests from the spec/acceptance criteria; they are expected to be RED until the code lands. Never write the source files the implementer owns.
 
 1. Read test cases (from `.qa/{feature-name}/test-cases/` or orchestrator-provided path); in spec-first mode, work from the spec/AC directly
 2. Detect project test framework (run the skill's `detect_test_framework.py` — do not assume Vitest vs Jest):

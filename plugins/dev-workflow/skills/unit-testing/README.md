@@ -18,7 +18,7 @@ Generates best-practice unit and component tests for the team's stacks — C# (.
 - **Scope = unit + component only.** E2E/Playwright stays in `qa-engineer`/`browser-skill` to prevent duplication.
 - **Legacy = characterization (golden master), Feathers' method.** Chosen over pure snapshot testing as the primary path; snapshots offered as a faster variant for complex output.
 - **Stack references grounded against current docs:** FakeXrmEasy v3 (`MiddlewareBuilder`, license required), FluentAssertions v8 licensing caveat, MSW v2 `http` API, userEvent v14, PCF `ComponentFramework-Mock` helper.
-- Integrates automatically with `implement-feature` / `implement-plan` because those already dispatch `qa-engineer`.
+- Integrates automatically with `implement-plan` because it already dispatches `qa-engineer`.
 
 ## Changelog
 

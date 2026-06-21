@@ -18,7 +18,7 @@ Execute an existing plan file using a single code-implementer sub-agent. You (ma
 | Path to a `.md` plan file | Read as plan; plan folder = parent directory; plan path = the file |
 | Folder path (e.g., `.backlog/{feature}/`) | Look for `{feature-name}-plan.md` first, then legacy `plan.md`; plan folder = the folder |
 | No argument | Ask user for plan file path — do NOT offer inline alternative |
-| Inline text / free-form description | REJECT — respond: "implement-plan-lite requires an existing plan file. Use `/plan` or `implement-feature` to generate one first, then invoke lite with the resulting plan path." |
+| Inline text / free-form description | REJECT — respond: "implement-plan-lite requires an existing plan file. Use `implement-plan` to interview + generate one first, then invoke lite with the resulting plan path." |
 | Work item ID (numeric) | REJECT — lite has no ADO integration. Use `implement-plan` for ADO-sourced plans. |
 
 The plan file is the single source of truth for the implementer. Lite preserves the input file's name (no rename). There is no `.plans/` fallback — the plan must already exist. **Recommended convention** when creating plans for lite: name them `{feature-name}-plan.md` so the feature/requirement is self-evident from the filename.
@@ -43,13 +43,13 @@ Verify the plan contains ALL of:
 2. Explicit file list or target scope
 3. Acceptance criteria OR verification steps
 
-If any item is missing → STOP. Respond: "Plan is too thin — missing: {list}. Flesh out the plan or use `implement-feature` for combined planning + implementation."
+If any item is missing → STOP. Respond: "Plan is too thin — missing: {list}. Flesh out the plan or use `implement-plan` for combined planning + implementation."
 
 ### 1.4 Scope gate
 
 Count files in the plan:
 - 1-6 files: proceed
-- 7+ files: respond: "This plan covers {n} files. Use `implement-feature` or split the plan into smaller pieces for lite execution."
+- 7+ files: respond: "This plan covers {n} files. Use `implement-plan` or split the plan into smaller pieces for lite execution."
 
 ### 1.5 Ensure progress tracking
 
@@ -72,21 +72,13 @@ Also ensure the plan has a Meta block with `Status` (set to `implementing`). Add
 
 ## Phase 2: Implement
 
-**MUST dispatch exactly one code-implementer sub-agent.** Use the template from `references/implementer-prompt.md`.
+**MUST dispatch exactly one code-implementer sub-agent.** Use the template from `references/implementer-prompt.md`. Dispatch it the way your tool delegates (Claude Code / Codex) — do not assume a specific call syntax or model tier.
 
-```
-Task({
-  subagent_type: "code-implementer",
-  description: "Implement: {plan-title}",
-  prompt: {filled template from references/implementer-prompt.md — includes plan path}
-})
-```
+The prompt passes `{plan-file-path}`; the agent reads it, sets the task Status to `in-progress`, implements, then sets Status to `complete`.
 
-The prompt passes `{plan-file-path}` path; the agent reads it, sets task Status to `in-progress`, implements, then sets Status to `complete`.
+**If zero sub-agents were dispatched after Phase 2, the workflow is INCOMPLETE.**
 
-**If Task tool calls = 0 after Phase 2, the workflow is INCOMPLETE.**
-
-On completion, read the agent's result and verify the task Status was updated in plan.md. If the agent reports a blocker, continue it via SendMessage once (see `references/implementer-prompt.md`).
+On completion, read the agent's result and verify the task Status was updated in plan.md. If the agent reports a blocker, decide the question and dispatch a **fresh** code-implementer with the blocker + partial progress (one retry; see `references/implementer-prompt.md`) — this works in both tools, unlike resuming the same agent.
 
 ## Phase 3: Verify
 
@@ -95,7 +87,8 @@ On completion, read the agent's result and verify the task Status was updated in
 3. Run build/lint/test if the project has them (`dotnet build`, `npm test`, `pytest`, etc.)
    - If build fails → dispatch ONE fresh code-implementer with error output (see `references/implementer-prompt.md` Build-Failure Retry template)
    - If retry fails → set Meta `Status: blocked` in plan.md, report to user with full context
-4. Check each acceptance criterion and update plan.md AC checkboxes (`- [x]` for met):
+4. **Optional code review** — lite has no automatic review loop. Ask the user once: *"Run `code-review-lite` on the changes?"* If yes, run it and surface findings (apply trivial fixes, report the rest); if no, skip. Never loop.
+5. Check each acceptance criterion and update plan.md AC checkboxes (`- [x]` for met):
 
 | Status | Meaning |
 |---|---|
@@ -103,8 +96,8 @@ On completion, read the agent's result and verify the task Status was updated in
 | Partial | Partially addressed — note what is missing |
 | Not addressed | AC not covered by any change |
 
-5. If all complete: set Meta `Status: complete` in plan.md, append iteration log entry.
-6. Report to user: plan path, files changed, AC status, build results, anything needing follow-up.
+6. If all complete: set Meta `Status: complete` in plan.md, append iteration log entry.
+7. Report to user: plan path, files changed, AC status, build results, review findings (if run), anything needing follow-up.
 
 ## Constraints
 
