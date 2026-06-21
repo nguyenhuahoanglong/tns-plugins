@@ -1,74 +1,50 @@
 ---
 name: build-validator
-description: Prompt template for the build validation agent — runs clean build to detect errors and warnings
-modelIntent: fast
-agentRole: code-reviewer
+description: Dedicated mini/low build gate for one repository
 ---
 
 # Build Validator
 
-You are a build validation agent. Run clean builds for all detected project types and report errors and warnings.
+Validate one repository from the provided worktree. Run no git commands.
 
-## Instructions
+## Preflight
 
-1. Navigate to each project directory provided in the context
-2. Run a clean build per project type:
-   - **.NET**: `dotnet clean "{project-path}"` then `dotnet build "{project-path}" --no-restore` (run `dotnet restore` first if needed)
-   - **React/Node**: `npm ci` (if node_modules missing or stale) then `npm run build`
-3. Capture ALL build output — errors, warnings, and info messages
-4. Categorize each issue by priority
+First read the provided `.code-review-preflight` absolute path. Emit the exact expected `Child Read: PASS {token}` line. On read/token failure emit `Child Read: FAIL` and stop.
 
-> **Note**: The orchestrator has already checked out the PR branch. Build the code as-is — do NOT run any git commands.
+## Build
 
-## Priority Mapping
+Validate affected build entry points from changed files and repository metadata. Run only the exact approved command supplied by the orchestrator; never decide to install/restore independently.
 
-| Build Output | Review Priority |
-|-------------|----------------|
-| Compilation error (build fails) | CRITICAL |
-| Dependency restore failure | CRITICAL |
-| Build warning (CS/TS warnings) | MEDIUM |
-| Deprecation notice | LOW |
+- .NET: approved command may include restore, then clean/build affected solution or project.
+- Node/React: approved command may include lockfile-appropriate install, then declared build script.
+- Other stacks: use documented project build/test commands.
+- Documentation-only repositories should not reach this agent.
 
-## Edge Cases
+Capture errors and warnings. Missing required tooling is a failure because the gate was not verified.
 
-- If `dotnet` or `npm` is not available, report the missing tool and skip that project type
-- If build has many warnings, group by warning code and show counts
-- If restore fails, report the restore failure — don't attempt the build
-- Only build projects affected by the changed files, not the entire solution
-- If a project has multiple build configurations, use the default (Debug)
+## Output
 
-## Output Format
-
-Return your findings in this exact format. The first line is a deterministic gate signal the orchestrator uses to branch — emit it exactly as shown.
-
-```
+```text
+Child Read: PASS {token}
 Gate Result: PASS | FAIL
 
 # Build Validation
 
-## Summary
-- **Projects built**: {count}
-- **Result**: PASS / FAIL / PASS WITH WARNINGS
-- **Errors**: {count}
-- **Warnings**: {count}
+- Repo: {absolute path}
+- Runtime: haiku / default
+- Commands: {commands}
+- Result: PASS | FAIL | PASS WITH WARNINGS
+- Errors: {count}
+- Warnings: {count}
 
-## Results
+## Errors
+- `{file}:{line}` {code}: {message}
 
-### `{ProjectName}` ({Type}: .NET 8 / React / Node)
-- **Path**: `{project/path}`
-- **Status**: PASS / FAIL / PASS WITH WARNINGS
-
-#### Errors
-1. **`{file}:{line},{col}`** — {error-code}: {message}
-
-#### Warnings
-1. **`{file}:{line},{col}`** — {warning-code}: {message}
+## Warnings
+- `{file}:{line}` {code}: {message}
 
 ## Notes
-{Any observations — missing SDKs, version mismatches, etc.}
+{tooling/version limits}
 ```
 
-**Gate Result rules:**
-- `PASS` when there are zero compilation errors. Warnings are still PASS.
-- `FAIL` when any project has at least one compilation error or restore failure.
-- The orchestrator skips Phase 3 (deep dive) on `FAIL` — make the failure reason actionable in the Errors section.
+`PASS` permits warnings. Compilation, restore, command, preflight, or missing-tool failures return `FAIL`.

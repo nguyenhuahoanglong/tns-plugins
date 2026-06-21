@@ -1,165 +1,123 @@
 ---
 name: workflow
-description: Execution workflow for code-review-lite — scope resolution, diff collection, worktree setup, cleanup, and build-fail short report
+description: Scope, classification, local worktree, child-read preflight, and cleanup workflow for code-review-lite
 ---
 
 # Workflow
 
-## 1. Understand Scope
+## Scope and Diff
 
-Determine what to review based on context:
+Resolve PR, branch, staged changes, or explicit files. Prefer PR metadata; fall back to git. Write the full diff once to:
 
-- **PR ID provided**: Get target branch and metadata from PR details
-- **Branch only**: Use current branch, ask for target if unclear
-- **Specific files**: Review only those files
-- **Staged changes**: Review what's about to be committed
-
-### Primary: Azure DevOps CLI
-
-```bash
-# Find active PR for current branch
-az repos pr list --source-branch "$(git branch --show-current)" --status active --output table
-
-# Get PR details (target branch, title)
-az repos pr show --id <pr-id>
+```text
+.CodeReview/.{safe-branch}.diff
 ```
 
-### Fallback: Git Only
+Sanitize branch names by replacing `/`, `\`, `:`, and whitespace with `-`. Count changed lines as added plus deleted lines, excluding diff headers.
 
-```bash
-git branch --show-current
-git log --oneline -10
-git merge-base origin/main HEAD
+For multi-repo work, keep one scope record per repo:
+
+```text
+repo root | source | target | changed files | changed lines | diff path
 ```
 
-## 1.5 Neighbor Discovery
+## Requirement Context
 
-For each changed file, glob 2–3 exemplar files (cap 3 per changed file):
+User-provided requirement text has priority. Otherwise run once:
 
-- Same folder
-- Same suffix (e.g., `*Service.cs`, `*Handler.ts`, `*.test.tsx`)
-- Same feature folder
-
-Skip if no siblings exist (brand-new folder, isolated file). Output a map `{changed_file: [exemplar_paths]}`. Pass exemplar paths + brief excerpts to the Quality Reviewer in Phase 3.
-
-## 1.6 Story Context
-
-Run after §1 (PR ID is known at this point):
-
-```bash
-python <code-review-lite-skill>/scripts/ado_work_item.py context [--pr {pr-id}]
+```text
+python <skill>/scripts/ado_work_item.py context [--pr {pr-id}] --repo "{repo}"
 ```
 
-**Exit-code semantics:**
+Exit `0`: use returned context. Exit `2` or `3`: check `.docs/ado-context.md`, then ask at most one skippable question. Never block review or retry fetch.
 
-| Exit | Meaning | Action |
-|------|---------|--------|
-| 0 | Work item found and fetched | Use stdout markdown block as story context in Phase 3 |
-| 3 | No ID detectable from PR/branch/commits | Read `{repo}/.docs/ado-context.md` if present; match branch name or changed-path keywords against its epic/feature/story alias tables to propose ONE candidate. If no file exists or no match found, ask the user once for a work item ID or requirement text (skippable). |
-| 2 | `az` CLI unavailable or auth failure | Mention it once, then ask the same single question as exit 3. |
+## Classification
 
-**Hard rule**: at most ONE question to the user about story context. If they skip (or don't reply), proceed with no story context. Never retry the script.
+Classify from behavior, not filename alone.
 
-User-provided text from Phase 0 always wins — skip the script entirely if the user already supplied requirement text.
+1. Detect risk flags before applying Tiny thresholds.
+2. Docs Tiny applies whenever every changed file is documentation text with no runtime effect, independent of size.
+3. Code Tiny requires `<=3` files, `<=100` changed lines, and zero elevated-risk flags.
+4. Remaining non-documentation changes are Lite or escalate.
+5. Non-Tiny changes map to Security, Performance, Philosophy, and Standard reviewers.
+6. More than one reviewer trigger routes to `code-review-pro`.
 
-## 2. Collect Changes
+Examples that are not docs-only: config examples consumed by tooling, generated schemas, package metadata, deployment YAML, executable snippets, and scripts.
 
-### Primary: Target Branch from PR
+## Local Worktree
 
-```bash
-TARGET_BRANCH=$(az repos pr show --id <pr-id> --query targetRefName -o tsv | sed 's|refs/heads/||')
-git diff --name-only $(git merge-base origin/$TARGET_BRANCH HEAD)..HEAD
-git diff --no-prefix -U50 $(git merge-base origin/$TARGET_BRANCH HEAD)..HEAD
+Agent-backed profiles use one repo-local worktree per repo:
+
+```text
+{repo}/.CodeReview/.worktrees/{safe-branch}
 ```
 
-### Fallback: No PR
+Resolve and verify the absolute path remains under `{repo}/.CodeReview/.worktrees/` before removing or replacing it.
 
-Ask for target branch (default to `main`/`master`/`develop`) and use the same `git diff` commands.
+For a committed branch:
 
-### Staged Changes Only
-
-```bash
-git diff --cached --name-only
-git diff --cached --no-prefix -U50
+```text
+git fetch origin {source-branch}
+git worktree add "{worktree}" "origin/{source-branch}"
 ```
 
-### Large Diffs
+For staged/working changes:
 
-Process in batches, priority order: core logic → configuration → tests → docs.
+1. Save a binary diff from `HEAD` to `.CodeReview/.{safe-branch}.working.diff`.
+2. Add a detached worktree at `HEAD`.
+3. Apply the saved diff in the worktree.
+4. Copy only explicitly scoped untracked files, preserving relative paths.
 
-## 3. Worktree Setup
+Do not create a nested review worktree when already inside `.CodeReview/.worktrees/`.
 
-**Create worktree IFF any of these is true:**
-- Target branch ≠ HEAD (reviewing a different branch)
-- Working tree is dirty (uncommitted changes present)
-- Staged changes are present
+## Child-Read Preflight
 
-If HEAD is already the target branch AND tree is clean AND no staged changes → review in place (no worktree needed).
+Before dispatch, create `{worktree}/.code-review-preflight` containing a random review token. Include its absolute path and token in every child prompt.
 
-**Detection — running inside an existing review worktree**: Before creating, check whether CWD is already inside a `../{repo}-review-{branch}/` path. If so, either reuse that worktree (if branch matches) or refuse with: "Already inside a review worktree — remove it first or run from the main working tree."
+Each child must perform this first:
 
-```bash
-REPO_ROOT=$(git rev-parse --show-toplevel)
-REPO_NAME=$(basename "$REPO_ROOT")
-SOURCE_BRANCH="{pr-source-branch}"
-SAFE_BRANCH="${SOURCE_BRANCH//\//-}"
-WORKTREE_PATH="../${REPO_NAME}-review-${SAFE_BRANCH}"
-
-# Handle re-run collisions
-if git worktree list --porcelain | grep -q "$WORKTREE_PATH"; then
-  git worktree remove --force "$WORKTREE_PATH"
-fi
-
-git fetch origin "$SOURCE_BRANCH"
-git worktree add "$WORKTREE_PATH" "origin/$SOURCE_BRANCH"
+```text
+Read {absolute-preflight-path}.
+Return "Child Read: PASS {token}" before analysis.
+If missing, unreadable, or mismatched, return "Child Read: FAIL" and stop.
 ```
 
-Pass `WORKTREE_PATH` to each sub-agent as working directory. Agents do not run git commands.
+Treat missing PASS as dispatch failure. Do not accept findings from a child that failed preflight.
 
-## 4. Worktree Cleanup
+## Dispatch Order
 
-**Run unconditionally** — even on build fail or mid-review errors.
+Announce each actor with reason and exact runtime profile before dispatch.
 
-```bash
-git worktree remove "$WORKTREE_PATH"
-```
+- Docs Tiny: no dispatch.
+- Code Tiny: Build Validators in parallel, one per repo.
+- Lite: Build Validators; Requirement Validator always; optional single named specialist only after passing builds.
+- Escalation: announce triggered reviewers and invoke `code-review-pro` instead.
 
-Synthesis (Phase 4) may re-read flagged files, so cleanup runs AFTER Phase 4.
+Build failure skips specialist, but Requirement Validator still runs before synthesis.
 
----
+## Build-Fail Report
 
-## Build Fail Short Report
-
-Write this report when any build validator returns `Gate Result: FAIL`. Then run cleanup and STOP.
+Use `.CodeReview/{safe-branch}.lite.md` and include normal metadata plus:
 
 ```markdown
-# Code Review (Build Failed): {Feature/PR Title}
-
-**Date**: {YYYY-MM-DD}
-**Source**: {branch/commit/PR}
-**Gate**: Build Validation — FAIL
-
 ## Build Status
 
-| Project | Type | Status | Errors |
-|---------|------|--------|--------|
-| {name} | .NET 8 | FAIL | {n} |
-| {name} | React | PASS | 0 |
-
-## Errors
-
-### `{ProjectName}`
-
-1. **`{file}:{line},{col}`** — {error-code}: {message}
+| Repo | Status | Errors | Warnings |
+|---|---|---:|---:|
+| `{repo}` | FAIL | {count} | {count} |
 
 ## Recommendation
 
-Fix the build errors and re-run the review. Deep dive skipped to avoid reviewing broken code.
+Fix build errors and rerun review. Requirement validation completed; specialist review skipped because build failed.
 ```
 
-After writing the build-fail report, run:
+## Cleanup
 
-```bash
-python <code-review-publish-skill>/scripts/ado_autolink_guard.py fix ".CodeReview/{BranchName}.lite.md"
-python <code-review-publish-skill>/scripts/ado_autolink_guard.py check ".CodeReview/{BranchName}.lite.md"
-```
+Run after report synthesis and verification, including failure paths:
+
+1. Verify each worktree path is under the expected repo-local worktree root.
+2. Remove worktrees with `git worktree remove --force "{worktree}"`.
+3. Remove only temporary preflight and diff artifacts.
+4. Keep `.CodeReview/{safe-branch}.lite.md`.
+
+Never remove `.CodeReview/` recursively.

@@ -1,123 +1,145 @@
 ---
 name: code-review-lite
-description: "Lightweight parallel code review: N fast build gates + 2 standard reviewers (critical + quality). Use for quick review, lite review, pre-merge sanity checks."
+description: "Adaptive low-cost code review. Use for quick review, lite review, or pre-merge checks; classifies Tiny changes, dispatches risk-based agents, and escalates broad risk."
+version: 2.0.0
 ---
 
 # Code Review Lite
 
-## Decision Tree
+Run an adaptive review. Read `references/workflow.md` and `references/report-template.md` before execution.
 
-```
-SITUATION?
-|
-+-- "Quick review" / "lite review" / "pre-merge sanity check"
-|   -> This skill: Phases 0-5 below
-|
-+-- Full review with confirmed work item + dedicated requirement validation
-|   -> Use `code-review-pro` skill instead
-|
-+-- Received code review feedback
-|   -> Feedback reception protocol in `references/feedback-reception.md`
-|
-+-- Need others to review my work
-    -> Requesting review protocol in `references/requesting-review.md`
+## 1. Gather
+
+Resolve scope, repos, target branch, changed files, and full diff. Count:
+
+- files changed
+- changed lines = additions + deletions, excluding diff headers
+- risk families below
+
+Fetch requirement context non-blockingly with:
+
+```text
+python <skill>/scripts/ado_work_item.py context [--pr {id}]
 ```
 
-## Agent Pipeline
+User requirement text wins. Ask at most one skippable requirement-context question after fetch failure.
 
-| Phase | Actor | Model |
-|-------|-------|-------|
-| 0. Scope Clarify | Orchestrator inline | — |
-| 1. Gather | Orchestrator inline | — |
-| 2. Build Gate | N sub-agents (1 per project type) | haiku |
-| 3. Review | 2 sub-agents (parallel) | sonnet |
-| 4. Synthesize | Orchestrator inline | — |
-| 5. Cleanup | Orchestrator inline | — |
+Resolve one exact approved build command per repo from project instructions. Do not authorize dependency install/restore implicitly.
 
-## Phase 0: Scope Clarify
+## 2. Classify
 
-If scope is explicit (branch name, PR ID, file list, "staged changes"), skip to Phase 1.
+`Tiny` requires both `<=3` files and `<=100` changed lines. It is ineligible when any changed behavior touches:
 
-If scope is vague, ask at most 2 questions:
-1. "What branch or files should I review? (or 'staged changes' to review what's staged)"
-2. "Any specific requirement text to validate against? (optional — if skipped, the linked work item is auto-detected in Phase 1)"
+- shared behavior or public API
+- schema, serialization, or data migration
+- authentication, authorization, secrets, or trust boundaries
+- dependencies, package manifests, or lockfiles
+- async, concurrency, resource lifecycle, or background work
+- persistent/shared state
+- runtime configuration, deployment, feature flags, or environment behavior
 
-## Phase 1: Gather
+Profiles:
 
-Run all steps in parallel:
-- **Scope** — PR metadata, target branch, or staged diff (`references/workflow.md` §1)
-- **Diff** — full diff with context (`references/workflow.md` §2)
-- **Project types** — detect `.csproj`/`.sln` for .NET; `package.json` with `build` for Node/React
-- **Standards** — discover AGENTS.md, CLAUDE.md, .editorconfig, *.instructions.md, linter configs; capture for Quality Reviewer
-- **Neighbors** — use Glob/Grep to find 2–3 exemplars per changed file (same folder, same suffix e.g. `*Service.cs` / `*Handler.ts` / `*.test.tsx`, same feature folder); cap 3 per file; skip if no siblings exist (`references/workflow.md` §1.5). Output: `{changed_file: [exemplar_paths]}` map.
-- **Story context** — `python <code-review-lite-skill>/scripts/ado_work_item.py context [--pr {pr-id}]` (`references/workflow.md` §1.6). Exit 0 → keep the markdown block for Phase 3. Exit 3/2 → fallback: check `.docs/ado-context.md` alias tables for a candidate, else ask the user ONCE for a work item ID or requirement text (skippable — skip means review proceeds without story context). User-provided text from Phase 0 always wins over fetched context.
-- **Worktree** — create IFF (target branch ≠ HEAD) OR (working tree dirty) OR (staged changes present); full recipe in `references/workflow.md` §3
+| Profile | Condition | Review actors |
+|---|---|---|
+| Docs Tiny | Documentation-only at any size | Main agent only; zero child agents |
+| Code Tiny | Tiny with code | Main agent + one Build Validator per repo |
+| Lite | Not Tiny and at most one specialist | Build Validator per repo + Requirement Validator + zero/one specialist |
+| Escalate | More than one specialist | Route to `code-review-pro`; do not run Lite pipeline |
 
-> **Prerequisites for story fetch**: Azure CLI required; first run: `az config set extension.use_dynamic_install=yes_without_prompt`; auth via `az login` or `AZURE_DEVOPS_EXT_PAT`. Fetch failure never blocks the review.
+Documentation-only excludes executable code, tests, config, schema, manifests, lockfiles, scripts, and generated runtime assets.
 
-## Phase 2: Build Gate
+## 3. Select Specialist
 
-MUST spawn one haiku `build-validator` sub-agent per detected project type. No cap on count. Run all in parallel.
+Use same specialist triggers as Pro:
 
-```
-Task(subagent_type="code-reviewer", prompt="...", description="...")
-Prompt content: [references/agents/build-validator.md content]
-Project path: {path}
-Worktree: {WORKTREE_PATH}
-Description: Build: {ProjectName}
-```
+| Reviewer | Trigger examples |
+|---|---|
+| Security | auth, authorization, secrets, crypto, untrusted input, trust boundary |
+| Performance | async/concurrency, lifecycle, query/loop hot paths, I/O, resource ownership |
+| Philosophy | shared behavior, public API/schema, state/config ownership, abstraction/coupling |
+| Standard | explicit project rule, new pattern/folder, build/config convention, exemplar divergence |
 
-**Decision after all build agents return:**
-- Any `Gate Result: FAIL` → write Build Fail report (`references/workflow.md` — Build Fail Short Report) → Phase 5 → STOP
-- All `Gate Result: PASS` → continue to Phase 3
+One reviewer triggers one generic `code-reviewer` with that named role injected. Two or more reviewers trigger `code-review-pro`. Announce every trigger or escalation before dispatch.
 
-**NEVER proceed to Phase 3 on a build failure.**
+## 4. Runtime and Visibility
 
-## Phase 3: Review
+Use these exact child profiles:
 
-MUST spawn exactly 2 sonnet sub-agents in a single message for true parallelism:
+| Actor | Agent type | Model | Effort |
+|---|---|---|---|
+| Build Validator | `build-validator` | `haiku / default` | configured |
+| Requirement Validator | `requirement-validator` | `opus / default` | configured |
+| Named specialist | `code-reviewer` | `sonnet / default` | configured |
 
-**Critical Reviewer** (`references/agents/critical-reviewer.md`):
-- Inject: full diff, changed file list, story context (user-provided text from Phase 0, else the fetched work item block, else omit)
+Resolve the main runtime before classification: explicit launch/review metadata, then current host/session metadata, then a configured default only when confirmed active. Use `not exposed` only for an individual field that remains unavailable. Never replace a known model or effort with `not exposed`; Codex parent/orchestrator prompts must pass both values when the child cannot inspect launch settings.
 
-**Quality Reviewer** (`references/agents/quality-reviewer.md`):
-- Inject: full diff, project type, discovered standards content, **exemplar paths + excerpts (from Neighbor Discovery)**
+Before each dispatch announce:
 
-Both agents work from the worktree path. They do not run git commands.
-
-## Phase 4: Synthesize (Inline)
-
-Read `references/report-template.md` before writing. Then:
-
-1. Deduplicate: same `file:line` from both agents → one entry, multi-tag, highest severity wins
-2. Build errors → CRITICAL; build warnings → MEDIUM
-3. Write Must Fix shortlist (Critical + High only, severity-sorted, capped ~10)
-4. Organize Detailed Findings by file (never by severity)
-5. Write report to `.CodeReview/{BranchName}.lite.md` — **never** `.CodeReview/{BranchName}.md`
-6. Run the ADO autolink guard from the `code-review-publish` skill:
-
-```bash
-python <code-review-publish-skill>/scripts/ado_autolink_guard.py fix ".CodeReview/{BranchName}.lite.md"
-python <code-review-publish-skill>/scripts/ado_autolink_guard.py check ".CodeReview/{BranchName}.lite.md"
+```text
+Agent trigger: {actor} | Model/Effort: {runtime} | Reason: {risk/scope}
 ```
 
-Do not declare the review complete until the guard passes. Raw `#123` is allowed only for intentional work-item links.
+Dispatch Build with `Task(subagent_type="build-validator", prompt="...", description="...")`, Requirement with `Task(subagent_type="requirement-validator", prompt="...", description="...")`, and named specialist with `Task(subagent_type="code-reviewer", prompt="...", description="...")`.
 
-## Phase 5: Cleanup
+Create agent worktrees per repo at `.CodeReview/.worktrees/{safe-branch}`. Complete the child-read preflight in `references/workflow.md` before analysis. Child agents run no git commands.
 
-**Run unconditionally** — even on build fail or mid-review errors. Recipe in `references/workflow.md` §4.
+## 5. Execute
 
----
+### Docs Tiny
 
-## Enforcement
+Main agent reviews accuracy, consistency, links, commands, and requirement alignment. Spawn no agents.
 
-**NEVER run review lenses yourself — DELEGATE all review work to sub-agents.**
-If delegation calls = 0 at the end of Phase 3, the workflow is INCOMPLETE.
+### Code Tiny
 
-**NEVER ask more than one story-context question.** If the user skips, proceed without — story fetch must never block a lite review.
+Run Build Validators in parallel. Main agent reviews changed code for correctness, regressions, security, performance, design, and standards. Do not spawn Requirement Validator or specialist.
 
-**NEVER use opus in any phase.** Lite is designed for fast quota budgets — deep-effort orchestration is excluded by design.
+### Lite
 
-**NEVER write to `.CodeReview/{BranchName}.md`** — always use `.CodeReview/{BranchName}.lite.md` to avoid overwriting full review reports.
+1. Run one Build Validator per repo in parallel.
+2. Run one Requirement Validator even if build fails.
+3. On build failure, skip specialist to save tokens.
+4. Otherwise run the single triggered named specialist, if any.
+5. Main agent verifies and synthesizes findings.
 
-**DO NOT duplicate** feedback-reception or requesting-review protocols here — those live in the original `code-review-pro` skill references.
+## Requirement Evidence
+
+- Map each explicit requirement to `Addressed`, `Partial`, `Missing`, or `Not verifiable`.
+- `Addressed` needs changed-code evidence: `file:line` plus behavior explanation.
+- Tests support evidence but do not replace implementation evidence.
+- `Partial`/`Missing` must state searched scope and absent behavior.
+- Regression claims need caller, consumer, or execution-path evidence.
+- Never invent criteria; use user text, PR text, or fetched work item only.
+
+## 6. Report
+
+Write `.CodeReview/{safe-branch}.lite.md`. Include exact:
+
+- skill: `code-review-lite`
+- version: `2.0.0`
+- profile: `Docs Tiny`, `Code Tiny`, or `Lite`
+- main runtime: `{resolved model} / {resolved effort}`
+- triggered actors with runtime profiles and reasons
+- skipped actors with reasons
+
+Preserve the ADO autolink guard:
+
+```text
+python <code-review-publish-skill>/scripts/ado_autolink_guard.py fix ".CodeReview/{safe-branch}.lite.md"
+python <code-review-publish-skill>/scripts/ado_autolink_guard.py check ".CodeReview/{safe-branch}.lite.md"
+```
+
+## Verify Output
+
+Run before declaring completion:
+
+```text
+python <skill>/scripts/verify_output.py ".CodeReview/{safe-branch}.lite.md"
+```
+
+Then clean worktrees unconditionally. Keep the `.lite.md` report.
+
+## Related Protocols
+
+- Received feedback: `references/feedback-reception.md`
+- Requesting review: `references/requesting-review.md`

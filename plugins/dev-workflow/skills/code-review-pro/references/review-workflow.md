@@ -1,144 +1,74 @@
 ---
 name: review-workflow
-description: Detailed execution steps for performing a code review - scope determination, change collection, and progress tracking
+description: Scope, diff, context, repo-local worktree, child-read, and cleanup workflow
 ---
 
 # Review Workflow
 
-## 1. Understand Scope
+## 1. Resolve Scope
 
-Determine what to review based on context:
+Support PR ID, branch/target, staged changes, or explicit files. Prefer PR metadata when available; otherwise compute a merge base against the confirmed target branch.
 
-- **PR ID provided**: Get target branch and metadata from PR details
-- **Branch only**: Use current branch, ask for target if unclear
-- **Specific files**: Review only those files
-- **Staged changes**: Review what's about to be committed
+For each repo, record source, target, HEAD, safe branch (`/`, `\`, `:`, and whitespace replaced by `-`), and changed project paths.
 
-### Primary: Azure DevOps CLI
+Record `scopeType` (`pr`, `branch`, `staged`, `working`, or `files`) and `scopeBase`. Compute `diffFingerprint` as SHA-256 over normalized scoped diff bytes. For working scope, include sorted untracked relative paths plus each file content hash.
 
-Use `az repos pr` to detect active PRs and extract metadata (target branch, title, linked work items).
+## 2. Collect Once
 
-```bash
-# Find active PR for current branch
-az repos pr list --source-branch "$(git branch --show-current)" --status active --output table
+Create `.CodeReview/` and write one full-context diff:
 
-# Get PR details (target branch, title, description)
-az repos pr show --id <pr-id>
-
-# Get linked work items from PR
-az repos pr work-item list --id <pr-id>
+```text
+git diff --no-prefix -U50 {base}..HEAD > ".CodeReview/.{safe-branch}.diff"
+git diff --name-only {base}..HEAD
+git diff --shortstat {base}..HEAD
 ```
 
-### Fallback: Git Only
+For staged scope, use `git diff --cached`. Count `changedLines` as additions + deletions, not diff-file line count. Pass the absolute diff path to children; never paste the diff into every prompt.
 
-When no PR exists or az CLI is unavailable:
+## 3. Gather Context
 
-```bash
-# Current branch
-git branch --show-current
+In parallel:
 
-# Recent commits on this branch
-git log --oneline -10
+- Detect repos and changed projects (`.sln`/`.csproj`, `package.json`, other build manifests).
+- Discover instruction/standard paths and 2-3 nearby exemplars per changed source file.
+- Resolve work item:
 
-# Find merge base with target
-git merge-base origin/main HEAD
+```text
+python <skill-dir>/scripts/ado_work_item.py context [--pr {id}] --repo {repo-root}
 ```
 
-### Alternative: GitHub CLI
+Exit 3 means no item; exit 2 means CLI/auth unavailable. Neither blocks review. For Pro, use regression-only requirement mode when direct requirement context remains unavailable.
 
-For GitHub-hosted repositories:
+## 4. Repo-Local Worktrees
 
-```bash
-gh pr view --json targetBranch,title,body
+Docs-only creates no worktree. For Tiny/Pro, create one worktree inside each repo:
+
+```text
+{REPO_ROOT}/.CodeReview/.worktrees/{safe-branch}
 ```
 
-## 2. Collect Changes
+Verify the resolved path remains beneath `{REPO_ROOT}/.CodeReview/.worktrees` before remove/recreate. Use the reviewed commit/branch without modifying the user's current checkout. For collisions, remove only a registered worktree at that exact verified path, then prune and recreate.
 
-Write the full diff ONCE to `.CodeReview/.{BranchName}.diff` (create `.CodeReview/` if missing; `SAFE_BRANCH="${SOURCE_BRANCH//\//-}"` — same sanitization as the report filename). Dispatch prompts pass this file's absolute path — never the diff content. Agents and the orchestrator read it from disk.
+For a committed branch, add the source commit/ref directly. For staged or working changes, save a binary diff from `HEAD`, add a detached worktree at `HEAD`, apply the saved diff there, and copy only explicitly scoped untracked files while preserving relative paths. Never create a nested review worktree when already inside `.CodeReview/.worktrees`.
 
-### Primary: Target Branch from PR
+Agents receive absolute paths for worktree, diff, role prompt, standards, prior report, and changed files.
 
-```bash
-# Extract target branch from PR details
-TARGET_BRANCH=$(az repos pr show --id <pr-id> --query targetRefName -o tsv | sed 's|refs/heads/||')
+## 5. Child-Read Preflight
 
-# List changed files
-git diff --name-only $(git merge-base origin/$TARGET_BRANCH HEAD)..HEAD
+Create `{worktree}/.code-review-preflight` with a random review token. Include its absolute path and token in every child prompt, plus role prompt, worktree, diff, and role-specific paths.
 
-# Full diff with generous context, written once to the diff file
-git diff --no-prefix -U50 $(git merge-base origin/$TARGET_BRANCH HEAD)..HEAD > ".CodeReview/.${SAFE_BRANCH}.diff"
-```
+Every child must read the sentinel first and emit `Child Read: PASS {token}` before analysis. Missing/unreadable/mismatched token emits `Child Read: FAIL` and stops that child. Do not accept output lacking the exact PASS.
 
-### Fallback: No PR
+The first child per repo is its Build Validator. Repair/retry any failed Build child before dispatching Requirement or specialists. Later children repeat the same preflight; a failed preflight is infrastructure failure, not an intentional skip.
 
-When no PR exists, ask the user for the target branch (default to `main`/`master`/`develop`) and use the same `git diff` commands above with that value.
+## 6. Cleanup
 
-### Staged Changes Only
+Run unconditionally after synthesis/verification or infrastructure failure:
 
-```bash
-git diff --cached --name-only
-git diff --cached --no-prefix -U50 > ".CodeReview/.${SAFE_BRANCH}.diff"
-```
+1. Resolve and verify each worktree path is still under its repo-local `.CodeReview/.worktrees`.
+2. Remove the exact sentinel and temporary applied-diff artifact inside the verified worktree.
+3. Remove only those exact worktrees through `git worktree remove --force`.
+4. Prune worktree metadata.
+5. Delete review diff artifacts; keep report and v2 sidecar.
 
-### Large Diffs
-
-If the diff is large, process files in batches. Prioritize:
-1. Core logic files (models, services, controllers)
-2. Configuration changes
-3. Test files
-4. Documentation
-
-## 3. Track Progress
-
-For multi-file reviews, use TodoWrite:
-- Create one item per file to review
-- Mark in-progress while analyzing
-- Mark completed after documenting findings
-
-Order files by complexity — review the most critical/complex files first.
-
-## 4. Worktree Setup
-
-Replaces in-place checkout. Preserves the user's working tree and supports multi-repo PRs (e.g., paired BE/FE).
-
-For each repo touched by the PR:
-
-```bash
-REPO_ROOT=$(git rev-parse --show-toplevel)
-REPO_NAME=$(basename "$REPO_ROOT")
-SOURCE_BRANCH="{pr-source-branch}"
-SAFE_BRANCH="${SOURCE_BRANCH//\//-}"
-WORKTREE_PATH="../${REPO_NAME}-review-${SAFE_BRANCH}"
-
-# Handle re-run collisions
-if git worktree list --porcelain | grep -q "$WORKTREE_PATH"; then
-  git worktree remove --force "$WORKTREE_PATH"
-fi
-
-git fetch origin "$SOURCE_BRANCH"
-git worktree add "$WORKTREE_PATH" "origin/$SOURCE_BRANCH"
-```
-
-Pass `WORKTREE_PATH` to each agent as the working directory. Agents read code from the worktree path directly — they run no git commands.
-
-### Multi-Repo Discovery
-
-In priority order:
-1. PR linked repos in Azure DevOps (`az repos pr show --id <pr-id>`)
-2. User explicitly lists repos in the request
-3. Orchestrator asks: "I see changes in `{repo}`. Are there paired repos (e.g., paired BE/FE)?"
-
-## 5. Worktree Cleanup
-
-**Run unconditionally** — even on REJECT, build fail, or mid-deep-dive errors. The orchestrator owns cleanup; if it skips, worktrees leak.
-
-For each worktree from step 4:
-
-```bash
-git worktree remove "$WORKTREE_PATH"
-rm -f ".CodeReview/.${SAFE_BRANCH}.diff"
-```
-
-Delete only the diff file. KEEP `.CodeReview/{BranchName}.md` (the report) and `.CodeReview/.{BranchName}.review-meta.json` (the follow-up sidecar).
-
-Synthesis (Phase 4) re-reads flagged code, so cleanup runs AFTER synthesis — not after Phase 3.
+Never recursively delete a computed path before containment and registered-worktree checks pass.

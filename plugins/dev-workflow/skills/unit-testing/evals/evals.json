@@ -1,0 +1,42 @@
+{
+  "skill_name": "unit-testing",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Write unit tests for the OrderDiscountService in our C# Azure Functions project. Requirement: a 10% loyalty discount applies only to members, and orders past the daily cutoff are rejected.",
+      "expected_output": "xUnit test class with NSubstitute mocks and FluentAssertions, one test per requirement plus edge cases, AAA structure, descriptive Should_..._When_... names, and a requirement->test mapping.",
+      "expectations": [
+        "Detects the C# stack and uses xUnit (per detect_test_framework.py / csharp-xunit.md), not another framework",
+        "Generates a test for the member-only loyalty discount and a test for the past-cutoff rejection, each traceable to the stated requirement",
+        "Tests follow AAA and Should_<behavior>_When_<condition> naming and mock dependencies at the boundary, not internal collaborators",
+        "Determinism is preserved (clock/IDs injected rather than DateTime.Now/Guid.NewGuid in assertions)"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "We're about to refactor a legacy React utility formatInvoice() that has no tests. Protect it so the refactor can't change behavior.",
+      "expected_output": "Characterization tests that pin the current output of formatInvoice() across representative inputs, labeled as capturing current (not necessarily correct) behavior, using the project's detected runner.",
+      "expectations": [
+        "Chooses the legacy/characterization strategy (per legacy-characterization.md), capturing current behavior as the baseline",
+        "Tests are explicitly labeled as characterization (pinning current behavior, not verifying a requirement)",
+        "Uses the detected runner (Vitest or Jest) and does not modify the source function while adding tests"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "Generate the unit tests for the CartSummary React component from this spec while another dev implements it: it shows item count, subtotal, and an empty-cart message. The component file doesn't exist yet.",
+      "expected_output": "Spec-first React Testing Library tests derived from the acceptance criteria, expected to be red until the component is implemented, querying via accessible roles and asserting each spec behavior.",
+      "expectations": [
+        "Derives tests from the spec/acceptance criteria rather than from non-existent source code (spec-first/parallel mode)",
+        "Uses React Testing Library accessible queries (getByRole/getByText) and userEvent, per react-vitest-jest.md",
+        "Acknowledges the tests are expected to fail/not-compile until implementation lands, and does not create or modify the source component"
+      ]
+    }
+  ],
+  "non_goals": [
+    "Generating end-to-end / Playwright browser tests (handled by qa-engineer e2e phase + browser-skill)",
+    "Writing PowerShell/Pester tests",
+    "Modifying production source code (only test files, test config, and reports)",
+    "Writing integration tests beyond the unit/component boundary"
+  ]
+}

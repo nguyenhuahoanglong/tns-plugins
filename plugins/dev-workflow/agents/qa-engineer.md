@@ -135,13 +135,19 @@ All artifacts are grouped by feature under `.qa/`:
 
 ### Phase: Unit Test Writing (`unit-tests`)
 
-1. Read test cases (from `.qa/{feature-name}/test-cases/` or orchestrator-provided path)
-2. Detect project test framework:
+**Use the `unit-testing` skill** for unit/component tests — it carries the best-practice depth (per-stack syntax via `detect_test_framework.py`, AAA/naming/mock-at-boundary rules, the **legacy characterization** strategy, and **spec-first/parallel** generation). This phase routes the work; the skill does the *how*. Two modes worth calling out:
+
+- **Legacy mode** — target has no/low coverage and is about to change: generate **characterization tests** that pin current behavior first (regression net), labeled as such, *before* any behavior-changing work.
+- **Spec-first/parallel mode** — invoked alongside an implementer (e.g. from `implement-plan`/`implement-feature`): derive tests from the spec/acceptance criteria; they are expected to be RED until the code lands. Never write the source files the implementer owns.
+
+1. Read test cases (from `.qa/{feature-name}/test-cases/` or orchestrator-provided path); in spec-first mode, work from the spec/AC directly
+2. Detect project test framework (run the skill's `detect_test_framework.py` — do not assume Vitest vs Jest):
 
 | Stack | Framework | Mocking | Assertions |
 |-------|-----------|---------|------------|
-| React / TypeScript | Jest + React Testing Library | Jest mocks | Jest built-in |
-| C# .NET | xUnit + NSubstitute | NSubstitute | FluentAssertions |
+| React / TypeScript | Vitest **or** Jest (detected) + React Testing Library | MSW (HTTP) + module mocks | Vitest/Jest built-in |
+| PCF (TypeScript) | Jest + RTL with mocked `ComponentFramework.Context` | `jest.fn()` context/webAPI | Jest built-in |
+| C# .NET | xUnit + NSubstitute (FakeXrmEasy for plugins) | NSubstitute | FluentAssertions (pin v7) |
 | PowerShell | Pester | Pester mocks | Pester `Should` |
 
 3. Create test project/files if none exist — follow project naming conventions

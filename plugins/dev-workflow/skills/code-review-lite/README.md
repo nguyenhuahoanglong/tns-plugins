@@ -2,53 +2,51 @@
 
 ## Purpose
 
-Lightweight parallel code review skill optimized for repeated low-cost reviews. Dispatches 2 sonnet reviewers (Critical + Quality) and N haiku build validators (1 per detected project type) in parallel, synthesizes inline without opus, and writes the result to `.CodeReview/{Branch}.lite.md`. Designed for repeated use within a single quota window — pre-merge sanity checks, quick review cycles, and multi-project (BE+FE) reviews that would burn too much quota on the full 6-agent pipeline.
+Adaptive, low-cost code review for quick checks and pre-merge validation. Version 2 classifies changes before dispatch, keeps truly small work local, and escalates changes whose risk needs multiple specialists.
 
 ## Pain Points
 
-- **Quota burn from full pipeline** — the original `code-review-pro` skill dispatches 6 sub-agents (2 opus inline + 4 sonnet + 1 haiku) per review. On a constrained quota window this can consume most of the budget in a single review.
-- **Deep reasoning is expensive for routine checks** — the Approach Gate and synthesis in the full skill use opus inline. Most pre-merge checks don't need that depth.
-- **Quick mode rehomed** — "quick review" / "quick code review" triggers previously routed to the original skill's Quick Mode. That mode has been removed from `code-review-pro` and is now served entirely by this skill.
-- **Multi-project reviews (BE+FE) still needed** — lite preserves the N-parallel-haiku build pattern so a .NET + React repo pair still gets a build gate per project type.
-- **Lightweight ADO integration** — lite now auto-detects and fetches the linked user story via the bundled `scripts/ado_work_item.py` (az CLI), non-blocking — failure or skip never stops a review. Full work item confirmation and a dedicated requirement validator agent remain in `code-review-pro`.
+- Fixed reviewer counts waste runtime on documentation and tiny changes.
+- File/line size alone misses small but risky API, auth, schema, state, dependency, async, and configuration changes.
+- Hidden runtime substitutions make review cost and depth hard to audit.
+- Remote sibling worktrees are difficult for child agents to discover reliably.
+- Requirement findings become speculative when evidence rules are vague.
 
-## Design Notes
+## Profiles
 
-### 2-reviewer architecture
+| Profile | Pipeline |
+|---|---|
+| Docs Tiny | Main-agent documentation review; zero child agents |
+| Code Tiny | Build Validator per repo; main-agent code review |
+| Lite | Build Validator per repo, Requirement Validator, then at most one named specialist |
+| Escalation | More than one specialist trigger routes to `code-review-pro` |
 
-Two sonnet sub-agents run in parallel after the build gate passes:
-- **Critical Reviewer** — security (OWASP Top 10, input tracing, secrets) + correctness (gap analysis against any user-provided requirement text; skipped if none provided)
-- **Quality Reviewer** — 3 lenses merged into one agent: performance (algorithmic/DB/async checks), philosophy (SOLID/DRY/KISS/YAGNI), and convention (project AGENTS.md / .editorconfig / linter configs)
+Tiny means at most 3 files and 100 changed lines, with no elevated shared behavior, API, schema, auth, dependency, async/lifecycle, state, or configuration risk.
 
-### N fast builds, no cap
+## Output
 
-One haiku build-validator sub-agent per detected project type (`.csproj`/`.sln` for .NET, `package.json` with `build` script for Node/React). Fast validation is cheap enough that there is no reason to limit. Any `FAIL` → short Build Fail report + cleanup + STOP.
+Reports remain at `.CodeReview/{safe-branch}.lite.md`. Each report records combined skill/version provenance, selected profile, main runtime, triggered/skipped actors, reasons, and child runtime profiles.
 
-### No deep reasoning
-
-Synthesis is done inline by the orchestrator. Deduplication, severity tagging, and report writing don't require deep reasoning — they're mechanical. opus is intentionally excluded to stay within quota.
-
-### Worktree clean-state rule
-
-Create worktree IFF (target branch ≠ HEAD) OR (working tree dirty) OR (staged changes present). If HEAD is already the target and the tree is clean, review in place. Cleanup runs unconditionally in Phase 5.
-
-### Report path: `.lite.md`
-
-Lite writes to `.CodeReview/{BranchName}.lite.md` to avoid overwriting a prior full review report at `.CodeReview/{BranchName}.md`. Both files can coexist in the same directory.
+Worktrees remain repo-local at `.CodeReview/.worktrees/{safe-branch}`. Every child must pass a read-token preflight before review work starts.
 
 ## Changelog
 
-### 2026-05-03 — Pattern consistency added to Quality Reviewer
+### 2026-06-19 - v2.0.0 adaptive classifier and visible runtime
 
-- Added Phase 1 Neighbor Discovery step (Glob 2-3 exemplars per changed file)
-- Quality Reviewer Lens 3 now reads exemplars and flags divergence from dominant codebase patterns
-- Severity: divergence from >=3-neighbor dominant pattern -> HIGH
-- No new agent — keeps the 2-reviewer Pro-quota budget
+- Added strict Tiny eligibility: `<=3` files, `<=100` changed lines, and no elevated risk category.
+- Added zero-agent Docs Tiny and main-agent Code Tiny profiles.
+- Replaced fixed Critical/Quality reviewers with a dedicated Requirement Validator and at most one named risk-triggered specialist.
+- Added automatic escalation to `code-review-pro` when multiple specialist families trigger.
+- Defined exact child runtime profiles and required trigger/skip visibility in reports.
+- Moved worktrees under `.CodeReview/.worktrees/` and added child-read preflight.
+- Added concise requirement evidence rules, deterministic output verification, tests, and four profile/escalation evals.
+- Preserved `.lite.md` reports and ADO autolink safety.
 
-### 2026-04-24 — Initial creation
+### 2026-05-03 - Pattern consistency
 
-- Created `code-review-lite` as the lightweight sibling of `code-review-pro` (then named `code-review`; renamed 2026-05-21)
-- Rehomed "quick review" / "quick code review" trigger from original `code-review-pro` (Quick Mode removed there)
-- 2-sonnet reviewer design (Critical + Quality with 3 merged lenses) replaces 5-agent deep dive
-- N-haiku build gate preserved; opus removed; synthesis inline
-- `.lite.md` report path avoids collision with full review reports
+- Added neighbor discovery and convention comparison to the prior fixed Quality Reviewer pipeline.
+
+### 2026-04-24 - Initial creation
+
+- Created the low-cost sibling of `code-review-pro`.
+- Preserved parallel build gates and `.lite.md` report isolation.

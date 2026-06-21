@@ -1,102 +1,103 @@
 ---
 name: report-template
-description: Template for the lite code review report — merges build, critical, and quality findings into a unified file
+description: Exact metadata and finding structure for code-review-lite reports
 ---
 
 # Report Template
 
-## Output Location
+Write `.CodeReview/{safe-branch}.lite.md`. Never use the full-review `.md` filename.
 
-Write the final report to: `.CodeReview/{BranchName}.lite.md`
+## Required Header
 
-If the `.CodeReview/` directory doesn't exist, create it. Use the current branch name (sanitized for filesystem) as the filename. **Always use the `.lite.md` suffix** — never write to `.CodeReview/{BranchName}.md` (that path is reserved for full reviews).
-
-## ADO Autolink Safety
-
-ADO renders raw `#123` as a work-item link. Emit raw `#number` only when the text intentionally links a work item, e.g. `Work Item #1795` or `Parent #1696`. Escape all other number references with a backslash: `PR \#1489`, `AC \#4`, `Quality finding \#23`. After writing the report, run:
-
-```bash
-python <code-review-publish-skill>/scripts/ado_autolink_guard.py fix ".CodeReview/{BranchName}.lite.md"
-python <code-review-publish-skill>/scripts/ado_autolink_guard.py check ".CodeReview/{BranchName}.lite.md"
-```
-
-## Final Report Template
-
-~~~markdown
-# Code Review (Lite): {Feature/PR Title}
+```markdown
+# Code Review (Lite): {title}
 
 **Date**: {YYYY-MM-DD}
-**Source**: {branch/commit/PR}
-**Target**: {target-branch}
+**Source**: {source}
+**Target**: {target}
 **Files Reviewed**: {count}
+**Skill**: code-review-lite v2.0.0
+**Review Profile**: Docs Tiny | Code Tiny | Lite
+**Main Runtime**: {resolved model} / {resolved effort}
+**Agents Triggered**: {actor(runtime; reason) | ... | None}
+**Agents Skipped**: {actor(reason) | ... | None}
+```
 
----
+Resolve model and effort from explicit launch metadata first, then current session metadata. Use `not exposed` only for an individually unavailable field and never discard a known value.
+
+Use actor runtime strings exactly:
+
+- `Build Validator[{repo}](haiku / default; {reason})`
+- `Requirement Validator(opus / default; non-Tiny Lite)`
+- `{Specialist} Reviewer(sonnet / default; {trigger})`
+
+Skipped actors must include a reason. For Docs Tiny, Agents Triggered is `None`. Escalation produces no Lite report; `code-review-pro` owns its report.
+
+## Body
+
+```markdown
+## Classification
+
+- **Files Changed**: {files}
+- **Changed Lines**: {lines}
+- **Documentation Only**: true | false
+- **Risk Triggers**: {labels joined by ` | `, or None}
+- **Specialist Triggers**: {Reviewer=label joined by ` | `, or None}
+- **Decision**: {why this profile was selected}
 
 ## Build Status
 
-| Project | Type | Status | Errors | Warnings |
-|---------|------|--------|--------|----------|
-| {name} | .NET 8 | PASS / FAIL | {n} | {n} |
+| Repo | Status | Errors | Warnings |
+|---|---|---:|---:|
+| `{repo}` | PASS / FAIL / NOT RUN | {n} | {n} |
 
-{Errors and warnings detail if any — omit table if no projects detected}
+## Requirement Evidence
 
----
-
-## Files Changed
-
-| # | File | Build | Security | Performance | Quality |
-|---|------|-------|----------|-------------|---------|
-| 1 | `{path}` | Clean | 1 issue | Clean | 2 issues |
-
-> Quality column absorbs philosophy and convention findings.
-
----
+| Requirement | Status | Evidence |
+|---|---|---|
+| {criterion} | Addressed / Partial / Missing / Not verifiable | `{file}:{line}` + behavior, or searched scope |
 
 ## Must Fix Before Merge
 
-> Severity-sorted shortlist of Critical and High findings. If empty, write "None."
-
-- **[CRITICAL] [{Agent}]** {one-line issue} — `{file}:{line}`
-- **[HIGH] [{Agent}]** {one-line issue} — `{file}:{line}`
-
----
+{Critical and High findings only, or "None."}
 
 ## Detailed Findings
 
-One subsection per file that has findings. Files with zero findings are omitted here (appear in Files Changed as "Clean"). Within each file, list by severity (Critical → Low). Each finding carries inline `[SEVERITY]` and `[Agent]` tags. **Do not create severity section headers — severity is a tag, not a heading.**
+### `{file}`
 
-### `{file-path}`
+1. **[SEVERITY] [Actor/Family]** `{line}` - {title}
+   - **Evidence**: {specific code/caller/path evidence}
+   - **Impact**: {observable failure or risk}
+   - **Suggestion**: {bounded fix}
 
-**Change**: {type} | +{added}/-{removed}
+## Clean Files
 
-1. **[CRITICAL] [Critical]** {Finding title}
-   - **Issue**: {Description}
-   - **Impact**: {Why this matters}
-   - **Suggestion**: {How to fix}
-
-2. **[HIGH] [Quality]** `{line}` — {Finding title} — {one-line with inline suggestion}
-
-3. **[MEDIUM] [Quality]** `{line}` — {Finding title} — {one-line}
-
-### `{next-file-path}`
-
-**Change**: {type} | +{added}/-{removed}
-
-1. **[LOW] [Critical]** `{line}` — {Finding title} — {short description}
-
----
+- `{file}` - No findings.
 
 ## Reviewer Notes
 
-{Cross-cutting observations, overall code health assessment, follow-up recommendations}
-~~~
+{Limits, unverified assumptions, and concise follow-up.}
+```
 
-## Synthesis Guidelines
+Omit Build Status only for Docs Tiny. Code Tiny requirement evidence is produced by the main agent. Lite requirement evidence comes from the Requirement Validator and main-agent verification.
 
-1. **Build findings** — errors -> CRITICAL, warnings -> MEDIUM
-2. **Deduplication** — same `file:line` from both agents -> one entry, multi-tag (e.g., `[Critical, Quality]`), highest severity wins
-3. **Files Changed table** — summarize per-agent findings per file (count or "Clean"); Quality column combines philosophy + convention findings from Quality Reviewer
-4. **Must Fix shortlist** — Critical and High findings only, severity-sorted, capped ~10
-5. **Agent attribution** — tag every finding: `[Critical]` for Critical Reviewer, `[Quality]` for Quality Reviewer, `[Build]` for Build Validator
-6. **Skipped sections** — if no findings for a file, omit from Detailed Findings; show "Clean" in Files Changed
-7. **ADO autolink guard** — run `ado_autolink_guard.py fix` then `check` before declaring the report complete
+## Synthesis Rules
+
+1. Verify every finding against the diff and worktree.
+2. Deduplicate identical `file:line` findings; retain highest severity and all actor tags.
+3. Requirement gaps use the evidence rules in `SKILL.md`.
+4. Build errors are Critical; build warnings are Medium.
+5. Must Fix includes only Critical and High findings.
+6. Organize details by file, not severity.
+7. State unavailable evidence as `Not verifiable`; do not infer success.
+
+## ADO Autolink Safety
+
+Raw `#123` is reserved for intentional ADO work-item links. Escape other number references (`PR \#4`, `AC \#2`). Run:
+
+```text
+python <code-review-publish-skill>/scripts/ado_autolink_guard.py fix ".CodeReview/{safe-branch}.lite.md"
+python <code-review-publish-skill>/scripts/ado_autolink_guard.py check ".CodeReview/{safe-branch}.lite.md"
+```
+
+Then run `scripts/verify_output.py`. Both guards must pass.

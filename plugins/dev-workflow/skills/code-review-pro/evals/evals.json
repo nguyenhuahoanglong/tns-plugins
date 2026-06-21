@@ -1,0 +1,47 @@
+{
+  "skill_name": "code-review-pro",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Review my current branch. It changes 2 source files with 74 added/deleted lines. No public/shared behavior, API, schema, auth, dependency, async lifecycle, state, or config is touched.",
+      "expected_output": "The review selects Tiny, announces all profile decisions, runs one Build Validator per repo, performs all review lenses in the main agent, and writes verified v2 report/sidecar records.",
+      "expectations": [
+        "The profile is Tiny only because filesChanged <= 3, changedLines <= 100, docsOnly is false, and riskTriggers is empty",
+        "Exactly one dedicated Build Validator runs per repo with the active tool's fast runtime profile",
+        "Requirement and specialist agents are skipped while the main agent reviews requirement, regression, security, performance, design, standards, and tests",
+        "Known launch model and effort are copied exactly into Main Runtime and sidecar runtime.main; neither is replaced by not exposed",
+        "The report contains exact Skill, Version, Runtime, Triggered, and Skipped fields and the sidecar contains recordVersion 2"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "Review a 1-file, 35-line change that modifies a public API DTO and authorization behavior. No linked work item is available.",
+      "expected_output": "The small diff is classified Pro because API and auth risks forbid Tiny. Build and regression-only Requirement validators run, Security and relevant design specialists trigger, and unrelated behavior preservation is evidenced.",
+      "expectations": [
+        "The classifier selects Pro despite the Tiny size thresholds because api-contract and auth-security-boundary triggers are announced",
+        "Requirement Validator always runs in regression-only mode with the active tool's deep runtime profile",
+        "Security Reviewer runs through the generic code-reviewer standard runtime while untriggered specialists are explicitly skipped",
+        "Requirement evidence compares base/new behavior and cites symbols, callers or consumers, events/state where relevant, tests, and unrelated behavior preservation"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "Review Azure DevOps PR 75635 and follow its linked direct work item. Treat the parent only as context. Verify changed symbols, callers/consumers, events/state, tests, and preserved behavior; then prepare a publish-compatible report.",
+      "expected_output": "PR 75635 receives a Pro review with direct-AC mapping, parent-context separation, risk-triggered specialist routing, stable report metadata, ADO guard, and v2 follow-up records.",
+      "expectations": [
+        "The review announces Pro profile plus every classifier and specialist trigger before dispatch",
+        "The direct work item's acceptance criteria are binding and parent context does not create extra Missing or Partial criteria",
+        "Build Validator and Requirement Validator always run; only specialists with recorded evidence triggers run after a passing build",
+        "The report passes the ADO autolink guard and scripts/verify_output.py, including an expected-main-runtime check when launch metadata is supplied, and its sidecar includes skillName code-review-pro, skillVersion 2.0.0, and reviewProfile",
+        "A later follow-up reclassifies only the delta with the same Docs-only/Tiny/Pro classifier and writes recordVersion 2"
+      ]
+    }
+  ],
+  "non_goals": [
+    "Do not sync, install, publish, or modify deployed copies of the skill",
+    "Do not use file/line thresholds alone to classify risky changes as Tiny",
+    "Do not spawn all specialists by default or skip the Pro Requirement Validator when no work item exists",
+    "Do not treat parent Feature or Epic outcomes as direct acceptance criteria",
+    "Do not create worktrees outside the reviewed repository"
+  ]
+}

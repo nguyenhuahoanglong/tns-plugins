@@ -1,77 +1,60 @@
 ---
 name: requirement-validation
-description: Orchestrator-side workflow for detecting, retrieving, and confirming work item requirements before dispatching the Requirement Validator agent
+description: Requirement context resolution and binding direct-task versus parent-context contract
 ---
 
-# Requirement Validation (Orchestrator-side)
+# Requirement Validation Context
 
-This file covers the orchestrator's pre-work: finding the work item, fetching its details, and confirming with the user. The actual validation against code changes is performed by the Requirement Validator agent (see `agents/requirement-validator.md`).
+## Resolve Context
 
-## Prerequisites
+Run:
 
-Requires Azure CLI. On first run: `az config set extension.use_dynamic_install=yes_without_prompt` (auto-installs the azure-devops extension). Auth via `az login` or set `AZURE_DEVOPS_EXT_PAT`.
-
-## Phase 1 + 2: Detect and Retrieve (Script-driven)
-
-Run a single command — it detects the work item ID, fetches it (plus its parent), strips ADO's HTML, and returns prompt-ready markdown:
-
-```bash
-python <code-review-pro-skill>/scripts/ado_work_item.py context [--pr {pr-id}] --repo {repo-path}
+```text
+python <skill-dir>/scripts/ado_work_item.py context [--pr {pr-id}] --repo {repo-root}
 ```
 
-Pass `--pr {pr-id}` whenever a PR ID is known — the script reads PR-linked work items, the most reliable source. You may also pass `--id N` to pin a specific work item and skip detection.
+Detection order remains PR links, branch identifiers, then commit identifiers. If unresolved, inspect `.docs/ado-context.md` for a candidate. User-provided requirement text overrides inferred context.
 
-**Detection priority (what the script does internally):**
-1. PR linked work items via `az repos pr work-item list` (most reliable)
-2. Branch name patterns — e.g. `feature/1234-add-login`, `bug/WI-1234`
-3. Commit message patterns — `AB#1234`, `[WI:1234]`, `Fixes #1234`, `#1234` — scanned across the last 20 commit subjects
+## Contract Hierarchy
 
-One call handles detection + fetch + parent fetch + HTML stripping and prints a markdown block:
+1. **Direct task/story/bug and its acceptance criteria are binding scope.**
+2. **Parent Feature/Epic is explanatory context only.** Use it to understand business intent and terminology; do not turn parent outcomes into extra acceptance criteria.
+3. **Repository instructions and existing behavior constrain preservation.** A direct requirement does not authorize unrelated regressions.
+4. **No direct requirement means regression-only mode.** Do not invent criteria from a parent, branch name, PR title, or implementation.
 
-```
-## Work Item #1234 — {title}
-- **Type/State**: User Story / Active
-- **Parent**: #1200 — {parent title} (Feature)
-- **Detected from**: branch name 'feature/1234-x'   (only when auto-detected)
+## Modes
 
-### Description
-{plain text}
+### Work-item mode
 
-### Acceptance Criteria
-{plain text}
-```
+Pass direct item title, description, acceptance criteria, state, parent summary, and any user clarification. Map each direct criterion to observable evidence. Parent-only goals may be notes, never Missing/Partial findings.
 
-Extracted fields: Title, Description, Acceptance Criteria, State, plus Parent for broader context (why the work matters).
+### Regression-only mode
 
-## Fallback Chain
+Pass changed files, diff, base reference, tests, and any intent text. Validate:
 
-Used when the script exits non-zero.
+- base behavior versus new behavior
+- changed symbols and signatures
+- callers and consumers
+- emitted/handled events
+- state reads, writes, ordering, and persistence
+- tests proving intended and preserved behavior
+- unrelated behavior preservation
 
-### Exit 3 — no work item ID detectable
+Report no fabricated AC table. Use a Behavior Preservation table instead.
 
-1. Read `{repo}/.docs/ado-context.md` if present — match branch name or changed-path keywords against its epic/feature/story alias tables and propose a candidate to the user, e.g.: "This looks like User Story #2197 — correct?"
-2. If still nothing, ask the user:
-   > "I couldn't find a linked work item. Could you provide the requirement context — a work item ID, acceptance criteria, or description of what this change should accomplish?"
+## Evidence Rules
 
-### Exit 2 — az CLI not installed or not authenticated
+- Cite `file:line`, symbol, and execution path. A changed line alone is not fulfillment evidence.
+- For Addressed, connect input/precondition through implementation to observable output/state/event.
+- For Missing, prove no implementation/evidence exists in reviewed scope after search.
+- For regression, show base/new difference and at least one exposed caller, consumer, event, state, or test.
+- Distinguish absence of tests from a demonstrated defect.
 
-Report the az problem to the user and go straight to step 2 above.
+## Severity
 
-## Phase 3: Confirm with User
+- **CRITICAL**: proven existing behavior break, crash/data loss, auth bypass, or contract break with exposed consumer evidence.
+- **HIGH**: direct AC missing/partial; demonstrated user-visible regression; public/API/schema/event contract mismatch.
+- **MEDIUM**: plausible preservation risk with incomplete exposure evidence; missing tests for changed behavior; benign unrelated scope.
+- **LOW**: clarification/documentation gap without runtime impact.
 
-Present the detected requirement to the user before proceeding:
-
-> **Detected Requirement:**
-> - Work Item: #{id} - {title}
-> - Parent: #{parent-id} - {parent-title}
-> - Acceptance Criteria: {summarized criteria}
->
-> Is this the correct context for this review? Do you have any additional goals or expectations?
-
-Wait for user confirmation. The user may:
-- Confirm the detected requirement
-- Provide a different work item ID
-- Add additional context or goals
-- Clarify specific areas of concern
-
-The confirmed work item details (title, description, acceptance criteria, parent) are passed to the Requirement Validator agent in Phase 3 — and to the Approach Gate (Phase 2a) inline by the orchestrator.
+Downgrade unsupported CRITICAL/HIGH claims. Put uncertainty in Notes, not fabricated evidence.

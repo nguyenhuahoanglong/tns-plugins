@@ -1,90 +1,99 @@
 ---
 name: followup-review
-description: Incremental follow-up review workflow (iteration 2+) — reuses the prior report and meta sidecar, reviews only the delta with a single Delta Reviewer, regenerates the full publish-compatible report
+description: v2 follow-up records, delta reclassification, stable finding carry-forward, and sidecar schema
 ---
 
-# Follow-up Review (Iteration 2+)
+# Follow-up Review
 
-A follow-up review runs when the branch already has a completed full review. The expensive artifacts from iteration 1 — discovery results, AC mapping, per-file findings, Must Fix slugs — are reused, so the pipeline shrinks to: delta diff → build gate → ONE Delta Reviewer → synthesis.
+Follow-up uses the same classifier and runtime contract as an initial review.
 
 ## Detection
 
-Follow-up mode applies when BOTH exist for the current branch:
+Require both:
 
-- Report: `.CodeReview/{BranchName}.md`
-- Meta sidecar: `.CodeReview/.{BranchName}.review-meta.json`
+- `.CodeReview/{safe-branch}.md`
+- `.CodeReview/.{safe-branch}.review-meta.json`
 
-Also triggered explicitly by "follow up review" / "re-review" / "check my fixes". If the user explicitly asks for a **full** re-review, run the full pipeline instead (and overwrite report + sidecar).
+The sidecar must parse and contain `recordVersion: 2`, `skillName: code-review-pro`, `skillVersion: 2.0.0`, `scopeType`, `scopeBase`, and `diffFingerprint`. If missing, invalid, or v1, run a fresh full-scope review and write v2 records.
 
-If `HEAD == reviewedCommit` from the sidecar → tell the user "no changes since last review" and STOP (no agents, no worktree).
+Recompute SHA-256 over the same normalized scoped diff:
 
-If the sidecar is missing or unparseable but a report exists → fall back to the full pipeline (do not guess the reviewed commit).
+- PR/branch: `{scopeBase}..HEAD`
+- staged: `git diff --cached --binary`
+- working: `git diff HEAD --binary` plus sorted untracked path/content hashes
+- explicit files: same original base and sorted file scope
 
-## Meta Sidecar Schema
+Stop without agents/worktree only when the recomputed fingerprint equals `diffFingerprint`. `HEAD == reviewedCommit` alone is insufficient because staged/working changes may exist.
 
-Written by Phase 4 of every review (full and follow-up):
+## Delta
+
+Diff `{reviewedCommit}..HEAD`, collect file/line counts, and classify that delta through `adaptive-classifier.md`. Announce the new profile and every trigger/skip before execution.
+
+- Docs-only delta: zero agents; review documentation inline.
+- Tiny delta: one Build Validator per repo; main agent verifies prior findings and reviews all lenses.
+- Pro delta: Build Validator(s), Requirement Validator always, then only triggered specialists.
+
+Use the prior report as context. Re-evaluate work-item context if direct requirements changed or prior mode was regression-only and a work item is now available.
+
+## Resolution
+
+For each prior open finding:
+
+- **Resolved**: fixed code proves issue gone.
+- **Partial**: improvement does not remove core issue.
+- **Unresolved**: delta does not address it.
+- **Regressed**: attempted fix introduces or exposes another defect.
+
+Re-read code for every resolved Must Fix. Carry untouched findings forward. Remove resolved findings. Preserve slugs for unresolved/partial findings; allocate new slugs only for genuinely new issues.
+
+## v2 Sidecar
 
 ```json
 {
-  "reviewedCommit": "{HEAD sha at review time}",
+  "recordVersion": 2,
+  "skillName": "code-review-pro",
+  "skillVersion": "2.0.0",
+  "reviewProfile": "Pro",
+  "reviewKind": "follow-up",
+  "classifier": {
+    "filesChanged": 4,
+    "changedLines": 140,
+    "docsOnly": false,
+    "riskTriggers": ["api-contract"],
+    "specialistTriggers": {
+      "Philosophy Reviewer": ["api-contract"]
+    }
+  },
+  "runtime": {
+    "main": "gpt-5.5/xhigh",
+    "build": "haiku / default",
+    "requirement": "opus / default",
+    "specialists": "sonnet / default"
+  },
+  "triggered": [
+    "Build Validator[repo](haiku / default; code build)",
+    "Requirement Validator(opus / default; work-item)",
+    "Philosophy Reviewer(sonnet / default; api-contract)"
+  ],
+  "skipped": ["Security Reviewer(no security trigger)"],
+  "reposReviewed": ["repo"],
+  "requirementMode": "work-item",
+  "scopeType": "pr",
+  "scopeBase": "origin/develop",
+  "diffFingerprint": "sha256:...",
+  "reviewedCommit": "sha",
   "targetBranch": "develop",
-  "workItemId": 1795,
-  "standardsPaths": ["AGENTS.md", ".editorconfig"],
-  "exemplarMap": { "src/Services/FooService.cs": ["src/Services/BarService.cs"] },
-  "reviewedFiles": ["src/Services/FooService.cs", "src/Api/FooController.cs"],
-  "iteration": 1,
-  "reviewedAt": "{ISO timestamp}"
+  "workItemId": 1234,
+  "standardsPaths": ["AGENTS.md"],
+  "exemplarMap": {},
+  "reviewedFiles": ["src/file.cs"],
+  "iteration": 2,
+  "reviewedAt": "ISO-8601"
 }
 ```
 
-`reviewedFiles` = the changed-file list of the last review (used by the escalation rule). Paths relative to the repo root.
+Initial reviews use the same schema with `reviewKind: initial` and `iteration: 1`. `reviewProfile` records the profile used for that iteration.
 
-## Pipeline
+## Finish
 
-### 1. Pre-work (orchestrator)
-
-Reuse from the sidecar — SKIP scope determination, standards discovery, work item resolution, and the Approach Gate (it passed in iteration 1; the orchestrator sanity-checks the delta during synthesis instead).
-
-- **Delta diff**: `git diff --no-prefix -U50 {reviewedCommit}..HEAD > .CodeReview/.{BranchName}.diff` and `git diff --name-only {reviewedCommit}..HEAD` for the delta file list
-- **Worktree setup**: same as full review (`review-workflow.md` §4)
-- **Neighbor discovery**: only for delta files NOT already in `exemplarMap` (extend the map; don't redo it)
-
-### 2. Escalation check (orchestrator, before dispatch)
-
-The single-agent path assumes the delta is "fixes plus a little new code". Escalate to the **full 5-agent fan-out on the delta diff** (still reusing the sidecar and skipping discovery) when EITHER:
-
-- Delta exceeds **400 changed lines** (added + removed, from `git diff --shortstat`), OR
-- Delta touches files **outside `reviewedFiles`** that aren't trivially related (new source files in new areas — test/doc-only additions don't count)
-
-When escalating, each deep-dive agent additionally receives the prior report path with the instruction to check whether prior findings in its domain are resolved.
-
-### 3. Gate + Delta Reviewer (parallel)
-
-Dispatch both in a single message using the standard path-based prompt:
-
-| Agent | File | Context |
-|---|---|---|
-| Build Validator | `agents/build-validator.md` | Worktree path, project paths (haiku) |
-| Delta Reviewer | `agents/delta-reviewer.md` | Worktree path, delta diff file path, **prior report path**, work item summary (1–3 lines), delta file list (sonnet) |
-
-Build `Gate Result: FAIL` → Build Fail short report (`short-reports.md`) → cleanup → STOP. The Delta Reviewer's output is discarded in that case.
-
-### 4. Synthesis (orchestrator, opus)
-
-1. **Re-verify resolution claims on Must Fix items at P1 rigor** — re-read the fixed code in the worktree for every prior Must Fix the Delta Reviewer marked Resolved. Should Fix/Consider resolutions can be trusted unless they look off.
-2. **Regenerate the FULL report** at `.CodeReview/{BranchName}.md` (template: `report-template.md`):
-   - Findings on files untouched by the delta → carry forward verbatim from the prior report
-   - Resolved findings → remove (their `[mf:slug]` disappears from Must Fix — that is how `code-review-publish` detects resolution)
-   - Unresolved/Partial findings → keep with **unchanged slugs**
-   - New findings → add; new Must Fix items get new slugs
-   - Header: bump `**Iteration**`, update `**Reviewed Commit**`
-3. **Run the ADO autolink guard** (fix + check) as in the full pipeline
-4. **Update the sidecar**: new `reviewedCommit`, merged `reviewedFiles` (union with delta files), extended `exemplarMap`, bumped `iteration`, new `reviewedAt`
-
-### 5. Cleanup
-
-Same as the full pipeline: remove worktrees, delete the diff file, keep report + sidecar.
-
-## Token Rationale
-
-Iteration 1 already paid for discovery and the 5-lens scan. A follow-up only needs to answer "are the prior findings fixed?" and "did the fixes break anything?" — both answerable from the prior report plus a small delta. Typical follow-up cost is one fast build agent plus one standard agent on a small diff, instead of six agents on the full diff.
+Regenerate the complete report, update header/profile/trigger fields, run ADO guard, run `scripts/verify_output.py`, update sidecar, then clean the repo-local worktrees and delta file.
