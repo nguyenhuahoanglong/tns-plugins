@@ -8,6 +8,10 @@ from pathlib import Path
 
 SKILL = "code-review-lite v2.0.0"
 PROFILES = {"Docs Tiny", "Code Tiny", "Lite"}
+BRANCH_GATE_FIELDS = {
+    "Status", "Branch", "Prefix", "Work Item ID", "Expected Type",
+    "Actual Type", "Title", "State", "Source", "Reason",
+}
 
 
 def field(text, name):
@@ -30,6 +34,24 @@ def bullet(text, name):
         re.MULTILINE,
     )
     return match.group(1).strip() if match else None
+
+
+def section_bullets(text, heading):
+    match = re.search(
+        rf"^{re.escape(heading)}\s*(.*?)(?=^## |\Z)",
+        text,
+        re.MULTILINE | re.DOTALL,
+    )
+    if not match:
+        return {}
+    return {
+        name: value.strip()
+        for name, value in re.findall(
+            r"^- \*\*([^*]+)\*\*:\s*(.+?)\s*$",
+            match.group(1),
+            re.MULTILINE,
+        )
+    }
 
 
 def build_repo_count(text):
@@ -94,6 +116,8 @@ def evaluate(output_path, expected_profile=None, expected_main_runtime=None):
     add(results, bool(values["Agents Triggered"]), "Agents Triggered are reported")
     add(results, bool(values["Agents Skipped"]), "Agents Skipped are reported")
     add(results, "## Classification" in text, "Classification section exists")
+    add(results, "## Branch Work Item Gate" in text,
+        "Branch Work Item Gate section exists")
     add(results, "## Requirement Evidence" in text, "Requirement Evidence section exists")
 
     triggered = values["Agents Triggered"] or ""
@@ -102,6 +126,11 @@ def evaluate(output_path, expected_profile=None, expected_main_runtime=None):
         r"Build Validator\[[^\]]+\]\(.+ / .+;\s*[^)]+\)",
         triggered,
     )
+    build_runtime_match = re.search(
+        r"Build Validator\[[^\]]+\]\(([^;()]+ / [^;()]+);\s*[^)]+\)",
+        triggered,
+    )
+    build_runtime = build_runtime_match.group(1) if build_runtime_match else None
     repo_count = build_repo_count(text)
     requirement_runtime = "Requirement Validator("
     specialists = ("Security Reviewer(", "Performance Reviewer(", "Philosophy Reviewer(", "Standard Reviewer(")
@@ -123,6 +152,27 @@ def evaluate(output_path, expected_profile=None, expected_main_runtime=None):
             for item in specialist_text.split(" | ")
             if "=" in item
         ]
+    gate = section_bullets(text, "## Branch Work Item Gate")
+    add(results, BRANCH_GATE_FIELDS <= set(gate),
+        "Branch Work Item Gate reports required fields")
+    gate_status = gate.get("Status")
+    add(results, gate_status in {"PASS", "FAIL", "SKIPPED"},
+        "Branch Work Item Gate status is valid")
+    branch_trigger_pattern = r"Branch Work Item Gate\(([^;()]+ / [^;()]+);\s*branch work item convention\)"
+    branch_runtime_match = re.search(branch_trigger_pattern, triggered)
+    branch_triggered = bool(re.search(branch_trigger_pattern, triggered))
+    branch_skipped = "Branch Work Item Gate(" in skipped
+    if gate_status in {"PASS", "FAIL"}:
+        add(results, branch_triggered,
+            "Branch Work Item Gate uses Build Validator runtime when triggered")
+        if build_runtime:
+            add(results, branch_runtime_match and branch_runtime_match.group(1) == build_runtime,
+                "Branch Work Item Gate uses same runtime as Build Validator")
+        add(results, not branch_skipped,
+            "Triggered Branch Work Item Gate is not also skipped")
+    elif gate_status == "SKIPPED":
+        add(results, branch_skipped and not branch_triggered,
+            "Skipped Branch Work Item Gate is recorded only in skipped actors")
     add(results, files is not None, "Classification reports Files Changed")
     add(results, lines is not None, "Classification reports Changed Lines")
     add(results, docs_only is not None, "Classification reports Documentation Only")
@@ -131,7 +181,8 @@ def evaluate(output_path, expected_profile=None, expected_main_runtime=None):
 
     if profile == "Docs Tiny":
         add(results, docs_only is True, "Docs Tiny requires documentation-only scope")
-        add(results, triggered == "None", "Docs Tiny triggers zero child agents")
+        add(results, triggered == "None" or branch_triggered,
+            "Docs Tiny triggers no child agents except optional branch gate")
         for actor in ("Build Validator", "Requirement Validator", "Security Reviewer", "Performance Reviewer", "Philosophy Reviewer", "Standard Reviewer"):
             add(
                 results,

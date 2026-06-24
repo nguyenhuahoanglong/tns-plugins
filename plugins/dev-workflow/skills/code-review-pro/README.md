@@ -31,6 +31,12 @@ Worktrees live under each repo at `.CodeReview/.worktrees/{safe-branch}`. Build 
 
 ## Changelog
 
+### 2026-06-24 - Branch work item gate
+
+- Added Branch Work Item Gate as a first gate using the Build Validator runtime.
+- Validates `US/`, `BUG/`, and `ISSUE/` branch IDs against Azure DevOps work item existence and type through `az`.
+- Added report, sidecar, verifier, and eval coverage for PASS/FAIL/SKIPPED gate status.
+
 ### 2026-06-19 - v2.0.0 adaptive review pipeline
 
 - Added Docs-only, Tiny, and Pro classifier with strict Tiny thresholds and risk exclusions.

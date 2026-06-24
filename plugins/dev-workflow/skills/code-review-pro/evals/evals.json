@@ -10,7 +10,8 @@
         "Exactly one dedicated Build Validator runs per repo with the active tool's fast runtime profile",
         "Requirement and specialist agents are skipped while the main agent reviews requirement, regression, security, performance, design, standards, and tests",
         "Known launch model and effort are copied exactly into Main Runtime and sidecar runtime.main; neither is replaced by not exposed",
-        "The report contains exact Skill, Version, Runtime, Triggered, and Skipped fields and the sidecar contains recordVersion 2"
+        "The report contains exact Skill, Version, Runtime, Triggered, and Skipped fields and the sidecar contains recordVersion 2",
+        "Branch Work Item Gate runs with the Build Validator runtime for branch/PR scope and records PASS/FAIL/SKIPPED in the report and sidecar"
       ]
     },
     {
@@ -21,7 +22,8 @@
         "The classifier selects Pro despite the Tiny size thresholds because api-contract and auth-security-boundary triggers are announced",
         "Requirement Validator always runs in regression-only mode with the active tool's deep runtime profile",
         "Security Reviewer runs through the generic code-reviewer standard runtime while untriggered specialists are explicitly skipped",
-        "Requirement evidence compares base/new behavior and cites symbols, callers or consumers, events/state where relevant, tests, and unrelated behavior preservation"
+        "Requirement evidence compares base/new behavior and cites symbols, callers or consumers, events/state where relevant, tests, and unrelated behavior preservation",
+        "A malformed or type-mismatched branch/work-item gate failure is reported as CRITICAL and stops Requirement Validator and specialists"
       ]
     },
     {
@@ -33,7 +35,8 @@
         "The direct work item's acceptance criteria are binding and parent context does not create extra Missing or Partial criteria",
         "Build Validator and Requirement Validator always run; only specialists with recorded evidence triggers run after a passing build",
         "The report passes the ADO autolink guard and scripts/verify_output.py, including an expected-main-runtime check when launch metadata is supplied, and its sidecar includes skillName code-review-pro, skillVersion 2.0.0, and reviewProfile",
-        "A later follow-up reclassifies only the delta with the same Docs-only/Tiny/Pro classifier and writes recordVersion 2"
+        "A later follow-up reclassifies only the delta with the same Docs-only/Tiny/Pro classifier and writes recordVersion 2",
+        "The PR source branch ID is verified through az boards work-item show and the ADO work item type must match the branch prefix"
       ]
     }
   ],

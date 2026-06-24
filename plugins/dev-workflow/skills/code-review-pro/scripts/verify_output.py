@@ -9,6 +9,14 @@ from pathlib import Path
 
 SKILL = "code-review-pro v2.0.0"
 PROFILES = {"Docs-only", "Tiny", "Pro"}
+BRANCH_GATE_FIELDS = {
+    "Status", "Branch", "Prefix", "Work Item ID", "Expected Type",
+    "Actual Type", "Title", "State", "Source", "Reason",
+}
+BRANCH_GATE_SIDE_FIELDS = {
+    "status", "branch", "prefix", "workItemId", "expectedType",
+    "actualType", "title", "state", "source", "reason",
+}
 
 
 def field(text, name):
@@ -35,6 +43,24 @@ def bullet(text, name):
         re.MULTILINE,
     )
     return match.group(1).strip() if match else None
+
+
+def section_bullets(text, heading):
+    match = re.search(
+        rf"^{re.escape(heading)}\s*(.*?)(?=^## |\Z)",
+        text,
+        re.MULTILINE | re.DOTALL,
+    )
+    if not match:
+        return {}
+    return {
+        name: value.strip()
+        for name, value in re.findall(
+            r"^- \*\*([^*]+)\*\*: (.+)$",
+            match.group(1),
+            re.MULTILINE,
+        )
+    }
 
 
 def infer_sidecar(report):
@@ -66,6 +92,7 @@ def evaluate(report_path, sidecar_path=None, expected_main_runtime=None):
     add(results, bool(values["Agents Skipped"]), "Agents Skipped is populated")
     for heading in (
         "## Review Classification",
+        "## Branch Work Item Gate",
         "## Build Status",
         "## Requirement Validation",
         "## Summary",
@@ -91,7 +118,7 @@ def evaluate(report_path, sidecar_path=None, expected_main_runtime=None):
     add(results, data.get("reviewProfile") == values["Review Profile"],
         "reviewProfile matches report")
     required_sidecar = {
-        "reviewKind", "classifier", "runtime", "triggered", "skipped",
+        "reviewKind", "classifier", "branchWorkItemGate", "runtime", "triggered", "skipped",
         "reposReviewed", "requirementMode", "reviewedCommit", "targetBranch",
         "workItemId", "scopeType", "scopeBase", "diffFingerprint",
         "standardsPaths", "exemplarMap", "reviewedFiles",
@@ -135,6 +162,47 @@ def evaluate(report_path, sidecar_path=None, expected_main_runtime=None):
     if isinstance(skipped, list):
         add(results, skipped == records(values["Agents Skipped"]),
             "Skipped report records match sidecar")
+
+    gate_report = section_bullets(text, "## Branch Work Item Gate")
+    add(results, BRANCH_GATE_FIELDS <= set(gate_report),
+        "Branch Work Item Gate reports required fields")
+    gate = data.get("branchWorkItemGate")
+    add(results, isinstance(gate, dict) and BRANCH_GATE_SIDE_FIELDS <= set(gate),
+        "sidecar branchWorkItemGate contains required fields")
+    if isinstance(gate, dict) and BRANCH_GATE_SIDE_FIELDS <= set(gate):
+        status = gate.get("status")
+        add(results, status in {"PASS", "FAIL", "SKIPPED"},
+            "Branch Work Item Gate status is valid")
+        mapping = {
+            "Status": "status",
+            "Branch": "branch",
+            "Prefix": "prefix",
+            "Work Item ID": "workItemId",
+            "Expected Type": "expectedType",
+            "Actual Type": "actualType",
+            "Title": "title",
+            "State": "state",
+            "Source": "source",
+            "Reason": "reason",
+        }
+        add(results, all(str(gate_report.get(label)) == str(gate.get(key))
+                         for label, key in mapping.items()),
+            "Branch Work Item Gate report fields match sidecar")
+        triggered_records = triggered if isinstance(triggered, list) else []
+        skipped_records = skipped if isinstance(skipped, list) else []
+        build_runtime = runtime.get("build") if isinstance(runtime, dict) else None
+        branch_trigger = f"Branch Work Item Gate({build_runtime}; branch work item convention)"
+        branch_triggered = branch_trigger in triggered_records
+        branch_skipped = any(item.startswith("Branch Work Item Gate(")
+                             for item in skipped_records)
+        if status in {"PASS", "FAIL"}:
+            add(results, branch_triggered,
+                "Branch Work Item Gate uses Build Validator runtime when triggered")
+            add(results, not branch_skipped,
+                "Triggered Branch Work Item Gate is not also skipped")
+        elif status == "SKIPPED":
+            add(results, branch_skipped and not branch_triggered,
+                "Skipped Branch Work Item Gate is recorded only in skipped actors")
 
     classifier = data.get("classifier", {})
     required = {"filesChanged", "changedLines", "docsOnly", "riskTriggers", "specialistTriggers"}
@@ -195,8 +263,13 @@ def evaluate(report_path, sidecar_path=None, expected_main_runtime=None):
         if profile == "Docs-only":
             add(results, classifier["docsOnly"] is True and risks == [],
                 "Docs-only records docsOnly=true and no runtime risk")
-            add(results, triggered_records == ["Main(docs-only inline)"],
-                "Docs-only triggers main inline review and zero child agents")
+            docs_allowed = {
+                "Main(docs-only inline)",
+                f"Branch Work Item Gate({runtime.get('build')}; branch work item convention)",
+            }
+            add(results, "Main(docs-only inline)" in triggered_records
+                and all(item in docs_allowed for item in triggered_records),
+                "Docs-only triggers main inline review plus optional branch gate only")
             for actor in ("Build Validator", "Requirement Validator", *[
                 f"{name} Reviewer" for name in specialists
             ]):

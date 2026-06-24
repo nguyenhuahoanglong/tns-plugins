@@ -7,7 +7,7 @@ description: Scope, classification, local worktree, child-read preflight, and cl
 
 ## Scope and Diff
 
-Resolve PR, branch, staged changes, or explicit files. Prefer PR metadata; fall back to git. Write the full diff once to:
+Resolve PR, branch, staged changes, or explicit files. Prefer PR metadata; fall back to git. Record source branch for PR/branch scope. Write the full diff once to:
 
 ```text
 .CodeReview/.{safe-branch}.diff
@@ -88,9 +88,14 @@ Treat missing PASS as dispatch failure. Do not accept findings from a child that
 
 Announce each actor with reason and exact runtime profile before dispatch.
 
-- Docs Tiny: no dispatch.
-- Code Tiny: Build Validators in parallel, one per repo.
-- Lite: Build Validators; Requirement Validator always; optional single named specialist only after passing builds.
+- PR/branch scope: Branch Work Item Gate runs with `haiku / default` in parallel with first Build Validator:
+  `python <skill>/scripts/branch_work_item_gate.py --scope-type {scopeType} --branch "{sourceBranch}" --repo "{repo}"`
+- Staged, working, and files scope: run Branch Work Item Gate and record `SKIPPED`.
+- Branch Work Item Gate validates `(US|BUG|ISSUE)/{id}-{slug}` and calls `az boards work-item show` to verify the ID exists and `System.WorkItemType` matches `User Story`, `Bug`, or `Issue`.
+- Gate `FAIL`: write a report with completed build results, record a Critical finding, skip Requirement Validator and specialists, and stop.
+- Docs Tiny: Branch Work Item Gate only when applicable; no other dispatch.
+- Code Tiny: Branch Work Item Gate plus Build Validators in parallel, one per repo.
+- Lite: Branch Work Item Gate plus Build Validators; Requirement Validator always after gate pass; optional single named specialist only after passing builds.
 - Escalation: announce triggered reviewers and invoke `code-review-pro` instead.
 
 Build failure skips specialist, but Requirement Validator still runs before synthesis.

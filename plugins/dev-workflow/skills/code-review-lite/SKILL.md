@@ -15,6 +15,7 @@ Resolve scope, repos, target branch, changed files, and full diff. Count:
 - files changed
 - changed lines = additions + deletions, excluding diff headers
 - risk families below
+- source branch for PR/branch scopes
 
 Fetch requirement context non-blockingly with:
 
@@ -68,6 +69,7 @@ Use these exact child profiles:
 
 | Actor | Agent type | Model | Effort |
 |---|---|---|---|
+| Branch Work Item Gate | lightweight gate runner | `haiku / default` | configured |
 | Build Validator | `build-validator` | `haiku / default` | configured |
 | Requirement Validator | `requirement-validator` | `opus / default` | configured |
 | Named specialist | `code-reviewer` | `sonnet / default` | configured |
@@ -80,7 +82,7 @@ Before each dispatch announce:
 Agent trigger: {actor} | Model/Effort: {runtime} | Reason: {risk/scope}
 ```
 
-Dispatch Build with `Task(subagent_type="build-validator", prompt="...", description="...")`, Requirement with `Task(subagent_type="requirement-validator", prompt="...", description="...")`, and named specialist with `Task(subagent_type="code-reviewer", prompt="...", description="...")`.
+Dispatch Build with `Task(subagent_type="build-validator", prompt="...", description="...")`, Requirement with `Task(subagent_type="requirement-validator", prompt="...", description="...")`, and named specialist with `Task(subagent_type="code-reviewer", prompt="...", description="...")`. Run Branch Work Item Gate with `python <skill>/scripts/branch_work_item_gate.py --scope-type {scopeType} --branch "{sourceBranch}" --repo "{repo}"`; record it with the Build Validator runtime.
 
 Create agent worktrees per repo at `.CodeReview/.worktrees/{safe-branch}`. Complete the child-read preflight in `references/workflow.md` before analysis. Child agents run no git commands.
 
@@ -88,19 +90,20 @@ Create agent worktrees per repo at `.CodeReview/.worktrees/{safe-branch}`. Compl
 
 ### Docs Tiny
 
-Main agent reviews accuracy, consistency, links, commands, and requirement alignment. Spawn no agents.
+Run Branch Work Item Gate for PR/branch scope; skip it for staged, working, and file scope. If the gate fails, report the CRITICAL branch/work-item violation and stop. Otherwise main agent reviews accuracy, consistency, links, commands, and requirement alignment. Spawn no other agents.
 
 ### Code Tiny
 
-Run Build Validators in parallel. Main agent reviews changed code for correctness, regressions, security, performance, design, and standards. Do not spawn Requirement Validator or specialist.
+Run Branch Work Item Gate and Build Validators in parallel. If the gate fails, write the report with completed build results and stop. Otherwise main agent reviews changed code for correctness, regressions, security, performance, design, and standards. Do not spawn Requirement Validator or specialist.
 
 ### Lite
 
-1. Run one Build Validator per repo in parallel.
-2. Run one Requirement Validator even if build fails.
-3. On build failure, skip specialist to save tokens.
-4. Otherwise run the single triggered named specialist, if any.
-5. Main agent verifies and synthesizes findings.
+1. Run Branch Work Item Gate and one Build Validator per repo in parallel.
+2. If Branch Work Item Gate fails, write the report with completed build results and stop.
+3. Run one Requirement Validator even if build fails.
+4. On build failure, skip specialist to save tokens.
+5. Otherwise run the single triggered named specialist, if any.
+6. Main agent verifies and synthesizes findings.
 
 ## Requirement Evidence
 
@@ -121,6 +124,7 @@ Write `.CodeReview/{safe-branch}.lite.md`. Include exact:
 - main runtime: `{resolved model} / {resolved effort}`
 - triggered actors with runtime profiles and reasons
 - skipped actors with reasons
+- Branch Work Item Gate status and evidence
 
 Preserve the ADO autolink guard:
 

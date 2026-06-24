@@ -8,7 +8,7 @@
       "expectations": [
         "The profile is Docs Tiny because the change is documentation-only with no runtime effect; documentation size does not trigger child agents.",
         "No Build Validator, Requirement Validator, or named specialist is dispatched.",
-        "The report records code-review-lite v2.0.0, copies known launch model and effort exactly into Main Runtime, records Agents Triggered: None, and explains skipped actors."
+        "The report records code-review-lite v2.0.0, copies known launch model and effort exactly into Main Runtime, records Branch Work Item Gate status, and explains skipped actors."
       ]
     },
     {
@@ -18,7 +18,7 @@
       "expectations": [
         "The profile is Code Tiny only after every Tiny risk exclusion is checked.",
         "Exactly one dedicated Build Validator per repository is triggered with the active tool's fast runtime.",
-        "Requirement Validator and named specialists are skipped, while the main agent performs the code review."
+        "Branch Work Item Gate uses the Build Validator runtime, then Requirement Validator and named specialists are skipped while the main agent performs the code review."
       ]
     },
     {
@@ -28,7 +28,7 @@
       "expectations": [
         "The profile is Lite because the change exceeds Tiny limits and triggers only Performance Reviewer.",
         "One dedicated Build Validator per repository uses fast runtime and one dedicated Requirement Validator uses deep runtime.",
-        "Exactly one generic code-reviewer is triggered as Performance Reviewer with standard runtime."
+        "Exactly one generic code-reviewer is triggered as Performance Reviewer with standard runtime after Branch Work Item Gate passes."
       ]
     },
     {

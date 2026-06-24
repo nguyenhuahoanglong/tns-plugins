@@ -8,7 +8,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from verify_output import evaluate  # noqa: E402
 
 
-def write_report(root, profile, triggered, skipped):
+def write_report(root, profile, triggered, skipped, gate_status="PASS"):
     classification = {
         "Docs Tiny": (7, 500, "true", "None", "None"),
         "Code Tiny": (1, 42, "false", "None", "None"),
@@ -21,6 +21,29 @@ def write_report(root, profile, triggered, skipped):
         ),
     }[profile]
     path = Path(root) / "feature.lite.md"
+    gate = {
+        "Status": gate_status,
+        "Branch": "US/123-valid-branch" if gate_status != "SKIPPED" else "None",
+        "Prefix": "US" if gate_status != "SKIPPED" else "None",
+        "Work Item ID": "123" if gate_status != "SKIPPED" else "None",
+        "Expected Type": "User Story" if gate_status != "SKIPPED" else "None",
+        "Actual Type": "User Story" if gate_status == "PASS" else "None",
+        "Title": "Valid story" if gate_status == "PASS" else "None",
+        "State": "Active" if gate_status == "PASS" else "None",
+        "Source": "branch" if gate_status != "SKIPPED" else "working",
+        "Reason": "Branch prefix and ADO work item type match"
+        if gate_status == "PASS"
+        else ("Scope has no created PR or branch to validate"
+              if gate_status == "SKIPPED"
+              else "ADO work item type does not match branch prefix"),
+    }
+    branch_trigger = "Branch Work Item Gate(gpt-5.4-mini / low; branch work item convention)"
+    if gate_status == "SKIPPED":
+        skipped = f"{skipped}; Branch Work Item Gate(no created PR or branch scope)"
+    elif triggered == "None":
+        triggered = branch_trigger
+    else:
+        triggered = f"{branch_trigger}; {triggered}"
     path.write_text(
         "\n".join(
             (
@@ -40,6 +63,19 @@ def write_report(root, profile, triggered, skipped):
                 f"- **Risk Triggers**: {classification[3]}",
                 f"- **Specialist Triggers**: {classification[4]}",
                 "- **Decision**: fixture",
+                "",
+                "## Branch Work Item Gate",
+                "",
+                f"- **Status**: {gate['Status']}",
+                f"- **Branch**: {gate['Branch']}",
+                f"- **Prefix**: {gate['Prefix']}",
+                f"- **Work Item ID**: {gate['Work Item ID']}",
+                f"- **Expected Type**: {gate['Expected Type']}",
+                f"- **Actual Type**: {gate['Actual Type']}",
+                f"- **Title**: {gate['Title']}",
+                f"- **State**: {gate['State']}",
+                f"- **Source**: {gate['Source']}",
+                f"- **Reason**: {gate['Reason']}",
                 "",
                 "## Build Status",
                 "",
@@ -135,6 +171,37 @@ class VerifyOutputTests(unittest.TestCase):
                 "matches expected launch runtime" in message
                 for level, message in mismatch if level == "FAIL"
             ))
+
+    def test_branch_gate_skipped_valid(self):
+        with tempfile.TemporaryDirectory() as root:
+            path = write_report(
+                root,
+                "Code Tiny",
+                "Build Validator[repo](gpt-5.4-mini / low; code build)",
+                "Requirement Validator(Code Tiny); Security Reviewer(Code Tiny); "
+                "Performance Reviewer(Code Tiny); Philosophy Reviewer(Code Tiny); Standard Reviewer(Code Tiny)",
+                gate_status="SKIPPED",
+            )
+            self.assert_valid(path, "Code Tiny")
+
+    def test_branch_gate_requires_lightweight_runtime(self):
+        with tempfile.TemporaryDirectory() as root:
+            path = write_report(
+                root,
+                "Code Tiny",
+                "Build Validator[repo](gpt-5.4-mini / low; code build)",
+                "Requirement Validator(Code Tiny); Security Reviewer(Code Tiny); "
+                "Performance Reviewer(Code Tiny); Philosophy Reviewer(Code Tiny); Standard Reviewer(Code Tiny)",
+            )
+            path.write_text(
+                path.read_text(encoding="utf-8").replace(
+                    "Branch Work Item Gate(gpt-5.4-mini / low; branch work item convention)",
+                    "Branch Work Item Gate(gpt-other / low; branch work item convention)",
+                ),
+                encoding="utf-8",
+            )
+            failures = [message for level, message in evaluate(path, "Code Tiny") if level == "FAIL"]
+            self.assertIn("Branch Work Item Gate uses same runtime as Build Validator", failures)
 
 
 if __name__ == "__main__":

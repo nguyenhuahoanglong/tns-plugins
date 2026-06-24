@@ -11,13 +11,42 @@ VERIFY = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(VERIFY)
 
 
-def write_case(root, profile, classifier, triggered, requirement_mode):
+def write_case(root, profile, classifier, triggered, requirement_mode, gate_status="PASS"):
     risk_text = " | ".join(classifier["riskTriggers"]) or "None"
     specialist_text = " | ".join(
         f"{reviewer}={trigger}"
         for reviewer, triggers in classifier["specialistTriggers"].items()
         for trigger in triggers
     ) or "None"
+    runtime = {
+        "main": "gpt-test / high",
+        "build": "gpt-5.4-mini / low",
+        "requirement": "inherited current model / high",
+        "specialists": "inherited current model / medium",
+    }
+    gate = {
+        "status": gate_status,
+        "branch": "US/123-valid-branch" if gate_status != "SKIPPED" else "None",
+        "prefix": "US" if gate_status != "SKIPPED" else "None",
+        "workItemId": "123" if gate_status != "SKIPPED" else "None",
+        "expectedType": "User Story" if gate_status != "SKIPPED" else "None",
+        "actualType": "User Story" if gate_status == "PASS" else "None",
+        "title": "Valid story" if gate_status == "PASS" else "None",
+        "state": "Active" if gate_status == "PASS" else "None",
+        "source": "branch" if gate_status != "SKIPPED" else "working",
+        "reason": "Branch prefix and ADO work item type match"
+        if gate_status == "PASS"
+        else ("Scope has no created PR or branch to validate"
+              if gate_status == "SKIPPED"
+              else "ADO work item type does not match branch prefix"),
+    }
+    gate_trigger = f"Branch Work Item Gate({runtime['build']}; branch work item convention)"
+    triggered_records = list(triggered)
+    skipped_records = list(SKIPPED[profile])
+    if gate_status == "SKIPPED":
+        skipped_records.append("Branch Work Item Gate(no created PR or branch scope)")
+    else:
+        triggered_records.insert(0, gate_trigger)
     report = root / "feature.md"
     report.write_text(
         "\n".join([
@@ -26,8 +55,8 @@ def write_case(root, profile, classifier, triggered, requirement_mode):
             "**Skill**: code-review-pro v2.0.0",
             f"**Review Profile**: {profile}",
             "**Main Runtime**: gpt-test / high",
-            "**Agents Triggered**: None" if not triggered else f"**Agents Triggered**: {' | '.join(triggered)}",
-            f"**Agents Skipped**: {' | '.join(SKIPPED[profile]) if SKIPPED[profile] else 'None'}",
+            "**Agents Triggered**: None" if not triggered_records else f"**Agents Triggered**: {' | '.join(triggered_records)}",
+            f"**Agents Skipped**: {' | '.join(skipped_records) if skipped_records else 'None'}",
             "",
             "## Review Classification",
             f"- **Files Changed**: {classifier['filesChanged']}",
@@ -36,6 +65,17 @@ def write_case(root, profile, classifier, triggered, requirement_mode):
             f"- **Risk Triggers**: {risk_text}",
             "- **Risk Evidence**: None",
             f"- **Specialist Triggers**: {specialist_text}",
+            "## Branch Work Item Gate",
+            f"- **Status**: {gate['status']}",
+            f"- **Branch**: {gate['branch']}",
+            f"- **Prefix**: {gate['prefix']}",
+            f"- **Work Item ID**: {gate['workItemId']}",
+            f"- **Expected Type**: {gate['expectedType']}",
+            f"- **Actual Type**: {gate['actualType']}",
+            f"- **Title**: {gate['title']}",
+            f"- **State**: {gate['state']}",
+            f"- **Source**: {gate['source']}",
+            f"- **Reason**: {gate['reason']}",
             "## Build Status",
             "Test.",
             "## Requirement Validation",
@@ -55,14 +95,10 @@ def write_case(root, profile, classifier, triggered, requirement_mode):
         "reviewProfile": profile,
         "reviewKind": "initial",
         "classifier": classifier,
-        "runtime": {
-            "main": "gpt-test / high",
-            "build": "gpt-5.4-mini / low",
-            "requirement": "inherited current model / high",
-            "specialists": "inherited current model / medium",
-        },
-        "triggered": triggered,
-        "skipped": SKIPPED[profile],
+        "branchWorkItemGate": gate,
+        "runtime": runtime,
+        "triggered": triggered_records,
+        "skipped": skipped_records,
         "reposReviewed": [] if profile == "Docs-only" else ["repo"],
         "requirementMode": requirement_mode,
         "scopeType": "branch",
@@ -131,7 +167,7 @@ class VerifyOutputTests(unittest.TestCase):
             results = VERIFY.evaluate(report, sidecar)
             self.assertFalse([item for item in results if item[0] == "FAIL"])
 
-    def test_docs_only_requires_zero_agents(self):
+    def test_docs_only_rejects_child_agents_except_branch_gate(self):
         with tempfile.TemporaryDirectory() as tmp:
             report, sidecar = write_case(
                 Path(tmp), "Docs-only",
@@ -143,7 +179,10 @@ class VerifyOutputTests(unittest.TestCase):
                 "not-applicable",
             )
             results = VERIFY.evaluate(report, sidecar)
-            self.assertTrue(any("zero child agents" in message for level, message in results if level == "FAIL"))
+            self.assertTrue(any(
+                "optional branch gate only" in message
+                for level, message in results if level == "FAIL"
+            ))
 
     def test_pro_valid(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -180,6 +219,68 @@ class VerifyOutputTests(unittest.TestCase):
             self.assertTrue(any(
                 "matches expected launch runtime" in message
                 for level, message in mismatch if level == "FAIL"
+            ))
+
+    def test_branch_gate_skipped_valid(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            report, sidecar = write_case(
+                Path(tmp), "Tiny",
+                {"filesChanged": 1, "changedLines": 20, "docsOnly": False,
+                 "riskTriggers": [], "specialistTriggers": {}},
+                [
+                    "Main(Tiny all-lens)",
+                    "Build Validator[repo](gpt-5.4-mini / low; code build)",
+                ],
+                "inline",
+                gate_status="SKIPPED",
+            )
+            results = VERIFY.evaluate(report, sidecar)
+            self.assertFalse([item for item in results if item[0] == "FAIL"])
+
+    def test_branch_gate_report_sidecar_mismatch_fails(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            report, sidecar = write_case(
+                Path(tmp), "Tiny",
+                {"filesChanged": 1, "changedLines": 20, "docsOnly": False,
+                 "riskTriggers": [], "specialistTriggers": {}},
+                [
+                    "Main(Tiny all-lens)",
+                    "Build Validator[repo](gpt-5.4-mini / low; code build)",
+                ],
+                "inline",
+            )
+            data = json.loads(sidecar.read_text(encoding="utf-8"))
+            data["branchWorkItemGate"]["status"] = "FAIL"
+            sidecar.write_text(json.dumps(data), encoding="utf-8")
+            results = VERIFY.evaluate(report, sidecar)
+            self.assertTrue(any(
+                "Branch Work Item Gate report fields match sidecar" in message
+                for level, message in results if level == "FAIL"
+            ))
+
+    def test_branch_gate_requires_build_runtime_record(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            report, sidecar = write_case(
+                Path(tmp), "Tiny",
+                {"filesChanged": 1, "changedLines": 20, "docsOnly": False,
+                 "riskTriggers": [], "specialistTriggers": {}},
+                [
+                    "Main(Tiny all-lens)",
+                    "Build Validator[repo](gpt-5.4-mini / low; code build)",
+                ],
+                "inline",
+            )
+            report.write_text(
+                report.read_text(encoding="utf-8").replace(
+                    "Branch Work Item Gate(gpt-5.4-mini / low; branch work item convention)",
+                    "Branch Work Item Gate(gpt-other / low; branch work item convention)",
+                ),
+                encoding="utf-8",
+            )
+            results = VERIFY.evaluate(report, sidecar)
+            self.assertTrue(any(
+                "Triggered report records match sidecar" in message
+                for level, message in results if level == "FAIL"
             ))
 
     def test_pro_requires_requirement_mode(self):

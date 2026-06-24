@@ -32,11 +32,12 @@ Use these field names exactly and once:
 Join records with ` | ` and do not use pipes inside one record. Use exact actor forms:
 
 - `Main(docs-only inline)` or `Main(Tiny all-lens)`
+- `Branch Work Item Gate(haiku / default; branch work item convention)`
 - `Build Validator[{repo}](haiku / default; {reason})`
 - `Requirement Validator(opus / default; {work-item|regression-only})`
 - `{Specialist} Reviewer(sonnet / default; {trigger})`
 
-Skipped actors use `{Actor}({reason})`. Docs-only triggers only Main; Tiny triggers Main plus Build per repo.
+Skipped actors use `{Actor}({reason})`. Branch Work Item Gate is triggered for PR/branch scope and skipped for staged, working, or files scope. Docs-only triggers Main plus optional Branch Work Item Gate; Tiny triggers Main plus Branch Work Item Gate and Build per repo.
 
 ## Classifier
 
@@ -54,6 +55,19 @@ Skipped actors use `{Actor}({reason})`. Docs-only triggers only Main; Tiny trigg
 ## Validation
 
 ```markdown
+## Branch Work Item Gate
+
+- **Status**: PASS | FAIL | SKIPPED
+- **Branch**: {source branch or None}
+- **Prefix**: US | BUG | ISSUE | None
+- **Work Item ID**: {id or None}
+- **Expected Type**: User Story | Bug | Issue | None
+- **Actual Type**: {ADO System.WorkItemType or None}
+- **Title**: {ADO title or None}
+- **State**: {ADO state or None}
+- **Source**: pr | branch | staged | working | files
+- **Reason**: {one-line result or failure reason}
+
 ## Build Status
 
 | Repo / Project | Child Read | Build | Errors | Warnings |
@@ -80,6 +94,7 @@ For Docs-only, include a build row with `SKIPPED` / `NOT RUN`, and use requireme
 
 | Lens | Owner | Status | Evidence summary |
 |---|---|---|---|
+| Branch work item | Branch Work Item Gate / Skipped | Pass / Fail / Skipped | {brief} |
 | Build | Build Validator / Skipped | Pass / Fail / Skipped | {brief} |
 | Requirement and regression | Main / Requirement Validator | Pass / Warn / Fail | {brief} |
 | Security | Main / Security Reviewer / Skipped | Pass / Warn / Skipped | {brief} |
@@ -90,6 +105,8 @@ For Docs-only, include a build row with `SKIPPED` / `NOT RUN`, and use requireme
 ### Must Fix Before Merge
 
 - **[CRITICAL|HIGH] [{Owner}] [mf:{stable-slug}]** {issue} - `{file}:{line}`
+
+Branch Work Item Gate `FAIL` is a CRITICAL Must Fix before merge. Include completed build results, skip later validators/specialists, and state that review stopped after first gates.
 
 ## Files Changed
 

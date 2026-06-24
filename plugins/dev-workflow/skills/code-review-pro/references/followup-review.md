@@ -64,6 +64,18 @@ Re-read code for every resolved Must Fix. Carry untouched findings forward. Remo
       "Philosophy Reviewer": ["api-contract"]
     }
   },
+  "branchWorkItemGate": {
+    "status": "PASS",
+    "branch": "US/1234-short-slug",
+    "prefix": "US",
+    "workItemId": "1234",
+    "expectedType": "User Story",
+    "actualType": "User Story",
+    "title": "Example story",
+    "state": "Active",
+    "source": "branch",
+    "reason": "Branch prefix and ADO work item type match"
+  },
   "runtime": {
     "main": "gpt-5.5/xhigh",
     "build": "haiku / default",
@@ -71,6 +83,7 @@ Re-read code for every resolved Must Fix. Carry untouched findings forward. Remo
     "specialists": "sonnet / default"
   },
   "triggered": [
+    "Branch Work Item Gate(haiku / default; branch work item convention)",
     "Build Validator[repo](haiku / default; code build)",
     "Requirement Validator(opus / default; work-item)",
     "Philosophy Reviewer(sonnet / default; api-contract)"

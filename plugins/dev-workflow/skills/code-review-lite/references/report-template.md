@@ -27,11 +27,12 @@ Resolve model and effort from explicit launch metadata first, then current sessi
 
 Use actor runtime strings exactly:
 
+- `Branch Work Item Gate(haiku / default; branch work item convention)`
 - `Build Validator[{repo}](haiku / default; {reason})`
 - `Requirement Validator(opus / default; non-Tiny Lite)`
 - `{Specialist} Reviewer(sonnet / default; {trigger})`
 
-Skipped actors must include a reason. For Docs Tiny, Agents Triggered is `None`. Escalation produces no Lite report; `code-review-pro` owns its report.
+Skipped actors must include a reason. For Docs Tiny, Agents Triggered is `None` only when Branch Work Item Gate is skipped. Escalation produces no Lite report; `code-review-pro` owns its report.
 
 ## Body
 
@@ -44,6 +45,19 @@ Skipped actors must include a reason. For Docs Tiny, Agents Triggered is `None`.
 - **Risk Triggers**: {labels joined by ` | `, or None}
 - **Specialist Triggers**: {Reviewer=label joined by ` | `, or None}
 - **Decision**: {why this profile was selected}
+
+## Branch Work Item Gate
+
+- **Status**: PASS | FAIL | SKIPPED
+- **Branch**: {source branch or None}
+- **Prefix**: US | BUG | ISSUE | None
+- **Work Item ID**: {id or None}
+- **Expected Type**: User Story | Bug | Issue | None
+- **Actual Type**: {ADO System.WorkItemType or None}
+- **Title**: {ADO title or None}
+- **State**: {ADO state or None}
+- **Source**: pr | branch | staged | working | files
+- **Reason**: {one-line result or failure reason}
 
 ## Build Status
 
@@ -60,6 +74,8 @@ Skipped actors must include a reason. For Docs Tiny, Agents Triggered is `None`.
 ## Must Fix Before Merge
 
 {Critical and High findings only, or "None."}
+
+Branch Work Item Gate `FAIL` is Critical and stops review after first gates. Include completed build results and state Requirement Validator/specialists were skipped.
 
 ## Detailed Findings
 
