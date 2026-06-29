@@ -14,7 +14,7 @@ Require both:
 - `.CodeReview/{safe-branch}.md`
 - `.CodeReview/.{safe-branch}.review-meta.json`
 
-The sidecar must parse and contain `recordVersion: 2`, `skillName: code-review-pro`, `skillVersion: 2.0.0`, `scopeType`, `scopeBase`, and `diffFingerprint`. If missing, invalid, or v1, run a fresh full-scope review and write v2 records.
+The sidecar must parse and contain `recordVersion: 2`, `skillName: code-review-pro`, `skillVersion: 2.1.0`, `scopeType`, `scopeBase`, and `diffFingerprint`. If missing, invalid, or v1, run a fresh full-scope review and write v2 records.
 
 Recompute SHA-256 over the same normalized scoped diff:
 
@@ -52,7 +52,7 @@ Re-read code for every resolved Must Fix. Carry untouched findings forward. Remo
 {
   "recordVersion": 2,
   "skillName": "code-review-pro",
-  "skillVersion": "2.0.0",
+  "skillVersion": "2.1.0",
   "reviewProfile": "Pro",
   "reviewKind": "follow-up",
   "classifier": {
@@ -97,6 +97,10 @@ Re-read code for every resolved Must Fix. Carry untouched findings forward. Remo
   "reviewedCommit": "sha",
   "targetBranch": "develop",
   "workItemId": 1234,
+  "prOnlyMode": false,
+  "prMergePreview": false,
+  "mergePreviewStrategy": "server-merge",
+  "jsDepsStrategy": "none",
   "standardsPaths": ["AGENTS.md"],
   "exemplarMap": {},
   "reviewedFiles": ["src/file.cs"],
@@ -106,6 +110,8 @@ Re-read code for every resolved Must Fix. Carry untouched findings forward. Remo
 ```
 
 Initial reviews use the same schema with `reviewKind: initial` and `iteration: 1`. `reviewProfile` records the profile used for that iteration.
+
+The four fields `prOnlyMode`, `prMergePreview`, `mergePreviewStrategy`, and `jsDepsStrategy` are additive at `recordVersion: 2`; existing follow-up reviews that pre-date v2.1.0 should be treated as missing these fields and a fresh full-scope review should be run. `scopeBase` and `diffFingerprint` semantics are unchanged by merge preview — the fingerprint is still computed over the normalized `{scopeBase}..HEAD` diff.
 
 ## Finish
 

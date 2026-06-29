@@ -52,7 +52,7 @@ def write_case(root, profile, classifier, triggered, requirement_mode, gate_stat
         "\n".join([
             "# Code Review: Test",
             "",
-            "**Skill**: code-review-pro v2.0.0",
+            "**Skill**: code-review-pro v2.1.0",
             f"**Review Profile**: {profile}",
             "**Main Runtime**: gpt-test / high",
             "**Agents Triggered**: None" if not triggered_records else f"**Agents Triggered**: {' | '.join(triggered_records)}",
@@ -80,6 +80,8 @@ def write_case(root, profile, classifier, triggered, requirement_mode, gate_stat
             "Test.",
             "## Requirement Validation",
             "Test.",
+            "### Scope Drift",
+            "- **Scope Drift**: None",
             "## Summary",
             "Test.",
             "## Detailed Findings",
@@ -91,7 +93,7 @@ def write_case(root, profile, classifier, triggered, requirement_mode, gate_stat
     sidecar.write_text(json.dumps({
         "recordVersion": 2,
         "skillName": "code-review-pro",
-        "skillVersion": "2.0.0",
+        "skillVersion": "2.1.0",
         "reviewProfile": profile,
         "reviewKind": "initial",
         "classifier": classifier,
@@ -107,6 +109,10 @@ def write_case(root, profile, classifier, triggered, requirement_mode, gate_stat
         "reviewedCommit": "abc123",
         "targetBranch": "main",
         "workItemId": 123 if requirement_mode == "work-item" else None,
+        "prOnlyMode": False,
+        "prMergePreview": False,
+        "mergePreviewStrategy": "source-head",
+        "jsDepsStrategy": "none",
         "standardsPaths": ["AGENTS.md"],
         "exemplarMap": {},
         "reviewedFiles": ["src/file.py"],
@@ -315,6 +321,132 @@ class VerifyOutputTests(unittest.TestCase):
             )
             results = VERIFY.evaluate(report, sidecar)
             self.assertTrue(any("Tiny obeys" in message for level, message in results if level == "FAIL"))
+
+
+    def test_pr_merge_preview_strategy_valid(self):
+        """pr scope with valid mergePreviewStrategy → no failures."""
+        with tempfile.TemporaryDirectory() as tmp:
+            report, sidecar = write_case(
+                Path(tmp), "Pro",
+                {"filesChanged": 1, "changedLines": 20, "docsOnly": False,
+                 "riskTriggers": ["auth-security-boundary"],
+                 "specialistTriggers": {"Security Reviewer": ["auth-security-boundary"]}},
+                [
+                    "Build Validator[repo](gpt-5.4-mini / low; code build)",
+                    "Requirement Validator(inherited current model / high; work-item)",
+                    "Security Reviewer(inherited current model / medium; auth-security-boundary)",
+                ],
+                "work-item",
+            )
+            # Override sidecar to use pr scopeType + server-merge
+            data = json.loads(sidecar.read_text(encoding="utf-8"))
+            data["scopeType"] = "pr"
+            data["mergePreviewStrategy"] = "server-merge"
+            sidecar.write_text(json.dumps(data), encoding="utf-8")
+            results = VERIFY.evaluate(report, sidecar)
+            self.assertFalse([item for item in results if item[0] == "FAIL"])
+
+    def test_pr_requires_merge_preview_strategy(self):
+        """pr scope with missing/invalid mergePreviewStrategy → FAIL mentioning mergePreviewStrategy."""
+        with tempfile.TemporaryDirectory() as tmp:
+            report, sidecar = write_case(
+                Path(tmp), "Pro",
+                {"filesChanged": 1, "changedLines": 20, "docsOnly": False,
+                 "riskTriggers": ["auth-security-boundary"],
+                 "specialistTriggers": {"Security Reviewer": ["auth-security-boundary"]}},
+                [
+                    "Build Validator[repo](gpt-5.4-mini / low; code build)",
+                    "Requirement Validator(inherited current model / high; work-item)",
+                    "Security Reviewer(inherited current model / medium; auth-security-boundary)",
+                ],
+                "work-item",
+            )
+            data = json.loads(sidecar.read_text(encoding="utf-8"))
+            data["scopeType"] = "pr"
+            data["mergePreviewStrategy"] = "invalid-value"
+            sidecar.write_text(json.dumps(data), encoding="utf-8")
+            results = VERIFY.evaluate(report, sidecar)
+            self.assertTrue(any(
+                "mergePreviewStrategy" in message
+                for level, message in results if level == "FAIL"
+            ))
+
+    def test_pr_only_requires_pr_scope(self):
+        """prOnlyMode=true with scopeType=branch → FAIL mentioning PR-only."""
+        with tempfile.TemporaryDirectory() as tmp:
+            report, sidecar = write_case(
+                Path(tmp), "Pro",
+                {"filesChanged": 1, "changedLines": 20, "docsOnly": False,
+                 "riskTriggers": ["auth-security-boundary"],
+                 "specialistTriggers": {"Security Reviewer": ["auth-security-boundary"]}},
+                [
+                    "Build Validator[repo](gpt-5.4-mini / low; code build)",
+                    "Requirement Validator(inherited current model / high; work-item)",
+                    "Security Reviewer(inherited current model / medium; auth-security-boundary)",
+                ],
+                "work-item",
+            )
+            data = json.loads(sidecar.read_text(encoding="utf-8"))
+            data["prOnlyMode"] = True
+            # scopeType remains "branch" (not "pr") → should fail
+            sidecar.write_text(json.dumps(data), encoding="utf-8")
+            results = VERIFY.evaluate(report, sidecar)
+            self.assertTrue(any(
+                "PR-only" in message
+                for level, message in results if level == "FAIL"
+            ))
+
+    def test_js_deps_skip_requires_build_row(self):
+        """jsDepsStrategy=skip with no JS-SKIPPED build row → FAIL."""
+        with tempfile.TemporaryDirectory() as tmp:
+            report, sidecar = write_case(
+                Path(tmp), "Pro",
+                {"filesChanged": 1, "changedLines": 20, "docsOnly": False,
+                 "riskTriggers": ["auth-security-boundary"],
+                 "specialistTriggers": {"Security Reviewer": ["auth-security-boundary"]}},
+                [
+                    "Build Validator[repo](gpt-5.4-mini / low; code build)",
+                    "Requirement Validator(inherited current model / high; work-item)",
+                    "Security Reviewer(inherited current model / medium; auth-security-boundary)",
+                ],
+                "work-item",
+            )
+            data = json.loads(sidecar.read_text(encoding="utf-8"))
+            data["jsDepsStrategy"] = "skip"
+            sidecar.write_text(json.dumps(data), encoding="utf-8")
+            # Report has no JS-SKIPPED row in Build Status
+            results = VERIFY.evaluate(report, sidecar)
+            self.assertTrue(any(
+                "JS-SKIPPED" in message
+                for level, message in results if level == "FAIL"
+            ))
+
+    def test_scope_drift_required_for_pro(self):
+        """Pro report missing Scope Drift marker → FAIL."""
+        import re as _re
+        with tempfile.TemporaryDirectory() as tmp:
+            report, sidecar = write_case(
+                Path(tmp), "Pro",
+                {"filesChanged": 1, "changedLines": 20, "docsOnly": False,
+                 "riskTriggers": ["auth-security-boundary"],
+                 "specialistTriggers": {"Security Reviewer": ["auth-security-boundary"]}},
+                [
+                    "Build Validator[repo](gpt-5.4-mini / low; code build)",
+                    "Requirement Validator(inherited current model / high; work-item)",
+                    "Security Reviewer(inherited current model / medium; auth-security-boundary)",
+                ],
+                "work-item",
+            )
+            # Strip out Scope Drift marker
+            text = report.read_text(encoding="utf-8")
+            text = _re.sub(r"### Scope Drift\s*", "", text)
+            text = _re.sub(r"- \*\*Scope Drift\*\*: None\s*", "", text)
+            report.write_text(text, encoding="utf-8")
+            results = VERIFY.evaluate(report, sidecar)
+            self.assertTrue(any(
+                "Scope Drift" in message
+                for level, message in results if level == "FAIL"
+            ))
 
 
 if __name__ == "__main__":

@@ -49,7 +49,7 @@ def write_report(root, profile, triggered, skipped, gate_status="PASS"):
             (
                 "# Code Review (Lite): Test",
                 "",
-                "**Skill**: code-review-lite v2.0.0",
+                "**Skill**: code-review-lite v2.1.0",
                 f"**Review Profile**: {profile}",
                 "**Main Runtime**: gpt-test / high",
                 f"**Agents Triggered**: {triggered}",
@@ -87,6 +87,10 @@ def write_report(root, profile, triggered, skipped, gate_status="PASS"):
                 "",
                 "| Requirement | Status | Evidence |",
                 "|---|---|---|",
+                "",
+                "### Scope Drift",
+                "",
+                "- **Scope Drift**: None",
             )
         ),
         encoding="utf-8",
@@ -144,11 +148,11 @@ class VerifyOutputTests(unittest.TestCase):
                 "Performance Reviewer; Philosophy Reviewer; Standard Reviewer",
             )
             path.write_text(
-                path.read_text(encoding="utf-8").replace("2.0.0", "1.0.0"),
+                path.read_text(encoding="utf-8").replace("2.1.0", "1.0.0"),
                 encoding="utf-8",
             )
             failures = [message for level, message in evaluate(path) if level == "FAIL"]
-            self.assertIn("Skill is exactly code-review-lite v2.0.0", failures)
+            self.assertIn("Skill is exactly code-review-lite v2.1.0", failures)
 
     def test_expected_main_runtime(self):
         with tempfile.TemporaryDirectory() as root:
@@ -202,6 +206,48 @@ class VerifyOutputTests(unittest.TestCase):
             )
             failures = [message for level, message in evaluate(path, "Code Tiny") if level == "FAIL"]
             self.assertIn("Branch Work Item Gate uses same runtime as Build Validator", failures)
+
+
+    def test_lite_scope_drift_required(self):
+        """Lite report without Scope Drift marker → FAIL."""
+        with tempfile.TemporaryDirectory() as root:
+            path = write_report(
+                root,
+                "Lite",
+                "Build Validator[repo](gpt-5.4-mini / low; repo); "
+                "Requirement Validator(inherited current model / high; non-Tiny Lite); "
+                "Performance Reviewer(inherited current model / medium; async lifecycle)",
+                "None",
+            )
+            # Strip out Scope Drift marker from the fixture
+            import re as _re
+            text = path.read_text(encoding="utf-8")
+            text = _re.sub(r"### Scope Drift\s*", "", text)
+            text = _re.sub(r"- \*\*Scope Drift\*\*: None\s*", "", text)
+            path.write_text(text, encoding="utf-8")
+            failures = [message for level, message in evaluate(path, "Lite") if level == "FAIL"]
+            self.assertIn(
+                "Lite report contains Scope Drift marker (### Scope Drift heading or - **Scope Drift**: bullet)",
+                failures,
+            )
+
+    def test_js_skipped_build_row_counts(self):
+        """A JS-SKIPPED build row satisfies repo/build parity for Lite."""
+        with tempfile.TemporaryDirectory() as root:
+            path = write_report(
+                root,
+                "Lite",
+                "Build Validator[repo](gpt-5.4-mini / low; repo); "
+                "Requirement Validator(inherited current model / high; non-Tiny Lite); "
+                "Performance Reviewer(inherited current model / medium; async lifecycle)",
+                "None",
+            )
+            # Replace the PASS row with a JS-SKIPPED row
+            text = path.read_text(encoding="utf-8")
+            text = text.replace("| `repo` | PASS | 0 | 0 |", "| `repo` | JS-SKIPPED | 0 | 0 |")
+            path.write_text(text, encoding="utf-8")
+            failures = [message for level, message in evaluate(path, "Lite") if level == "FAIL"]
+            self.assertNotIn("Lite triggers one Build Validator runtime per repo", failures)
 
 
 if __name__ == "__main__":

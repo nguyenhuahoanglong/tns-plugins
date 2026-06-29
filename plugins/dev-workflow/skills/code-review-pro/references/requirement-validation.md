@@ -15,6 +15,16 @@ python <skill-dir>/scripts/ado_work_item.py context [--pr {pr-id}] --repo {repo-
 
 Detection order remains PR links, branch identifiers, then commit identifiers. If unresolved, inspect `.docs/ado-context.md` for a candidate. User-provided requirement text overrides inferred context.
 
+## Harvest Design-Doc Context
+
+Acceptance criteria are often terse; the authoritative requirement lives in a design document. After resolving the work item, build a richer requirement bundle:
+
+1. Read the repo's `AGENTS.md` to find the declared **design-doc root** (a `Design docs: <path>` line, or an equivalent documented location). Resolve it dynamically from `AGENTS.md` — never assume a fixed folder name.
+2. Use `.docs/ado-context.md` (maintained by the `azdevops-context` skill) to map the resolved item's parent Feature/Epic to its design-doc file(s).
+3. Extract only the section matching the direct work item (by title, feature keyword/alias, or heading) and pass it alongside the AC as the **requirement bundle**.
+
+The design-doc excerpt is **elaboration of the direct AC**, not a new source of binding criteria — the contract hierarchy below still governs. When `AGENTS.md` declares no design-doc root, or no matching section is found, fall back to AC-only context; this is non-blocking and never invents criteria.
+
 ## Contract Hierarchy
 
 1. **Direct task/story/bug and its acceptance criteria are binding scope.**

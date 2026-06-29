@@ -7,7 +7,11 @@ description: Scope, classification, local worktree, child-read preflight, and cl
 
 ## Scope and Diff
 
-Resolve PR, branch, staged changes, or explicit files. Prefer PR metadata; fall back to git. Record source branch for PR/branch scope. Write the full diff once to:
+Resolve PR, branch, staged changes, or explicit files. Prefer PR metadata; fall back to git. Record source branch for PR/branch scope.
+
+When the request is PR-only ("review PR {id}" or explicit PR-only intent), a resolvable PR is required. Gate it with `python <skill>/scripts/ado_work_item.py pr-required --pr {id} --repo "{repo}"`: exit `0` proceeds in `pr` scope; exit `4` (PR not found) or `2` (az/auth unavailable) is a hard error — stop and report, do not fall back to branch/staged/working/files. Default (non-PR-only) reviews keep the existing fallbacks.
+
+Write the full diff once to:
 
 ```text
 .CodeReview/.{safe-branch}.diff
@@ -30,6 +34,8 @@ python <skill>/scripts/ado_work_item.py context [--pr {pr-id}] --repo "{repo}"
 ```
 
 Exit `0`: use returned context. Exit `2` or `3`: check `.docs/ado-context.md`, then ask at most one skippable question. Never block review or retry fetch.
+
+When a work item resolves, enrich it with design-doc context: read the repo `AGENTS.md` for a declared design-doc root (`Design docs: <path>` or equivalent), use `.docs/ado-context.md` to map the parent Feature to its design-doc file(s), and pass the matching section to the Requirement Validator as elaboration of the AC. Treat it as context only, not new binding criteria; fall back to AC-only when no root is declared or no section matches. Never block on this.
 
 ## Classification
 
@@ -61,6 +67,14 @@ git fetch origin {source-branch}
 git worktree add "{worktree}" "origin/{source-branch}"
 ```
 
+For PR scope, review the merge preview (source merged into target), not source HEAD. Resolve it with `python <skill>/scripts/ado_work_item.py merge-preview --pr {id} --repo "{repo}" --json`, then pick the first tier that works (always `git fetch` first):
+
+1. **Server merge** — `mergeStatus == succeeded` and `lastMergeCommit` set: fetch `refs/pull/{id}/merge` (or the SHA) and `git worktree add --detach "{worktree}" FETCH_HEAD`.
+2. **Local merge** — else worktree at `origin/{source-branch}`, then `git merge --no-ff --no-edit origin/{target-branch}`; on conflict `git merge --abort` and keep source HEAD.
+3. **Source HEAD** — when `az` is unavailable or the above fail: the committed-branch behavior above.
+
+Record `mergePreviewStrategy` (`server-merge | local-merge | source-head`) in the report. The reviewed commit changes, but the worktree root convention does not.
+
 For staged/working changes:
 
 1. Save a binary diff from `HEAD` to `.CodeReview/.{safe-branch}.working.diff`.
@@ -69,6 +83,8 @@ For staged/working changes:
 4. Copy only explicitly scoped untracked files, preserving relative paths.
 
 Do not create a nested review worktree when already inside `.CodeReview/.worktrees/`.
+
+For repos with JS projects, after worktree add and before the Build Validator, run `python <skill>/scripts/prepare_worktree_deps.py --worktree "{worktree}" --repo "{repo}" --diff "{diff-path}" --json`. It junctions unchanged-dependency `node_modules` from the source repo (never installs) and signals `skip-build` for any project whose `package.json`/lockfile changed. A `skip-build` project's build row is reported `JS-SKIPPED (deps changed)`, not silently passed.
 
 ## Child-Read Preflight
 
@@ -121,8 +137,9 @@ Fix build errors and rerun review. Requirement validation completed; specialist 
 Run after report synthesis and verification, including failure paths:
 
 1. Verify each worktree path is under the expected repo-local worktree root.
-2. Remove worktrees with `git worktree remove --force "{worktree}"`.
-3. Remove only temporary preflight and diff artifacts.
-4. Keep `.CodeReview/{safe-branch}.lite.md`.
+2. Remove `node_modules` junctions from the verified worktree **before** removing it, so `git worktree remove` cannot recurse into a junction and delete the source repo's real `node_modules`: `python <skill>/scripts/prepare_worktree_deps.py --teardown --worktree "{worktree}"`.
+3. Remove worktrees with `git worktree remove --force "{worktree}"`.
+4. Remove only temporary preflight and diff artifacts.
+5. Keep `.CodeReview/{safe-branch}.lite.md`.
 
 Never remove `.CodeReview/` recursively.

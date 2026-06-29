@@ -12,13 +12,19 @@ Organization/project resolution: `{repo}/.docs/ado-context.md` ("Project URL:"
 line, maintained by the azdevops-context skill) > `git remote get-url origin`.
 
 Usage:
-    python ado_work_item.py context [--id N] [--pr N] [--repo PATH] [--no-parent] [--json]
-    python ado_work_item.py detect  [--repo PATH]
+    python ado_work_item.py context       [--id N] [--pr N] [--repo PATH] [--no-parent] [--json]
+    python ado_work_item.py detect        [--repo PATH]
+    python ado_work_item.py merge-preview --pr N [--repo PATH] [--json]
+    python ado_work_item.py pr-required   --pr N [--repo PATH] [--json]
 
 Exit codes:
     0  success
-    2  az CLI / auth / IO failure (az missing, not logged in, work item not found)
-    3  no work item ID could be detected
+    2  az CLI / auth / IO failure (az missing, not logged in, network error)
+    3  no work item ID could be detected  (context / detect subcommands)
+    4  PR not found / not resolvable      (pr-required subcommand only;
+       az reached ADO but the PR id does not exist — distinct from code 2
+       so the orchestrator can distinguish "tooling unavailable" from
+       "PR genuinely absent" when enforcing PR-only review mode)
 """
 
 import argparse
@@ -253,6 +259,56 @@ def render_markdown(data, source):
     return "\n".join(lines)
 
 
+# --- PR helpers ---------------------------------------------------------------
+
+def _fetch_pr(az_exe, org_url, pr_id):
+    """Call az repos pr show and return the raw JSON dict.
+
+    Raises SystemExit(2) on az / auth / IO failure.
+    Returns None if az reaches ADO but the PR is not found (HTTP 404 / empty).
+    """
+    rc, out, err = run([az_exe, "repos", "pr", "show",
+                        "--id", str(pr_id),
+                        "--organization", org_url,
+                        "-o", "json"])
+    if rc != 0:
+        reason = err.splitlines()[0] if err else "az repos pr show failed"
+        # Treat "does not exist" / "not found" responses as a distinct not-found
+        # signal so callers can map to exit 3 or 4 as appropriate.
+        not_found_phrases = ("does not exist", "not found", "TF401232",
+                             "could not be found", "no pull request")
+        if any(p in reason.lower() for p in not_found_phrases):
+            return None
+        fail(2, f"az repos pr show --id {pr_id} failed: {reason}")
+    try:
+        data = json.loads(out)
+    except json.JSONDecodeError:
+        fail(2, "az returned non-JSON output (extension prompt? run: "
+                "az config set extension.use_dynamic_install=yes_without_prompt)")
+    # az can return an empty dict/list when the PR id is invalid without a
+    # non-zero exit code in some versions.
+    if not data or (isinstance(data, dict) and not data.get("pullRequestId")):
+        return None
+    return data
+
+
+def _extract_merge_preview(pr_id, pr_data):
+    """Return the merge-preview dict from a raw az repos pr show response."""
+    last_merge = pr_data.get("lastMergeCommit") or {}
+    last_merge_source = pr_data.get("lastMergeSourceCommit") or {}
+    last_merge_target = pr_data.get("lastMergeTargetCommit") or {}
+    return {
+        "prId": pr_id,
+        "sourceRefName": pr_data.get("sourceRefName"),
+        "targetRefName": pr_data.get("targetRefName"),
+        "lastMergeCommit": last_merge.get("commitId"),
+        "lastMergeSourceCommit": last_merge_source.get("commitId"),
+        "lastMergeTargetCommit": last_merge_target.get("commitId"),
+        "mergeStatus": pr_data.get("mergeStatus"),
+        "mergeRef": f"refs/pull/{pr_id}/merge",
+    }
+
+
 # --- Commands ------------------------------------------------------------------
 
 def cmd_detect(args):
@@ -292,6 +348,73 @@ def cmd_context(args):
         print(render_markdown(data, source))
 
 
+def cmd_merge_preview(args):
+    az_exe = shutil.which("az")
+    if not az_exe:
+        fail(2, "az CLI not found on PATH — install Azure CLI to fetch PR details")
+
+    org_url, _project = resolve_org(args.repo)
+    if not org_url:
+        fail(2, "could not resolve ADO organization from .docs/ado-context.md "
+                "or the git remote 'origin'")
+
+    pr_data = _fetch_pr(az_exe, org_url, args.pr)
+    if pr_data is None:
+        fail(3, f"PR {args.pr} not found in organization {org_url}")
+
+    result = _extract_merge_preview(args.pr, pr_data)
+
+    if args.json:
+        print(json.dumps(result, indent=2, ensure_ascii=False))
+    else:
+        lines = [
+            f"## PR !{result['prId']} — Merge Preview",
+            f"- **Source ref**:        {result['sourceRefName']}",
+            f"- **Target ref**:        {result['targetRefName']}",
+            f"- **Merge ref**:         {result['mergeRef']}",
+            f"- **Merge status**:      {result['mergeStatus']}",
+            f"- **Last merge commit**: {result['lastMergeCommit'] or '(none)'}",
+            f"- **Last merge source**: {result['lastMergeSourceCommit'] or '(none)'}",
+            f"- **Last merge target**: {result['lastMergeTargetCommit'] or '(none)'}",
+        ]
+        print("\n".join(lines))
+
+
+def cmd_pr_required(args):
+    az_exe = shutil.which("az")
+    if not az_exe:
+        # Exit 2: tooling unavailable — cannot determine PR existence.
+        if args.json:
+            print(json.dumps({"prId": args.pr, "resolved": False,
+                              "reason": "az CLI not found on PATH"}))
+        fail(2, "az CLI not found on PATH — install Azure CLI to verify PR")
+
+    org_url, _project = resolve_org(args.repo)
+    if not org_url:
+        if args.json:
+            print(json.dumps({"prId": args.pr, "resolved": False,
+                              "reason": "could not resolve ADO organization"}))
+        fail(2, "could not resolve ADO organization from .docs/ado-context.md "
+                "or the git remote 'origin'")
+
+    pr_data = _fetch_pr(az_exe, org_url, args.pr)
+
+    if pr_data is None:
+        # Exit 4: az reached ADO but PR id does not exist.
+        msg = f"PR {args.pr} not found — this review requires a PR to proceed"
+        if args.json:
+            print(json.dumps({"prId": args.pr, "resolved": False, "reason": msg}))
+        else:
+            print(f"FAIL: {msg}")
+        sys.exit(4)
+
+    msg = f"PR {args.pr} resolved (mergeStatus: {pr_data.get('mergeStatus', 'unknown')})"
+    if args.json:
+        print(json.dumps({"prId": args.pr, "resolved": True, "reason": msg}))
+    else:
+        print(f"PASS: {msg}")
+
+
 def main():
     configure_utf8_console()
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
@@ -308,6 +431,23 @@ def main():
     p_detect = sub.add_parser("detect", help="detection only, prints JSON {id, source}")
     p_detect.add_argument("--repo", default=".", help="repository path (default: cwd)")
     p_detect.set_defaults(func=cmd_detect)
+
+    p_merge = sub.add_parser(
+        "merge-preview",
+        help="fetch PR merge-preview fields (refs, commits, mergeStatus, mergeRef)")
+    p_merge.add_argument("--pr", type=int, required=True, help="PR ID")
+    p_merge.add_argument("--repo", default=".", help="repository path (default: cwd)")
+    p_merge.add_argument("--json", action="store_true", help="emit JSON instead of markdown")
+    p_merge.set_defaults(func=cmd_merge_preview)
+
+    p_pr_req = sub.add_parser(
+        "pr-required",
+        help="gate: verify PR exists (exit 0=resolved, 2=az unavailable, 4=PR not found)")
+    p_pr_req.add_argument("--pr", type=int, required=True, help="PR ID")
+    p_pr_req.add_argument("--repo", default=".", help="repository path (default: cwd)")
+    p_pr_req.add_argument("--json", action="store_true",
+                          help="emit JSON {prId, resolved, reason}")
+    p_pr_req.set_defaults(func=cmd_pr_required)
 
     args = parser.parse_args()
     args.func(args)

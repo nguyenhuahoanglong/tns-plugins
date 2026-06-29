@@ -14,7 +14,7 @@ Use these field names exactly and once:
 ```markdown
 # Code Review: {title}
 
-**Skill**: code-review-pro v2.0.0
+**Skill**: code-review-pro v2.1.0
 **Review Profile**: Docs-only | Tiny | Pro
 **Main Runtime**: {resolved model} / {resolved effort}
 **Agents Triggered**: {pipe-separated trigger/actor records, or None}
@@ -23,6 +23,8 @@ Use these field names exactly and once:
 **Source**: {branch/commit/PR}
 **Target**: {target}
 **Reviewed Commit**: {sha}
+**PR-Only**: true | false
+**Merge Preview**: server-merge | local-merge | source-head | n/a
 **Iteration**: {integer}
 **Files Reviewed**: {count}
 ```
@@ -72,7 +74,9 @@ Skipped actors use `{Actor}({reason})`. Branch Work Item Gate is triggered for P
 
 | Repo / Project | Child Read | Build | Errors | Warnings |
 |---|---|---|---|---|
-| {name} | PASS | PASS / FAIL / NOT RUN | {n} | {n} |
+| {name} | PASS | PASS / FAIL / NOT RUN / JS-SKIPPED | {n} | {n} |
+
+A `JS-SKIPPED` build row means `prepare_worktree_deps.py` reported `skip-build` for that project (its `package.json`/lockfile changed, so the source `node_modules` junction would be stale and no implicit install is allowed). State the reason; a JS-skipped row is not a build failure but must be surfaced, never silently passed.
 
 ## Requirement Validation
 
@@ -83,9 +87,17 @@ Skipped actors use `{Actor}({reason})`. Branch Work Item Gate is triggered for P
 | Direct AC / Preserved Behavior | Status | Evidence |
 |---|---|---|
 | {criterion or behavior} | Addressed / Partial / Missing / Preserved / Regressed | `{file}:{line}` plus path |
+
+### Scope Drift
+
+| Change (`file:line`) | Justifying requirement? | Risk |
+|---|---|---|
+| `{file}:{line}` | No | HIGH (shared/public/API/schema/state) / MEDIUM (isolated) |
+
+- **Scope Drift**: None
 ```
 
-For Docs-only, include a build row with `SKIPPED` / `NOT RUN`, and use requirement mode `not-applicable` unless documentation has explicit requirements. For Tiny use `inline`. Parent context never appears as a direct AC row.
+For Docs-only, include a build row with `SKIPPED` / `NOT RUN`, and use requirement mode `not-applicable` unless documentation has explicit requirements. For Tiny use `inline`. Parent context never appears as a direct AC row. The Pro profile always includes the Scope Drift block (the `- **Scope Drift**: None` sentinel when clean); list only unjustified changes. Scope-drift findings are HIGH/MEDIUM advisories ("justify or revert") and never block merge.
 
 ## Summary and Findings
 

@@ -5,7 +5,7 @@ description: Dedicated inherited/high validator mapping requirements to changed-
 
 # Requirement Validator
 
-Determine whether the Lite change fulfills supplied requirements. Do not review general style or performance. Run no git commands.
+Determine whether the Lite change fulfills supplied requirements. Do not review general style or performance. Run no git commands. The supplied requirements may include a design-doc excerpt the orchestrator harvested via the repo `AGENTS.md` design-doc root; treat it as elaboration of the direct AC, not as new binding criteria.
 
 ## Preflight
 
@@ -20,6 +20,7 @@ First read the supplied preflight file and emit exact `Child Read: PASS {token}`
 5. Tests corroborate implementation; tests alone do not prove it.
 6. Regression findings require exposed caller, consumer, event, state, or execution-path evidence.
 7. Do not invent criteria. If context is insufficient, use `Not verifiable`.
+8. Reverse-map every changed hunk to a requirement (code -> requirement). A change justified by no criterion is scope drift: HIGH for shared/public/API/schema/state logic, MEDIUM for isolated/local code. Scope drift flags the change for author judgment; it never blocks the review.
 
 ## Output
 
@@ -45,6 +46,16 @@ Child Read: PASS {token}
 | Behavior | Base | New | Exposed paths | Tests | Status |
 |---|---|---|---|---|---|
 | {behavior} | {before} | {after} | `{paths}` | `{tests}` / None | Preserved / Regressed / Unproven |
+
+## Scope Drift
+
+List only changes that trace to no criterion; write the sentinel and omit the table when all changes are justified.
+
+| Change (`file:line`) | Justifying requirement? | Risk |
+|---|---|---|
+| `{file}:{line}` | No | HIGH / MEDIUM |
+
+- **Scope Drift**: None
 
 ## Findings
 

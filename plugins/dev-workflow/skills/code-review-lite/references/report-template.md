@@ -16,12 +16,16 @@ Write `.CodeReview/{safe-branch}.lite.md`. Never use the full-review `.md` filen
 **Source**: {source}
 **Target**: {target}
 **Files Reviewed**: {count}
-**Skill**: code-review-lite v2.0.0
+**Skill**: code-review-lite v2.1.0
 **Review Profile**: Docs Tiny | Code Tiny | Lite
 **Main Runtime**: {resolved model} / {resolved effort}
 **Agents Triggered**: {actor(runtime; reason) | ... | None}
 **Agents Skipped**: {actor(reason) | ... | None}
+**PR-Only**: true | false
+**Merge Preview**: server-merge | local-merge | source-head | n/a
 ```
+
+`PR-Only` is `true` only when the review ran in enforced PR-only mode. `Merge Preview` is `n/a` outside `pr` scope.
 
 Resolve model and effort from explicit launch metadata first, then current session metadata. Use `not exposed` only for an individually unavailable field and never discard a known value.
 
@@ -63,13 +67,23 @@ Skipped actors must include a reason. For Docs Tiny, Agents Triggered is `None` 
 
 | Repo | Status | Errors | Warnings |
 |---|---|---:|---:|
-| `{repo}` | PASS / FAIL / NOT RUN | {n} | {n} |
+| `{repo}` | PASS / FAIL / NOT RUN / JS-SKIPPED | {n} | {n} |
+
+A `JS-SKIPPED` status means `prepare_worktree_deps.py` reported `skip-build` (the project's `package.json`/lockfile changed; no implicit install is allowed). State the reason; it is not a failure but must be surfaced.
 
 ## Requirement Evidence
 
 | Requirement | Status | Evidence |
 |---|---|---|
 | {criterion} | Addressed / Partial / Missing / Not verifiable | `{file}:{line}` + behavior, or searched scope |
+
+### Scope Drift
+
+| Change (`file:line`) | Justifying requirement? | Risk |
+|---|---|---|
+| `{file}:{line}` | No | HIGH (shared/public/API/schema/state) / MEDIUM (isolated) |
+
+- **Scope Drift**: None
 
 ## Must Fix Before Merge
 
@@ -95,7 +109,7 @@ Branch Work Item Gate `FAIL` is Critical and stops review after first gates. Inc
 {Limits, unverified assumptions, and concise follow-up.}
 ```
 
-Omit Build Status only for Docs Tiny. Code Tiny requirement evidence is produced by the main agent. Lite requirement evidence comes from the Requirement Validator and main-agent verification.
+Omit Build Status only for Docs Tiny. Code Tiny requirement evidence is produced by the main agent. Lite requirement evidence comes from the Requirement Validator and main-agent verification. Include the Scope Drift block for the Lite profile (the `- **Scope Drift**: None` sentinel when clean); it is optional for Docs Tiny and Code Tiny. Scope-drift items are HIGH/MEDIUM advisories that never block merge.
 
 ## Synthesis Rules
 

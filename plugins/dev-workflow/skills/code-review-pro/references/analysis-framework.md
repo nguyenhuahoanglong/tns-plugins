@@ -37,6 +37,10 @@ Requirement Validator runs at high reasoning because correctness and behavior pr
 - Keep parent context separate from direct scope.
 - Downgrade unsupported claims.
 
+### Scope Drift
+
+Preventing unrelated breakage is the top priority, so verify the reverse mapping too: every changed hunk should trace to a direct AC or design-doc requirement. A change justified by no requirement is scope drift — HIGH when it touches shared/public/API/schema/state logic, MEDIUM when isolated/local. Scope-drift findings are advisories ("justify or revert") surfaced for author judgment; they are never Must Fix and never block merge, since the author may have a legitimate reason the requirement did not capture.
+
 ## Specialist Synthesis
 
 - Security: require attack path or trust-boundary failure.

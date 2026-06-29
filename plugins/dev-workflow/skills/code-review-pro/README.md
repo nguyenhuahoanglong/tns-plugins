@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Adaptive evidence-driven code review for PRs, branches, staged changes, and follow-up iterations. Version 2.0.0 classifies each diff as Docs-only, Tiny, or Pro, then runs the minimum valid review topology without weakening requirement or regression coverage.
+Adaptive evidence-driven code review for PRs, branches, staged changes, and follow-up iterations. Version 2.1.0 classifies each diff as Docs-only, Tiny, or Pro, then runs the minimum valid review topology without weakening requirement or regression coverage.
 
 ## Pain Points
 
@@ -30,6 +30,15 @@ Direct task/acceptance criteria are binding. Parent items supply context but do 
 Worktrees live under each repo at `.CodeReview/.worktrees/{safe-branch}`. Build children perform a read preflight before other children run. Reports carry combined skill/version provenance plus Review Profile, Main Runtime, Agents Triggered, and Agents Skipped fields. Sidecars use record version 2 and include `skillName`, `skillVersion`, and `reviewProfile`.
 
 ## Changelog
+
+### 2026-06-29 - v2.1.0 PR-centric review and scope discipline
+
+- Added enforced **PR-only mode**: "review PR {id}" requires a resolvable PR (gated by `ado_work_item.py pr-required`, exit 4 = not found) and errors instead of silently falling back to branch/working scope.
+- PR scope now reviews the **merge preview** (source merged into target) via `ado_work_item.py merge-preview`, with server-merge → local-merge → source-head fallback tiers; always fetches remote first.
+- Added a **scope-drift** pass (code → requirement): every changed hunk must trace to a requirement or is flagged HIGH/MEDIUM "justify or revert". Flags for author judgment; never blocks merge.
+- Enriched requirements with **design-doc context** harvested via the repo `AGENTS.md` design-doc root and `.docs/ado-context.md`, as elaboration of the AC (not new binding criteria).
+- Added `prepare_worktree_deps.py`: junctions unchanged-dependency `node_modules` into fresh worktrees (no implicit install) or signals `JS-SKIPPED` when deps changed; teardown removes only the junction so the source `node_modules` is never deleted.
+- Sidecar v2 gains additive fields `prOnlyMode`, `prMergePreview`, `mergePreviewStrategy`, `jsDepsStrategy`; verifier and tests assert them.
 
 ### 2026-06-24 - Branch work item gate
 

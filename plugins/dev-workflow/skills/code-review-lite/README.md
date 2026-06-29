@@ -31,6 +31,15 @@ Worktrees remain repo-local at `.CodeReview/.worktrees/{safe-branch}`. Every chi
 
 ## Changelog
 
+### 2026-06-29 - v2.1.0 PR-centric review and scope discipline
+
+- Added enforced **PR-only mode**: "review PR {id}" requires a resolvable PR (gated by `ado_work_item.py pr-required`) and errors instead of falling back to other scopes.
+- PR scope reviews the **merge preview** (source merged into target) via `ado_work_item.py merge-preview`, with server-merge → local-merge → source-head fallback.
+- Added a **scope-drift** block (code → requirement): changes that trace to no requirement are flagged HIGH/MEDIUM "justify or revert"; advisory only, never blocks.
+- Enriched requirements with **design-doc context** harvested via the repo `AGENTS.md` design-doc root.
+- Added `prepare_worktree_deps.py`: junctions unchanged `node_modules` into worktrees (no install) or marks `JS-SKIPPED`; teardown removes only the junction.
+- Report header gains `PR-Only` and `Merge Preview` fields; build status accepts `JS-SKIPPED`.
+
 ### 2026-06-24 - Branch work item gate
 
 - Added Branch Work Item Gate as a first gate using the Build Validator runtime.

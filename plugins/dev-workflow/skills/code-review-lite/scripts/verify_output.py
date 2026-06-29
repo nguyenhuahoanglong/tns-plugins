@@ -6,7 +6,7 @@ import re
 import sys
 from pathlib import Path
 
-SKILL = "code-review-lite v2.0.0"
+SKILL = "code-review-lite v2.1.0"
 PROFILES = {"Docs Tiny", "Code Tiny", "Lite"}
 BRANCH_GATE_FIELDS = {
     "Status", "Branch", "Prefix", "Work Item ID", "Expected Type",
@@ -64,7 +64,7 @@ def build_repo_count(text):
         return 0
     return len(
         re.findall(
-            r"^\|\s*`[^`]+`\s*\|\s*(?:PASS|FAIL|PASS WITH WARNINGS|NOT RUN)\s*\|",
+            r"^\|\s*`[^`]+`\s*\|\s*(?:PASS|FAIL|PASS WITH WARNINGS|NOT RUN|JS-SKIPPED)\s*\|",
             section.group(1),
             re.MULTILINE,
         )
@@ -239,6 +239,20 @@ def evaluate(output_path, expected_profile=None, expected_main_runtime=None):
                 all(actor.removesuffix("(") in skipped for actor in specialists),
                 "Lite records why named specialists were skipped",
             )
+
+    # v2.1.0 — Scope Drift marker required for Lite profile
+    if profile == "Lite":
+        scope_drift_heading = bool(re.search(r"^### Scope Drift", text, re.MULTILINE))
+        scope_drift_bullet = bool(re.search(r"^- \*\*Scope Drift\*\*:", text, re.MULTILINE))
+        add(results, scope_drift_heading or scope_drift_bullet,
+            "Lite report contains Scope Drift marker (### Scope Drift heading or - **Scope Drift**: bullet)")
+
+    # v2.1.0 — PR-Only header: if present, Source field in Branch Work Item Gate must be pr
+    pr_only_header = field(text, "PR-Only")
+    if pr_only_header == "true":
+        gate_source = gate.get("Source")
+        add(results, gate_source == "pr",
+            "PR-Only header true requires Branch Work Item Gate Source to be pr")
 
     return results
 

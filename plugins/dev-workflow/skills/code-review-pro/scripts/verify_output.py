@@ -7,7 +7,7 @@ import re
 import sys
 from pathlib import Path
 
-SKILL = "code-review-pro v2.0.0"
+SKILL = "code-review-pro v2.1.0"
 PROFILES = {"Docs-only", "Tiny", "Pro"}
 BRANCH_GATE_FIELDS = {
     "Status", "Branch", "Prefix", "Work Item ID", "Expected Type",
@@ -114,7 +114,7 @@ def evaluate(report_path, sidecar_path=None, expected_main_runtime=None):
 
     add(results, data.get("recordVersion") == 2, "recordVersion is 2")
     add(results, data.get("skillName") == "code-review-pro", "skillName is code-review-pro")
-    add(results, data.get("skillVersion") == "2.0.0", "skillVersion is 2.0.0")
+    add(results, data.get("skillVersion") == "2.1.0", "skillVersion is 2.1.0")
     add(results, data.get("reviewProfile") == values["Review Profile"],
         "reviewProfile matches report")
     required_sidecar = {
@@ -123,6 +123,7 @@ def evaluate(report_path, sidecar_path=None, expected_main_runtime=None):
         "workItemId", "scopeType", "scopeBase", "diffFingerprint",
         "standardsPaths", "exemplarMap", "reviewedFiles",
         "iteration", "reviewedAt",
+        "prOnlyMode", "prMergePreview", "mergePreviewStrategy", "jsDepsStrategy",
     }
     add(results, required_sidecar <= set(data), "sidecar contains v2 follow-up fields")
     add(results, isinstance(data.get("reviewedCommit"), str) and bool(data["reviewedCommit"]),
@@ -139,6 +140,54 @@ def evaluate(report_path, sidecar_path=None, expected_main_runtime=None):
         and data["diffFingerprint"].startswith("sha256:")
         and len(data["diffFingerprint"]) > len("sha256:"),
         "diffFingerprint is populated SHA-256")
+    # v2.1.0 — new sidecar fields
+    scope_type = data.get("scopeType")
+    pr_only_mode = data.get("prOnlyMode")
+    merge_preview_strategy = data.get("mergePreviewStrategy")
+    js_deps_strategy = data.get("jsDepsStrategy")
+
+    valid_merge_preview = {"server-merge", "local-merge", "source-head"}
+    valid_js_deps = {"link", "skip", "mixed", "none"}
+
+    if scope_type == "pr":
+        add(results,
+            merge_preview_strategy in valid_merge_preview,
+            "mergePreviewStrategy is valid for pr scope (server-merge, local-merge, source-head)")
+
+    if pr_only_mode:
+        add(results, scope_type == "pr",
+            "PR-only mode requires pr scopeType")
+
+    if js_deps_strategy is not None:
+        add(results,
+            js_deps_strategy in valid_js_deps,
+            "jsDepsStrategy is valid (link, skip, mixed, none)")
+
+    if js_deps_strategy in {"skip", "mixed"}:
+        build_section = re.search(
+            r"^## Build Status\s*(.*?)(?=^## |\Z)",
+            text,
+            re.MULTILINE | re.DOTALL,
+        )
+        has_js_skipped_row = bool(
+            build_section and re.search(
+                r"^\|\s*`[^`]+`\s*\|\s*JS-SKIPPED\s*\|",
+                build_section.group(1),
+                re.MULTILINE,
+            )
+        )
+        add(results, has_js_skipped_row,
+            "Build Status table contains JS-SKIPPED row when jsDepsStrategy is skip/mixed")
+
+    review_profile = values.get("Review Profile")
+    if review_profile == "Pro":
+        scope_drift_section = re.search(r"### Scope Drift", text)
+        scope_drift_bullet = re.search(
+            r"^- \*\*Scope Drift\*\*:", text, re.MULTILINE
+        )
+        add(results, bool(scope_drift_section or scope_drift_bullet),
+            "Pro report contains Scope Drift marker (### Scope Drift heading or - **Scope Drift**: bullet)")
+
     add(results, isinstance(data.get("standardsPaths"), list), "standardsPaths is a list")
     add(results, isinstance(data.get("exemplarMap"), dict), "exemplarMap is an object")
     add(results, isinstance(data.get("reviewedFiles"), list), "reviewedFiles is a list")
