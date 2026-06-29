@@ -48,9 +48,11 @@ feature name = kebab-case of the subject, ~5 words (e.g. `csv-export`).
 Understand what to build and the code it touches, to **Claude Code plan-mode quality**. No writes.
 
 - **Context:** resolve the input; read the project's `AGENTS.md` + coding standards; dispatch
-  **parallel `Explore` sub-agents** (up to 3, usually 1) for structure, stack, patterns to reuse,
-  and the files to touch. Prefer reusing existing functions over new code; distil findings into
-  per-task "patterns to follow".
+  **parallel `Explore` sub-agents** (up to 3, usually 1 — scale per `references/plan-analysis.md`)
+  for structure, stack, patterns to reuse, and the files to touch. Prefer reusing existing functions
+  over new code; distil findings into per-task "patterns to follow".
+- **Read the critical files yourself** that the agents flagged (the ones you'll modify or
+  pattern-match against) — deepen understanding before planning; don't rely on summaries alone.
 - **Lean interview** (`references/interview-guide.md`, ~5 questions, like plan-mode clarifications):
   lock **scope** (in/out), **design** (where code lives, patterns), **Acceptance Criteria**, and a
   per-task **"Done when"**. Don't proceed until you can state *what to build, how each piece is

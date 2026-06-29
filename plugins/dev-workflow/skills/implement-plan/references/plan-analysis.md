@@ -1,8 +1,33 @@
-# Plan Feasibility & Decomposition
+# Plan Exploration, Feasibility & Decomposition
 
-Phase 1.1 — turn the understanding (from Phase 0) into a concrete, parallel-ready task list. This
-analysis is what makes the plan executable rather than aspirational. All of it is **read-only**; the
-only write in Phase 1 is the plan file itself.
+This is the engine behind Phase 0 (understand) and Phase 1.1 (decompose) — it carries the same rigor
+Claude Code plan mode applies before it writes a plan. All of it is **read-only**; the only write in
+Phase 1 is the plan file itself.
+
+## Phase 0 — Exploration depth (how many Explore agents)
+
+Match plan mode's heuristic: **use the minimum number of `Explore` agents that covers the scope,
+up to 3 in parallel.**
+
+| Situation | Explore agents |
+|---|---|
+| Change is isolated to known files, or the user gave specific paths | **1** |
+| Scope is uncertain, or several subsystems/areas are involved | **2–3, in parallel** (one search focus each) |
+
+When you do fan out, give each agent a distinct focus — e.g. one finds existing implementations to
+reuse, one maps related components, one surveys testing/convention patterns. Quality over quantity:
+3 is the cap, 1 is the common case. Distil their findings into per-task "patterns to follow" so the
+implementers don't each re-explore.
+
+## Phase 0 → Phase 1 — Read the critical files yourself
+
+Before finalizing the decomposition, **read the critical files the Explore agents flagged** — don't
+plan off their summaries alone. This is plan mode's review step: open the files you'll modify and the
+ones you'll pattern-match against, confirm the signatures/patterns are really as reported, and only
+then commit to the task breakdown. This is what separates a plan that executes cleanly from one that
+turns out to be built on a stale assumption.
+
+## Quick assessment (30 seconds)
 
 ## Quick assessment (30 seconds)
 
