@@ -1,24 +1,25 @@
 # Plan Template (implement-plan)
 
-Use this when writing `{plan-folder}/{feature-name}-plan.md` in Phase 1.3.
+Use this when writing `.plans/{feature-name}.md` in Phase 1.4. The shape follows the **Claude Code
+native plan pattern**: `Context → Goal → Acceptance Criteria → Tasks → Verification`.
 
-**Filename**: `{feature-name}-plan.md` (e.g., `csv-export-plan.md`) so the plan self-identifies alongside other artifacts. Keep an existing plan file's name if the input was already a plan.
+**Filename:** flat `.plans/{feature-name}.md` (e.g. `csv-export.md`). Keep an existing plan file's
+name if the input was already a plan.
 
-The plan is the single source of truth. **The main agent owns all status writes** — sub-agents read the plan but do not edit it (they report status back). Keep task headings unique.
+The plan is the single source of truth. **The main agent owns all status writes** — sub-agents read
+the plan but do not edit it (they report status back). Keep task headings unique.
 
 ---
 
 ```markdown
 # Plan: {Feature Name}
 
-## Meta
-- **Status**: planning | implementing | complete | blocked
-- **Created**: {YYYY-MM-DD}
-- **Source**: {inline | file path | folder | work item #ID}
-- **Plan folder**: {absolute path}
+## Context
+{Why this change — the problem/need, prior state, and decisions locked with the user.
+State the chosen depth: **simplify** (default) or **TDD** (scaffold + failing tests first).}
 
 ## Goal
-{1-2 paragraphs — enough for an implementer to understand what to build without the original source}
+{1-2 paragraphs — enough for an implementer to understand what to build without the original source.}
 
 ## Acceptance Criteria
 - [ ] AC-1: {concrete, observable, testable}
@@ -27,66 +28,48 @@ The plan is the single source of truth. **The main agent owns all status writes*
 ## Tasks
 
 ### Task 1: {Descriptive Name}
-- **Status**: pending
-- **Depends on**: none
-- **Files**: `path/to/file1.cs`, `path/to/file1.tests.cs`
-- **Contracts**: {signatures/interfaces this task exposes — what the scaffold will stub}
-  - `IUserService.GetUsersAsync(): Task<IReadOnlyList<UserDto>>`
-- **Unit-testable**: yes
-- **Description**: {what to implement — specific enough to act on}
-- **Definition of Done**:
-  - [ ] Unit test `GetUsers_ReturnsActiveUsers` passes
-  - [ ] Unit test `GetUsers_EmptyDb_ReturnsEmptyList` passes
-  - [ ] `dotnet build` succeeds, no new warnings
-- **ACs covered**: AC-1
+- Status: pending
+- Depends on: none
+- Files: `path/to/file1`, `path/to/file2`
+- Description: {what to implement — specific enough to act on}
+- Done when: {mechanically checkable — e.g. "dotnet build passes; GET /api/users returns 200 with UserDto[]"}
+- ACs: AC-1
 
 ### Task 2: {Descriptive Name}
-- **Status**: pending
-- **Depends on**: Task 1
-- **Files**: `path/to/other.cs`
-- **Contracts**: {…}
-- **Unit-testable**: no   # config/infra/UI — review-only gate
-- **Description**: {…}
-- **Definition of Done**:
-  - [ ] `dotnet build` succeeds
-  - [ ] code-review-lite returns no must-fix findings
-- **ACs covered**: AC-2
+- Status: pending
+- Depends on: Task 1
+- Files: `path/to/other`
+- Description: {…}
+- Done when: {…}
+- ACs: AC-2
 
 ## Verification
-- **Build**: pending | passing | failing
-- **Tests**: pending | passing | failing
-- **Review**: pending | pass | must-fix
-
-## Iteration Log
-- {YYYY-MM-DD HH:MM}: Plan created
+{Narrative: the build/test commands to run and the manual confirmation steps that prove the ACs.
+E.g. "Run `npm test`; manually export an empty report and confirm a header-only CSV."}
 ```
+
+For **TDD depth**, expand each task's single `Done when:` line into a `Definition of Done:` checklist
+of named, mechanically checkable items (see `definition-criteria.md`) — the qa-engineer turns each
+into a failing test.
 
 ---
 
 ## Field Reference
 
-### Meta Status
-| Status | Meaning |
-|---|---|
-| `planning` | Phase 0–1 — interviewing / writing the plan |
-| `implementing` | Phases 2–5 active |
-| `complete` | All tasks done, DoD met, build/tests/review pass |
-| `blocked` | Loop exhausted, needs the user |
-
 ### Task Status
 | Status | Meaning |
 |---|---|
 | `pending` | Not started |
-| `scaffolded` | Stub/signature written (Phase 2), no logic yet |
+| `scaffolded` | (TDD only) stub/signature written, no logic yet |
 | `in-progress` | Implementer working |
-| `complete` | DoD met, tests green, main agent recorded it |
+| `complete` | Done-when met; main agent recorded it |
 | `blocked` | Reported blocker, retry exhausted |
 
 ## Rules
 1. **Unique task headings** — `### Task N: Name` must be unique.
 2. **File isolation** — no two tasks share a file; merge if they must overlap.
-3. **Every task has a Definition of Done** — mechanically checkable (see `definition-criteria.md`). No DoD ⇒ the task isn't ready to plan.
+3. **Every task has a "Done when"** — mechanically checkable. No criterion ⇒ the task isn't ready.
 4. **Every AC maps to ≥1 task.**
-5. **Contracts feed the scaffold** — Phase 2 stubs exactly the signatures listed under Contracts.
-6. **`Depends on` drives dispatch order** — independent tasks parallelize; dependents wait.
-7. **Main agent writes status** — sub-agents report; the main agent edits the plan. No parallel writes to plan.md.
+5. **`Depends on` drives dispatch order** — independent tasks parallelize; dependents wait.
+6. **Main agent writes status** — sub-agents report; the main agent edits the plan. No parallel
+   writes to the plan file.

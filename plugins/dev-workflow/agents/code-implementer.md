@@ -5,7 +5,7 @@ model: sonnet
 tools: Read, Edit, Write, Bash, Grep, Glob
 iconColor: "#9C27B0"
 skills:
-  - implement-plan-lite
+  - implement-plan
   - code-review-lite
 ---
 

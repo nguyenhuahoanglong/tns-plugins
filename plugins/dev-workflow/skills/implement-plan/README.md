@@ -2,64 +2,79 @@
 
 ## Purpose
 
-The flagship implementation skill. Self-contained and tool-agnostic: it interviews the user to lock **verifiable criteria**, writes a parallel-ready plan to `.plans/`, scaffolds the contracts, generates failing tests, dispatches parallel implementers that must make those tests pass, then runs a verification + review guardrail loop. It does **not** depend on Claude Code plan mode or any Codex planning step — it does its own planning — and runs identically in both tools.
+The single planning + implementation skill. Self-contained and tool-agnostic: it understands the
+codebase to **Claude Code plan-mode quality**, interviews the user to lock verifiable criteria,
+writes a simplified plan to `.plans/`, **stops for explicit approval**, then — and only then —
+dispatches auto-scaled implementers and runs a verification + review pass. It does **not** depend on
+Claude Code plan mode or any Codex planning step, and runs identically in both tools.
 
 ## When to use
 
-- Any feature/change where you want planning + test-driven implementation in one flow.
-- Use `/implement-plan "<idea>"` (Claude Code) or `$implement-plan "<idea>"` (Codex), or pass a requirement file / work-item id / existing plan / nothing.
+- Any feature/change where you want planning then implementation in one flow.
+- Use `/implement-plan "<idea>"` (Claude Code) or `$implement-plan "<idea>"` (Codex), or pass a
+  requirement file / work-item id / existing plan / folder / nothing.
 
-## Skill family
+## Workflow at a glance
 
-| Skill | Role |
-|---|---|
-| **implement-plan** | Flagship: interview → plan → scaffold → test-first → parallel implement → verify/review loop. |
-| **implement-plan-lite** | Quota-cheap single-shot. Requires an existing plan file; one implementer; no loop; optional review. |
-| ~~implement-feature~~ | **Removed from distribution.** See below. |
-
-### Why implement-feature was removed
-
-`implement-feature` originally existed as the "interview + autonomous lifecycle" tier, distinct from
-implement-plan's "execute an existing plan" tier. Once implement-plan v2 absorbed the interview,
-test-first, and optional docs-sync steps, the two skills overlapped almost entirely — keeping both
-meant maintaining two near-identical orchestrators and forcing users to pick between confusingly
-similar options.
-
-So implement-feature was **dropped from `base-kit`, `full-kit`, and the `dev-workflow` plugin** — it is
-no longer installed anywhere. A thin redirect stub remains in source only, to point any lingering
-`/implement-feature` habit at implement-plan. The skill family is now just **implement-plan**
-(full, self-contained) and **implement-plan-lite** (single-shot). In the `dev-workflow` plugin,
-implement-feature was replaced by **implement-plan** so the team kit still ships the full
-plan/implement/review loop.
+```
+Phase 0  Understand        (READ-ONLY)  Explore agents + lean interview
+Phase 1  Design & plan     (READ-ONLY except the plan file)  decompose, auto-scale, write .plans/{feature}.md
+───────  APPROVAL GATE  ──────────────  nothing else is written until the user approves
+Phase 2  Implement         scaffold + red tests (TDD depth only) → auto-scaled code-implementers
+Phase 3  Verify            build/test/diff + optional code-review-lite (cap 2 loops) + AC check
+Phase 4  Report            (+ optional docs-sync for structural changes)
+```
 
 ## Design notes
 
-### Definition Criteria are the spine
-Two verifiable-by-construction levels — plan-level Acceptance Criteria and per-task Definition of Done (mechanically checkable assertions). The interview's main job is to extract them; tests, the implementer's done-signal, and the guardrail all read from them. See `references/definition-criteria.md`.
+### No changes before approval
+Planning is read-only except the plan file itself — like Claude Code plan mode, where the plan file
+is the only editable artifact. Scaffold, tests, and all implementation happen strictly after the
+user approves the plan at the Approval Gate.
 
-### Scaffold exception
-The main agent never writes production *logic*, but it does write the **scaffold** (interfaces/signatures/empty stubs) in Phase 2. This makes the generated tests compile (true red) and lets parallel implementers integrate against shared surfaces instead of guessing.
+### Default Simplify, optional TDD
+Default depth is **plan → implement → verify**. **TDD depth** (main agent scaffolds stubs, then a
+qa-engineer writes failing tests before implementation) is opt-in, chosen during planning for
+logic-heavy, unit-testable work and recorded in the plan's Context.
 
-### Test-first
-qa-engineer (via the `unit-testing` skill) writes failing tests before implementation. An implementer's task isn't done until its scoped tests are green. Untestable tasks (config/infra/UI) fall back to a review-only gate.
+### Auto-scaled implementers
+Implementer count scales by file count (1–3→1, 4–6→2, 7–9→3, 10+→dependency-ordered batches), so
+small plans run lean without a separate "lite" skill. Independent tasks parallelize; `Depends on`
+edges sequence. Don't rely on real concurrency for correctness (Codex may serialize).
 
-### Main agent owns plan.md writes
-Sub-agents read the plan and report status; the main agent records it. This removes the parallel-write collision that earlier versions hand-waved.
+### Simplified native plan file
+Plans use the Claude Code native shape (`Context → Goal → Acceptance Criteria → Tasks →
+Verification`) at a flat `.plans/{feature-name}.md`. Each task carries a lightweight `Status` and a
+`Done when` line; a full Definition-of-Done checklist appears only in TDD depth.
+
+### Main agent owns plan-file writes
+Sub-agents read the plan and report status; the main agent records it — no parallel-write collision.
 
 ### Cross-tool
-Both Claude Code and Codex expose `code-implementer` / `code-reviewer` / `qa-engineer`. The skill uses tool-agnostic prose prompts (no literal call syntax), never hardcodes a model tier, resolves blockers with a **fresh agent** (no `SendMessage`/resume dependency), and relies on `Depends on` ordering rather than real concurrency.
+Both Claude Code and Codex expose `code-implementer` / `code-reviewer` / `qa-engineer`. The skill
+uses tool-agnostic prose prompts (no literal call syntax), never hardcodes a model tier, and resolves
+blockers with a **fresh agent** (no `SendMessage`/resume dependency).
 
 ## Changelog
 
-### 2026-06-21 — v2.0.0 — Self-contained flagship
-- Added Phase 0 interview (lean, criteria-focused) — no longer depends on plan mode; same usage in Claude Code and Codex.
-- Added Phase 2 scaffold (main agent, signatures/stubs only) and Phase 3 test-first via qa-engineer + `unit-testing`.
-- Definition Criteria model (plan-level ACs + per-task Definition of Done) as the verification spine; new `references/definition-criteria.md`.
-- Phase 5 always-on verify + review guardrail loop (code-review-lite), capped at 2 iterations.
-- Plan template gains Contracts, Definition of Done, `Depends on`, and `Unit-testable` fields.
-- Main agent owns all plan.md status writes (fixes parallel-write collision).
-- Blocker handling switched from `SendMessage` to fresh-agent dispatch; all dispatch prompts made tool-agnostic; dependency-ordered dispatch added.
-- Absorbed `implement-feature` (interview + optional docs-sync). implement-feature removed from `base-kit`, `full-kit`, and the `dev-workflow` plugin (replaced by `implement-plan` there); only a redirect stub remains in source.
+### 2026-06-29 — v3.0.0 — Merged single skill, gated planning
+- **Merged the lightweight `lite` variant into this skill and retired it.** Quota concerns are now
+  handled by auto-scaling implementer count by file size — no separate single-agent skill. Removed
+  the lite variant from `base-kit`, `full-kit`, and the `dev-workflow` plugin.
+- **Added a hard Approval Gate.** Planning (Phases 0–1) is read-only except the plan file; scaffold,
+  tests, and implementation only run after explicit user approval (ExitPlanMode in Claude Code).
+- **Planning raised to plan-mode quality** — parallel Explore agents for understanding, optional
+  Plan agents for design, clarifying interview, then approval.
+- **Default depth is Simplify** (plan→implement→verify); **TDD** (scaffold + failing tests) is now
+  optional and decided during planning, not always-on.
+- **Simplified, consistent plan template** in the native shape (`Context → Goal → Acceptance Criteria
+  → Tasks → Verification`); removed the Meta block, per-task Contracts subfields, and Iteration Log.
+- **Plans always written to a flat `.plans/{feature-name}.md`.**
+
+### 2026-06-21 — v2.0.0 — Self-contained flagship (superseded)
+- Phase 0 interview, Phase 2 scaffold, Phase 3 test-first via qa-engineer, always-on verify/review
+  loop, Definition Criteria as the spine, main agent owns plan.md writes, fresh-agent blocker
+  handling, absorbed `implement-feature`.
 
 ### v1.1.0 (superseded)
 - Plan-as-source-of-truth; up to 3 parallel implementers; main-agent verify (build + diff + AC).

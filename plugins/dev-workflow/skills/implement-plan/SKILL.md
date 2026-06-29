@@ -1,162 +1,136 @@
 ---
 name: implement-plan
-description: "Self-contained implement workflow: interview to lock verifiable criteria, write plan.md, scaffold, generate tests, then dispatch parallel implementers that must pass them. Use for '/implement-plan'."
-version: 2.0.0
+description: "Gated plan-then-implement workflow: understand + interview, write a plan to .plans/, get approval, then dispatch auto-scaled implementers (optional TDD) and verify. Use for '/implement-plan'."
+version: 3.0.0
 ---
 
 # Implement Plan
 
-End-to-end implementation skill. **You (main agent) are the brain** — you interview the user, lock verifiable criteria, write the plan, scaffold the contracts, then dispatch sub-agents to write tests and code. **Sub-agents are the hands.**
+End-to-end planning + implementation skill. **You (main agent) are the brain** — understand the
+codebase, lock criteria, write the plan, then dispatch sub-agents (**the hands**) to do the work.
 
-**You NEVER write production logic.** Dispatch code-implementers for ALL implementation work. Two narrow exceptions only: (1) **scaffolding** — empty stubs, interfaces, and signatures with no logic (Phase 2); (2) trivial 1-line fixes found during verification (missing import, typo).
+**Self-contained and tool-agnostic** — it does its own plan-mode-quality planning, so it does not
+depend on Claude Code plan mode or any Codex step and runs the same in both tools. Express dispatch
+as "dispatch a code-implementer / qa-engineer sub-agent" — never assume call syntax, model tier, or
+real concurrency (Codex may serialize; correctness comes from `Depends on` ordering).
 
-This skill is **self-contained and tool-agnostic** — it does its own planning via interview, so it does **not** depend on Claude Code plan mode or any Codex planning step, and it runs the same way in both tools. Express every dispatch as "dispatch a code-implementer / qa-engineer sub-agent" — never assume a specific tool's call syntax, model tier, or that agents truly run concurrently (Codex may serialize; correctness must not depend on real parallelism).
+## Two hard rules
+
+1. **NO CHANGES BEFORE APPROVAL.** Planning (Phases 0–1) is **read-only except the plan file
+   itself** — no scaffold, tests, implementation, or config edits until the user approves the plan
+   at the **Approval Gate**. Mirrors Claude Code plan mode (plan file = only editable artifact).
+2. **NEVER write production logic yourself.** After approval, dispatch code-implementers for ALL
+   implementation. Two narrow exceptions: (a) **scaffolding** stubs/signatures with no logic, only
+   in **TDD depth** (Phase 2); (b) trivial 1-line fixes during verification (missing import, typo).
 
 ## Input Resolution
 
 | Input | Resolution |
 |---|---|
-| Inline text / idea | Treat as the starting requirement; interview to flesh out; plan folder = `.plans/{feature-name}/` |
+| Inline text / idea | Treat as the starting requirement; interview to flesh out |
 | No argument | Ask the user what to build, then interview |
-| Path to a `requirement.md` / backlog `.md` | Read as source requirement; interview only to fill gaps; plan folder = parent directory |
-| Path to an existing plan file (`*-plan.md`) | Treat as a pre-written plan; skip the interview unless it lacks Definition-of-Done criteria; plan folder = parent directory |
-| Folder path (e.g., `.backlog/{feature}/`) | Look for `{feature-name}-plan.md`, then `requirement.md`; plan folder = the folder |
-| Work item ID (numeric) | Fetch via `azdevops-operations` skill; interview to fill gaps; plan folder = `.plans/{feature-name}/` |
+| Path to a `requirement.md` / backlog `.md` | Read as source requirement; interview only to fill gaps |
+| Path to an existing plan file (`.plans/*.md`) | Treat as a pre-written plan; skip the interview unless it lacks clear criteria; keep its path |
+| Folder path (e.g., `.backlog/{feature}/`) | Look for a `*-plan.md` / `requirement.md` inside; read as source |
+| Work item ID (numeric) | Fetch via the `azdevops-operations` skill; interview to fill gaps |
 
-Whatever the input, the skill **always produces** `{plan-folder}/{feature-name}-plan.md` and drives implementation from it.
+The skill **always produces** `.plans/{feature-name}.md` (unless the input *is* already a plan file
+— then keep its path) and drives implementation from it after approval.
 
-## Plan Folder & File Resolution
+## Plan File & Feature Name
 
-Resolve the plan folder and feature name **once**, before any file writes:
+Resolve **once**, before any writes: plan folder is always the project's `.plans/` (create if
+absent); plan file is always flat `.plans/{feature-name}.md` (keep an input plan file's own path);
+feature name = kebab-case of the subject, ~5 words (e.g. `csv-export`).
 
-| Input type | Plan folder | Feature name |
-|---|---|---|
-| Inline / idea / work item ID | `.plans/{feature-name}/` | Kebab-case of the subject (truncate to ~5 words) |
-| File path | Parent directory of the file | Folder basename (or filename minus `-requirement`/`-plan` if the folder is generic like `.backlog`/`.plans`/`docs`) |
-| Folder path | The folder itself | Folder basename |
+## Phase 0 — Understand (READ-ONLY)
 
-**Plan file path** = `{plan-folder}/{feature-name}-plan.md`. If the input is itself a plan file, keep its name. Create the folder if it doesn't exist.
+Understand what to build and the code it touches, to **Claude Code plan-mode quality**. No writes.
 
-## Phase 0: Interview & Lock Criteria
+- **Context:** resolve the input; read the project's `AGENTS.md` + coding standards; dispatch
+  **parallel `Explore` sub-agents** (up to 3, usually 1) for structure, stack, patterns to reuse,
+  and the files to touch. Prefer reusing existing functions over new code; distil findings into
+  per-task "patterns to follow".
+- **Lean interview** (`references/interview-guide.md`, ~5 questions, like plan-mode clarifications):
+  lock **scope** (in/out), **design** (where code lives, patterns), **Acceptance Criteria**, and a
+  per-task **"Done when"**. Don't proceed until you can state *what to build, how each piece is
+  verified, and how you'd know the whole thing is done.* Skip the interview if the input is already
+  a complete plan with clear criteria.
 
-**Goal:** understand what to build and lock the **verifiable criteria** before any planning. This phase is the ONLY one with user interaction — after confirmation, the skill runs autonomously.
+## Phase 1 — Design & Write Plan (READ-ONLY except the plan file)
 
-The single most important output of this phase is the **Definition Criteria** — see `references/definition-criteria.md`. If the user cannot articulate how a task will be verified, that gap must be resolved here, before code exists.
+Turn understanding into a concrete plan on disk. The **plan file is the only write allowed here.**
 
-### 0.1 Read context
-- Read the input (per Input Resolution).
-- Read the project's `AGENTS.md` and coding standards.
-- Spawn **one** `Explore` sub-agent (medium thoroughness) for codebase context: structure, stack, patterns relevant to the change, and the files it will touch. Distil findings into per-task "patterns to follow" so implementers don't each re-explore (token win).
+- **Design & decompose** (`references/plan-analysis.md`): optionally dispatch **`Plan` sub-agent(s)**
+  (up to 3) for non-trivial/multi-area design, then reconcile. Glob/grep to confirm files exist and
+  patterns hold. Decompose by **feature slice** (not by layer) — each task gets a name, file list,
+  description, **Done when**, ACs, and a `Depends on` edge. **File isolation:** no two tasks share a
+  file (merge if they must). Group into independent sets (parallelize) and chains (sequence).
+- **Choose depth:** **Simplify** (default) = plan→implement→verify; **TDD** (optional) adds Phase 2
+  scaffold + failing tests, for logic-heavy unit-testable work. **Record the depth in the plan's
+  Context.** When in doubt, default to Simplify.
+- **Auto-scale implementers:**
 
-### 0.2 Lean, criteria-focused interview
-Follow `references/interview-guide.md`. **Keep it lean: 1–2 rounds, ~5 questions max.** Skip anything the input already answers. Center every round on producing:
-- **Scope** — what's in, what's explicitly out.
-- **Design choices** — where the code lives, patterns to follow, contracts.
-- **Acceptance Criteria** (plan-level) — testable conditions for the whole feature.
-- **Definition of Done** (per task) — mechanically checkable assertions.
+  | Scope | Implementers |
+  |---|---|
+  | 1–3 files | 1 |
+  | 4–6 files | 2 |
+  | 7–9 files | 3 |
+  | 10+ files | Dependency-ordered batches, one at a time |
 
-Do not proceed until you can state: *"I know what to build, how to verify each piece, and how I'd know the whole thing is done."*
+- **Write** `.plans/{feature-name}.md` from `references/plan-template.md` (native shape:
+  `Context → Goal → Acceptance Criteria → Tasks → Verification`). In TDD depth, expand each task's
+  `Done when` into a `Definition of Done` checklist (`references/definition-criteria.md`). If a plan
+  already exists: resume if mid-flight, else overwrite with a fresh decomposition.
 
-If the input is already a complete plan file with Definition-of-Done criteria, skip the interview.
+## Approval Gate
 
-### 0.3 Confirm
-Present a short summary — scope + Acceptance Criteria + per-task Definition of Done — and get explicit confirmation. **On confirmation, autonomous mode begins; no more user questions** (except an optional code-review prompt is never needed here — review is always on).
+**Stop and get explicit user approval of the written plan before any further action.** In **Claude
+Code**, request approval via **ExitPlanMode** (the user reviews the plan file); **Codex fallback** —
+present a short summary + plan path and ask the user to reply to approve. Until approved: **no
+scaffold, tests, implementation, or other writes.** On approval, autonomous mode begins.
 
-## Phase 1: Plan & Decompose
+## Phase 2 — Implement (AFTER approval)
 
-**Goal:** turn the locked criteria into a concrete, parallel-ready plan on disk.
+- **(TDD depth only) Scaffold + test-first** — *skip in Simplify.* The main agent writes
+  signatures/stubs that compile and fail at runtime (no logic; mark tasks `scaffolded`). Then
+  dispatch a **qa-engineer** (via the `unit-testing` skill) to write failing tests that are the
+  executable form of each task's Definition of Done (`references/agent-prompts.md`); verify they
+  bind to the scaffold and are red.
+- **Dispatch implementers** per task, **auto-scaled** and **in dependency order** — parallelize an
+  independent set, sequence across `Depends on` (`references/agent-prompts.md`). Each agent gets the
+  plan path + its task heading (don't inline files/plan). A task is complete only when its **Done
+  when** is met (TDD: scoped tests green). **The main agent owns ALL plan-file status writes** —
+  implementers return `complete`/`blocked` + summary; the main agent records each `Status`.
+- **Blocker (fresh-agent pattern):** decide the specific question, then dispatch a **fresh**
+  code-implementer carrying the plan path, task heading, the question + your decision, and the
+  partial-progress summary. Single retry; if still blocked, set `Status: blocked` and report.
 
-### 1.1 Feasibility & decomposition
-Follow `references/plan-analysis.md`:
-- **Files exist / patterns hold?** Glob/grep — don't trust assumptions.
-- **Decompose by feature slice** (logical), not by layer. Each task: name, file list, contracts/signatures, description, **Definition of Done**, relevant ACs, unit-testable flag.
-- **File isolation:** no two tasks share a file. If files must overlap → merge those tasks.
-- **Dependency ordering:** mark each task's `Depends on`. Group into independent sets (parallelizable) and dependency chains (sequential). File isolation prevents file conflicts; dependency marking prevents logical ones (Task B imports a surface Task A creates).
+## Phase 3 — Verify
 
-### 1.2 Determine agent count
-| Scope | Implementers |
-|---|---|
-| 1–3 files | 1 |
-| 4–6 files | 2 |
-| 7–9 files | 3 |
-| 10+ files | Split into dependency-ordered batches; dispatch one batch at a time |
+- **Per-task check:** verify each task's **Done when** (TDD: tests green; build clean; behavior
+  present); update each `Status` in the plan.
+- **Build & test:** run the project's build + test suite **once** + `git diff` to confirm changes
+  match intent; record results in the plan's Verification.
+- **Code review (capped loop):** offer `code-review-lite` over changed files. On **must-fix**
+  findings or red tests, dispatch a **fresh** code-implementer for the *failing task(s) only* →
+  re-verify → re-review. **Cap: 2 iterations**, then report with full context.
+- **AC check:** tick the plan's Acceptance-Criteria checkboxes from evidence (note any left unmet).
 
-### 1.3 Write the plan file
-Write `{plan-folder}/{feature-name}-plan.md` using `references/plan-template.md`: goal, Acceptance Criteria, tasks (each with `Status: pending`, contracts, **Definition of Done**), verification block, iteration log. Set Meta `Status: implementing` when you proceed.
+## Phase 4 — Report (+ optional docs-sync)
 
-If the plan file already exists from a prior run: resume if tasks are mid-flight; otherwise overwrite with a fresh decomposition (preserve the iteration log).
-
-## Phase 2: Scaffold
-
-**You (main agent) write the scaffold — signatures, interfaces, and empty stubs only, NO logic.** This is a deliberate, bounded exception to "main agent writes no production code." It exists so that:
-- the generated tests in Phase 3 **compile** against real surfaces (true red, not imaginary APIs);
-- parallel implementers in Phase 4 integrate against **shared interfaces that already exist**, rather than guessing each other's surfaces.
-
-Write each task's contracts (from Phase 1.1) as stubs that compile and fail at runtime (e.g. `throw new NotImplementedException()`, `raise NotImplementedError`, `return null /* TODO */`). Do not implement behavior. Record in the iteration log that the scaffold landed.
-
-## Phase 3: Test-First
-
-Dispatch a **qa-engineer** sub-agent using the `unit-testing` skill. See `references/agent-prompts.md`.
-
-- Input: the plan path + each task's Definition of Done + the scaffold surfaces.
-- The qa-engineer writes **failing (red) unit tests** that are the executable form of each task's Definition of Done.
-- For tasks flagged **not unit-testable** (config, infra, pure UI tweaks): qa-engineer records "no unit test — review-only gate" for that task instead of forcing a test.
-- **Verify:** read the test files — they exist, reference the scaffold, and map to the DoD. Tests should be red (nothing implemented yet).
-
-## Phase 4: Implement
-
-Dispatch code-implementer sub-agents per task, **in dependency order** — parallelize within an independent set, sequence across `Depends on` edges. See `references/agent-prompts.md`.
-
-**Dispatch rules:**
-- Independent tasks → dispatch together (the tool parallelizes as it can).
-- Each agent receives: the plan path + its task heading. Don't inline file contents or the whole plan — agents read what they need.
-- **Definition of Done for each task includes making its scoped unit tests pass (green).** An implementer's task is not complete until its tests pass.
-- **The main agent owns ALL `plan.md` status writes.** Implementers do **not** edit plan.md — they return a compact status (`complete` / `blocked` + summary). This avoids parallel write collisions on the plan file. After each agent returns, the main agent records its task `Status`.
-
-### Blocker handling (fresh-agent pattern)
-If an agent reports a blocker it cannot resolve:
-1. Decide the specific question (architecture/pattern/ambiguity).
-2. Dispatch a **fresh** code-implementer carrying: the plan path, the task heading, the blocker question + your decision, and the partial-progress summary the blocked agent returned. (A fresh agent is used rather than resuming the same one, so the pattern works identically in Claude Code and Codex.)
-3. Single retry. If still blocked, set the task `Status: blocked` and report to the user.
-
-## Phase 5: Verify & Guardrail Loop
-
-**Always on.** Confirm the implementation satisfies the locked criteria.
-
-### 5.1 Per-task Definition-of-Done check
-For each task, verify every Definition-of-Done item is met (its tests are green; build clean; behavior present). Update each task `Status` in plan.md.
-
-### 5.2 Build & full test
-Run the project's build + full test suite **once** (`dotnet build` / `npm test` / `pytest`, etc.). Update Verification.Build / Verification.Tests in plan.md.
-
-### 5.3 Code review
-Dispatch `code-review-lite` over the changed files (or run the skill). Collect must-fix vs advisory findings.
-
-### 5.4 Loop
-If any DoD item fails, tests are red, or review returns **must-fix**:
-- Dispatch a **fresh** code-implementer for the *failing task(s) only*, with the specific findings → re-run that task's tests → re-review.
-- **Cap: 2 iterations.** If still failing, set Meta `Status: blocked` and report to the user with full context. Do not loop indefinitely.
-
-### 5.5 AC check
-Update plan.md Acceptance-Criteria checkboxes from the evidence (`- [x] AC-N` when clearly met; leave unchecked with a note otherwise). If critical ACs are unmet after the loop → Meta `Status: blocked`, report.
-
-## Phase 6: Report (+ optional docs-sync)
-
-### 6.1 Finalize
-If all tasks complete, DoD met, and ACs satisfied: set Meta `Status: complete`, append an iteration-log entry.
-
-### 6.2 Optional docs-sync
-If the change is **structural** (new modules, scripts, folders, commands), offer to sync project docs (`AGENTS.md`, `README.md`, index tables). For each affected file, dispatch a sub-agent to make surgical edits. Skip for pure behavior changes.
-
-### 6.3 Report
-Summarize: plan path, files changed (count + list), AC status, Definition-of-Done results, build/test results, review verdict, and anything needing manual attention.
+If all tasks complete and ACs satisfied, mark the plan done. For **structural** changes (new
+modules/scripts/folders/commands), offer to sync project docs (`AGENTS.md`, `README.md`, index
+tables) via a sub-agent per file; skip for pure behavior changes. **Report:** plan path, files
+changed (count + list), AC status, build/test results, review verdict, manual follow-ups.
 
 ## Quick Reference: Error Handling
 
 | Situation | Action |
 |---|---|
-| User can't state how a task is verified | Resolve in Phase 0 — don't plan a task without a Definition of Done |
+| User can't state how a task is verified | Resolve in Phase 0 — don't plan a task without a "Done when" |
+| About to change code before approval | STOP — only the plan file is writable until the gate clears |
 | Agent hits blocker | Fresh code-implementer with the question + partial progress (1 retry); `blocked` if unresolved |
-| Tests red / DoD unmet / review must-fix | Fresh implementer for the failing task → re-test → re-review (cap 2 loops) |
-| Loop exhausted | Meta `Status: blocked`, report with full context |
+| Tests red / Done-when unmet / review must-fix | Fresh implementer for the failing task → re-verify (cap 2 loops) |
+| Loop exhausted | Report with full context |
 | Scope 10+ files | Dependency-ordered batches, one batch at a time |
