@@ -1,7 +1,7 @@
 ---
 name: code-review-pro
 description: Adaptive code review for PRs, branches, staged changes, and follow-ups. Use when Docs-only, Tiny, or Pro risk-based validation and reporting are needed.
-version: 2.1.0
+version: 2.1.1
 ---
 
 # Code Review Pro
@@ -130,7 +130,7 @@ Fix every FAIL. Then remove worktrees and the temporary diff; keep report and si
 
 - Docs-only uses only Branch Work Item Gate when scope is PR/branch. Tiny uses only Branch Work Item Gate and Build Validators; main agent owns all review lenses.
 - Pro always runs Build Validator(s) and one Requirement Validator; specialists require recorded triggers.
-- Branch Work Item Gate uses the Build Validator runtime, validates `US/`, `BUG/`, or `ISSUE/` branch IDs against ADO work item type, and blocks later review on FAIL.
+- Branch Work Item Gate uses the Build Validator runtime, validates `US/`, `BUG/`, or `ISSUE/` branch IDs with optional slug against ADO work item type, and blocks later review on FAIL.
 - Use repo-local `.CodeReview/.worktrees/{safe-branch}` paths only.
 - Pass paths, not pasted diffs or reference contents, to agents.
 - Cleanup runs even on failures. Do not sync/install this skill as part of review execution.

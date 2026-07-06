@@ -1,7 +1,7 @@
 ---
 name: implement-plan
 description: "Gated plan-then-implement workflow: understand + interview, write a plan to .plans/, get approval, then dispatch auto-scaled implementers (optional TDD) and verify. Use for '/implement-plan'."
-version: 3.0.0
+version: 3.1.1
 ---
 
 # Implement Plan
@@ -10,9 +10,9 @@ End-to-end planning + implementation skill. **You (main agent) are the brain** �
 codebase, lock criteria, write the plan, then dispatch sub-agents (**the hands**) to do the work.
 
 **Self-contained and tool-agnostic** — it does its own plan-mode-quality planning, so it does not
-depend on Claude Code plan mode or any Codex step and runs the same in both tools. Express dispatch
-as "dispatch a code-implementer / qa-engineer sub-agent" — never assume call syntax, model tier, or
-real concurrency (Codex may serialize; correctness comes from `Depends on` ordering).
+depend on Claude Code plan mode or any Codex step and runs the same in both tools. Use the tool-native
+explorer for planning (`Explore` in Claude Code, `explorer` in Codex); use named agents
+(`code-implementer`, `qa-engineer`) for implementation after approval.
 
 ## Two hard rules
 
@@ -48,8 +48,8 @@ feature name = kebab-case of the subject, ~5 words (e.g. `csv-export`).
 Understand what to build and the code it touches, to **Claude Code plan-mode quality**. No writes.
 
 - **Context:** resolve the input; read the project's `AGENTS.md` + coding standards; dispatch
-  **parallel `Explore` sub-agents** (up to 3, usually 1 — scale per `references/plan-analysis.md`)
-  for structure, stack, patterns to reuse, and the files to touch. Prefer reusing existing functions
+  **parallel tool-native explorer sub-agents** (read-only; up to 3, usually 1 — scale per
+  `references/plan-analysis.md`) for structure, stack, patterns to reuse, and files to touch. Prefer reusing existing functions
   over new code; distil findings into per-task "patterns to follow".
 - **Read the critical files yourself** that the agents flagged (the ones you'll modify or
   pattern-match against) — deepen understanding before planning; don't rely on summaries alone.
@@ -63,8 +63,8 @@ Understand what to build and the code it touches, to **Claude Code plan-mode qua
 
 Turn understanding into a concrete plan on disk. The **plan file is the only write allowed here.**
 
-- **Design & decompose** (`references/plan-analysis.md`): optionally dispatch **`Plan` sub-agent(s)**
-  (up to 3) for non-trivial/multi-area design, then reconcile. Glob/grep to confirm files exist and
+- **Design & decompose** (`references/plan-analysis.md`): optionally dispatch **tool-native explorer
+  sub-agents** (up to 3) for non-trivial/multi-area design checks, then reconcile. Glob/grep to confirm files exist and
   patterns hold. Decompose by **feature slice** (not by layer) — each task gets a name, file list,
   description, **Done when**, ACs, and a `Depends on` edge. **File isolation:** no two tasks share a
   file (merge if they must). Group into independent sets (parallelize) and chains (sequence).

@@ -16,7 +16,7 @@ Write `.CodeReview/{safe-branch}.lite.md`. Never use the full-review `.md` filen
 **Source**: {source}
 **Target**: {target}
 **Files Reviewed**: {count}
-**Skill**: code-review-lite v2.1.0
+**Skill**: code-review-lite v2.1.1
 **Review Profile**: Docs Tiny | Code Tiny | Lite
 **Main Runtime**: {resolved model} / {resolved effort}
 **Agents Triggered**: {actor(runtime; reason) | ... | None}

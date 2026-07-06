@@ -14,7 +14,7 @@ Use these field names exactly and once:
 ```markdown
 # Code Review: {title}
 
-**Skill**: code-review-pro v2.1.0
+**Skill**: code-review-pro v2.1.1
 **Review Profile**: Docs-only | Tiny | Pro
 **Main Runtime**: {resolved model} / {resolved effort}
 **Agents Triggered**: {pipe-separated trigger/actor records, or None}

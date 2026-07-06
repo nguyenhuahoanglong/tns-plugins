@@ -31,6 +31,11 @@ Worktrees remain repo-local at `.CodeReview/.worktrees/{safe-branch}`. Every chi
 
 ## Changelog
 
+### 2026-07-06 - v2.1.1 optional branch slug
+
+- Relaxed Branch Work Item Gate branch parsing so `US/{id}`, `BUG/{id}`, and `ISSUE/{id}` pass without a slug.
+- Preserved optional `-{slug}` support and strict Azure DevOps work item type validation.
+
 ### 2026-06-29 - v2.1.0 PR-centric review and scope discipline
 
 - Added enforced **PR-only mode**: "review PR {id}" requires a resolvable PR (gated by `ado_work_item.py pr-required`) and errors instead of falling back to other scopes.

@@ -1,17 +1,35 @@
 # Agent Dispatch Prompts
 
-Tool-agnostic prompt templates for the sub-agents this skill dispatches. **Dispatch the way your
-tool delegates** (Claude Code parallelizes in one message; Codex may serialize). Never hardcode a
-model tier or assume true concurrency — correctness comes from `Depends on` ordering.
+Tool-agnostic prompt templates for the sub-agents this skill dispatches. **Dispatch the named agent
+types** and let their configured frontmatter/TOML select model/runtime. Claude Code may parallelize;
+Codex may serialize. Correctness comes from `Depends on` ordering.
 
-**All dispatch below happens only AFTER the Approval Gate** — nothing here runs during planning.
-Implementer **count auto-scales** by file count (Phase 1.3): 1–3→1, 4–6→2, 7–9→3, 10+→batches.
+Phase 0 tool-native explorer dispatch is read-only and happens before approval (Claude Code:
+`Explore`; Codex: `explorer`). Phase 2+ dispatch happens only AFTER the Approval Gate.
+Implementer **count auto-scales** by file count (Phase 1.3): 1–3→1,
+4–6→2, 7–9→3, 10+→batches.
 The plan file is the single source of truth; **the main agent owns every status write** —
 sub-agents read the plan and report back, they do **not** edit it.
 
 **Context sizing:** pass the plan **path** (`.plans/{feature-name}.md`), never inline it or file
 contents (agents read via their file tools); point at `AGENTS.md` for standards; add a one-line
 patterns note from the Phase 0 Explore pass (e.g. "follow `UserRepository.cs`").
+
+## Phase 0 — tool-native explorer (read-only planning)
+
+Dispatch 1–3 explorer sub-agents per `plan-analysis.md`.
+
+```
+Dispatch a tool-native explorer sub-agent:
+Map codebase context for: {feature/change summary}
+Project: {project-root} — read AGENTS.md and relevant docs.
+Focus: {specific area/question; one focus per agent when parallel}
+
+## Rules
+- Read-only. No edits, installs, formatting, builds, or long tests.
+- Return relevant files, existing patterns to reuse, risks/questions, and suggested task boundaries.
+- Keep output concise; include file paths and line anchors where useful.
+```
 
 ## Phase 2.1 — Scaffold + test-first (TDD DEPTH ONLY)
 
@@ -25,14 +43,9 @@ and fail at runtime (`throw new NotImplementedException()` / `raise NotImplement
 
 ```
 Dispatch a qa-engineer sub-agent:
-
 Generate failing unit tests for the plan below, in spec-first mode.
-
-## Project
-Path: {project-root} — read AGENTS.md for test conventions.
-
-## Plan
-File: .plans/{feature-name}.md
+Project: {project-root} — read AGENTS.md for test conventions.
+Plan: .plans/{feature-name}.md
 Read it. For each unit-testable task, write unit tests that are the executable form of that task's
 Definition of Done. The scaffold (stubs/signatures) already exists — bind tests to those real
 surfaces. Tests are EXPECTED to be red (nothing is implemented yet).
@@ -54,14 +67,9 @@ Dispatch independent tasks together; sequence across `Depends on`.
 
 ```
 Dispatch a code-implementer sub-agent:
-
 Implement task: {task-name}
-
-## Project
-Path: {project-root} — read AGENTS.md before writing code.
-
-## Plan
-File: .plans/{feature-name}.md
+Project: {project-root} — read AGENTS.md before writing code.
+Plan: .plans/{feature-name}.md
 Your task heading: ### Task {N}: {task-name}
 Read the plan. The Goal and ACs apply to the whole feature; your work is your task heading only.
 
@@ -92,17 +100,10 @@ When an agent reports a blocker, decide the question, then dispatch a **fresh** 
 
 ```
 Dispatch a code-implementer sub-agent:
-
 Continue task: {task-name} — a prior attempt hit a blocker.
-
-## Project / Plan
-{project-root}; plan file .plans/{feature-name}.md; task heading ### Task {N}.
-
-## Blocker + decision
-{the specific question} → {your decision/approach}
-
-## Prior progress
-{partial-progress summary the blocked agent returned}
+Project/Plan: {project-root}; plan file .plans/{feature-name}.md; task heading ### Task {N}.
+Blocker + decision: {the specific question} → {your decision/approach}
+Prior progress: {partial-progress summary the blocked agent returned}
 
 ## Workflow
 Finish the task per the decision above; meet its "Done when"; return status + summary.
@@ -118,14 +119,9 @@ tests, dispatch a **fresh** code-implementer for the *failing task(s) only*:
 
 ```
 Dispatch a code-implementer sub-agent:
-
 Fix issues in task: {task-name}
-
-## Project / Plan
-{project-root}; plan .plans/{feature-name}.md; task heading ### Task {N}.
-
-## Findings to fix
-{must-fix items from code-review-lite, and/or failing test names + output}
+Project/Plan: {project-root}; plan .plans/{feature-name}.md; task heading ### Task {N}.
+Findings to fix: {must-fix items from code-review-lite, and/or failing test names + output}
 
 ## Workflow
 Address every finding in the listed files only; re-confirm the "Done when"; return status + summary.
@@ -136,12 +132,5 @@ Re-verify that task → re-review. **Cap: 2 loop iterations.** Still failing →
 
 ## Phase 4 — docs-sync (optional, per file)
 
-Only for structural changes (new modules/scripts/folders/commands):
-
-```
-Dispatch a sub-agent (cheapest capable tier):
-
-Update {absolute-path} for structural changes from "{feature-name}".
-Changes: {git diff --stat summary + description of new modules/scripts}.
-Make surgical edits to affected sections only — do not rewrite unrelated content.
-```
+For structural changes only, dispatch the cheapest capable sub-agent to update one docs file with
+`git diff --stat` context. Surgical edits only; no unrelated rewrites.

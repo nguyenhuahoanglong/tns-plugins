@@ -52,7 +52,7 @@ def write_case(root, profile, classifier, triggered, requirement_mode, gate_stat
         "\n".join([
             "# Code Review: Test",
             "",
-            "**Skill**: code-review-pro v2.1.0",
+            "**Skill**: code-review-pro v2.1.1",
             f"**Review Profile**: {profile}",
             "**Main Runtime**: gpt-test / high",
             "**Agents Triggered**: None" if not triggered_records else f"**Agents Triggered**: {' | '.join(triggered_records)}",
@@ -93,7 +93,7 @@ def write_case(root, profile, classifier, triggered, requirement_mode, gate_stat
     sidecar.write_text(json.dumps({
         "recordVersion": 2,
         "skillName": "code-review-pro",
-        "skillVersion": "2.1.0",
+        "skillVersion": "2.1.1",
         "reviewProfile": profile,
         "reviewKind": "initial",
         "classifier": classifier,

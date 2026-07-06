@@ -34,9 +34,9 @@
         "The review announces Pro profile plus every classifier and specialist trigger before dispatch",
         "The direct work item's acceptance criteria are binding and parent context does not create extra Missing or Partial criteria",
         "Build Validator and Requirement Validator always run; only specialists with recorded evidence triggers run after a passing build",
-        "The report passes the ADO autolink guard and scripts/verify_output.py, including an expected-main-runtime check when launch metadata is supplied, and its sidecar includes skillName code-review-pro, skillVersion 2.1.0, and reviewProfile",
+        "The report passes the ADO autolink guard and scripts/verify_output.py, including an expected-main-runtime check when launch metadata is supplied, and its sidecar includes skillName code-review-pro, skillVersion 2.1.1, and reviewProfile",
         "A later follow-up reclassifies only the delta with the same Docs-only/Tiny/Pro classifier and writes recordVersion 2",
-        "The PR source branch ID is verified through az boards work-item show and the ADO work item type must match the branch prefix"
+        "The PR source branch ID is verified through az boards work-item show and the ADO work item type must match the branch prefix; branch slug is optional"
       ]
     }
   ],

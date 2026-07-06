@@ -1,7 +1,7 @@
 ---
 name: code-review-lite
 description: "Adaptive low-cost code review. Use for quick review, lite review, or pre-merge checks; classifies Tiny changes, dispatches risk-based agents, and escalates broad risk."
-version: 2.1.0
+version: 2.1.1
 ---
 
 # Code Review Lite
@@ -119,7 +119,7 @@ Run Branch Work Item Gate and Build Validators in parallel. If the gate fails, w
 Write `.CodeReview/{safe-branch}.lite.md`. Include exact:
 
 - skill: `code-review-lite`
-- version: `2.1.0`
+- version: `2.1.1`
 - profile: `Docs Tiny`, `Code Tiny`, or `Lite`
 - main runtime: `{resolved model} / {resolved effort}`
 - triggered actors with runtime profiles and reasons

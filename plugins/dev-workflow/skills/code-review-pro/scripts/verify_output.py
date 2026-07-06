@@ -7,7 +7,7 @@ import re
 import sys
 from pathlib import Path
 
-SKILL = "code-review-pro v2.1.0"
+SKILL = "code-review-pro v2.1.1"
 PROFILES = {"Docs-only", "Tiny", "Pro"}
 BRANCH_GATE_FIELDS = {
     "Status", "Branch", "Prefix", "Work Item ID", "Expected Type",
@@ -114,7 +114,7 @@ def evaluate(report_path, sidecar_path=None, expected_main_runtime=None):
 
     add(results, data.get("recordVersion") == 2, "recordVersion is 2")
     add(results, data.get("skillName") == "code-review-pro", "skillName is code-review-pro")
-    add(results, data.get("skillVersion") == "2.1.0", "skillVersion is 2.1.0")
+    add(results, data.get("skillVersion") == "2.1.1", "skillVersion is 2.1.1")
     add(results, data.get("reviewProfile") == values["Review Profile"],
         "reviewProfile matches report")
     required_sidecar = {

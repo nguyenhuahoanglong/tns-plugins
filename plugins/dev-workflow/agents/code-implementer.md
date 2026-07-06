@@ -7,6 +7,7 @@ iconColor: "#9C27B0"
 skills:
   - implement-plan
   - code-review-lite
+codexModel: gpt-5.5
 ---
 
 # Code Implementer

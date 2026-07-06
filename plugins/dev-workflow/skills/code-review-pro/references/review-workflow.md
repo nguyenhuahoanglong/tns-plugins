@@ -95,7 +95,7 @@ For PR and branch scope, run this gate in parallel with the first Build Validato
 python <skill-dir>/scripts/branch_work_item_gate.py --scope-type {scopeType} --branch "{sourceBranch}" --repo "{repo}"
 ```
 
-For staged, working, and files scope, run it with the same command and record `SKIPPED`. The script validates branch format `(US|BUG|ISSUE)/{id}-{slug}` and calls `az boards work-item show` to ensure the ID exists and its `System.WorkItemType` matches `User Story`, `Bug`, or `Issue`. `FAIL` blocks Requirement Validator and specialists; synthesize a report with completed build results and a CRITICAL Must Fix.
+For staged, working, and files scope, run it with the same command and record `SKIPPED`. The script validates branch format `(US|BUG|ISSUE)/{id}` with optional `-{slug}` and calls `az boards work-item show` to ensure the ID exists and its `System.WorkItemType` matches `User Story`, `Bug`, or `Issue`. `FAIL` blocks Requirement Validator and specialists; synthesize a report with completed build results and a CRITICAL Must Fix.
 
 ## 6. Child-Read Preflight
 

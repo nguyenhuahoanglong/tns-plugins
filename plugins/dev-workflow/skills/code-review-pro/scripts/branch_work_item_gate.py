@@ -13,7 +13,7 @@ from pathlib import Path
 
 
 AZ_TIMEOUT_SECONDS = 60
-BRANCH_PATTERN = re.compile(r"^(US|BUG|ISSUE)/(\d{3,6})-[a-z0-9][a-z0-9-]*$")
+BRANCH_PATTERN = re.compile(r"^(US|BUG|ISSUE)/(\d{3,6})(?:-[a-z0-9][a-z0-9-]*)?$")
 TYPE_BY_PREFIX = {
     "US": "User Story",
     "BUG": "Bug",
@@ -150,7 +150,7 @@ def evaluate(scope_type, branch=None, repo=".", az_exe=None, runner=run):
             "FAIL",
             branch=source_branch or "None",
             source=scope,
-            reason="Branch must match ^(US|BUG|ISSUE)/[0-9]{3,6}-[a-z0-9][a-z0-9-]*$",
+            reason="Branch must match (US|BUG|ISSUE)/{id} with optional -{slug}",
         )
 
     prefix, work_item_id = match.group(1), match.group(2)

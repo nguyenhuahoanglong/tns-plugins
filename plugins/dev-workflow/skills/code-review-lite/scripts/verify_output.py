@@ -6,7 +6,7 @@ import re
 import sys
 from pathlib import Path
 
-SKILL = "code-review-lite v2.1.0"
+SKILL = "code-review-lite v2.1.1"
 PROFILES = {"Docs Tiny", "Code Tiny", "Lite"}
 BRANCH_GATE_FIELDS = {
     "Status", "Branch", "Prefix", "Work Item ID", "Expected Type",

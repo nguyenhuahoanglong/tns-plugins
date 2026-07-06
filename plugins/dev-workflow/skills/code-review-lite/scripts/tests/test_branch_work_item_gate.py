@@ -47,25 +47,35 @@ class BranchWorkItemGateTests(unittest.TestCase):
                 runner=ado_runner(work_item_type, rc),
             )
 
-    def test_user_story_branch_passes(self):
-        result = self.evaluate("US/1878-valid-story", "User Story")
+    def test_user_story_branch_without_slug_passes(self):
+        result = self.evaluate("US/1878", "User Story")
         self.assertEqual("PASS", result["Status"])
         self.assertEqual("User Story", result["Expected Type"])
 
-    def test_bug_branch_passes(self):
-        result = self.evaluate("BUG/2101-valid-bug", "Bug")
+    def test_bug_branch_without_slug_passes(self):
+        result = self.evaluate("BUG/2101", "Bug")
         self.assertEqual("PASS", result["Status"])
         self.assertEqual("Bug", result["Expected Type"])
 
-    def test_issue_branch_passes(self):
-        result = self.evaluate("ISSUE/2102-valid-issue", "Issue")
+    def test_issue_branch_without_slug_passes(self):
+        result = self.evaluate("ISSUE/2102", "Issue")
         self.assertEqual("PASS", result["Status"])
         self.assertEqual("Issue", result["Expected Type"])
+
+    def test_branch_with_slug_still_passes(self):
+        result = self.evaluate("US/1878-valid-story", "User Story")
+        self.assertEqual("PASS", result["Status"])
+        self.assertEqual("1878", result["Work Item ID"])
 
     def test_malformed_branch_fails(self):
         result = self.evaluate("US-1878-invalid", "User Story")
         self.assertEqual("FAIL", result["Status"])
         self.assertIn("Branch must match", result["Reason"])
+
+    def test_empty_slug_fails(self):
+        result = self.evaluate("US/1878-", "User Story")
+        self.assertEqual("FAIL", result["Status"])
+        self.assertIn("optional -{slug}", result["Reason"])
 
     def test_work_item_not_found_fails(self):
         result = self.evaluate("US/1878-valid-story", "User Story", rc=1)

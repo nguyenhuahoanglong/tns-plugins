@@ -1,0 +1,32 @@
+{
+  "skill_name": "implement-plan",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "$implement-plan \"Add CSV export to the orders grid\"",
+      "expected_output": "The skill performs read-only planning, writes a plan file, waits for approval, then dispatches implementation agents in dependency order.",
+      "expectations": [
+        "Phase 0 dispatches the tool-native explorer for codebase discovery instead of code-implementer.",
+        "Planning stays read-only except for the plan file until explicit approval.",
+        "Implementation dispatches code-implementer after approval, using the agent's configured runtime rather than inline model choices.",
+        "The main agent owns plan status writes and verifies build/test/diff evidence before reporting done."
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "$implement-plan .plans/existing-feature.md",
+      "expected_output": "The skill treats the existing file as the source plan, skips unnecessary interview, and uses configured named agents for exploration and implementation.",
+      "expectations": [
+        "Existing plan input keeps its path and does not create a duplicate plan file.",
+        "Any additional design checks use tool-native explorer subagents.",
+        "Implementation work is delegated to code-implementer only after approval.",
+        "No prompt asks subagents to override their configured model or reasoning effort."
+      ]
+    }
+  ],
+  "non_goals": [
+    "Do not force every implementation through TDD depth.",
+    "Do not inline full plan contents into subagent prompts.",
+    "Do not make subagents edit the plan status file."
+  ]
+}

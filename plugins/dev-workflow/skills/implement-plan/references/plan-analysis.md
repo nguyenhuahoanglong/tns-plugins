@@ -4,12 +4,12 @@ This is the engine behind Phase 0 (understand) and Phase 1.1 (decompose) — it 
 Claude Code plan mode applies before it writes a plan. All of it is **read-only**; the only write in
 Phase 1 is the plan file itself.
 
-## Phase 0 — Exploration depth (how many Explore agents)
+## Phase 0 — Exploration depth (how many explorer agents)
 
-Match plan mode's heuristic: **use the minimum number of `Explore` agents that covers the scope,
-up to 3 in parallel.**
+Match plan mode's heuristic: **use the minimum number of tool-native explorer agents that covers the
+scope, up to 3 in parallel.** Claude Code uses built-in `Explore`; Codex uses built-in `explorer`.
 
-| Situation | Explore agents |
+| Situation | Explorer agents |
 |---|---|
 | Change is isolated to known files, or the user gave specific paths | **1** |
 | Scope is uncertain, or several subsystems/areas are involved | **2–3, in parallel** (one search focus each) |
@@ -21,13 +21,11 @@ implementers don't each re-explore.
 
 ## Phase 0 → Phase 1 — Read the critical files yourself
 
-Before finalizing the decomposition, **read the critical files the Explore agents flagged** — don't
+Before finalizing the decomposition, **read the critical files the explorer agents flagged** — don't
 plan off their summaries alone. This is plan mode's review step: open the files you'll modify and the
 ones you'll pattern-match against, confirm the signatures/patterns are really as reported, and only
 then commit to the task breakdown. This is what separates a plan that executes cleanly from one that
 turns out to be built on a stale assumption.
-
-## Quick assessment (30 seconds)
 
 ## Quick assessment (30 seconds)
 

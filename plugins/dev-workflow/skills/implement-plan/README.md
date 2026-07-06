@@ -14,10 +14,16 @@ Claude Code plan mode or any Codex planning step, and runs identically in both t
 - Use `/implement-plan "<idea>"` (Claude Code) or `$implement-plan "<idea>"` (Codex), or pass a
   requirement file / work-item id / existing plan / folder / nothing.
 
+## Pain Points
+
+- Planning discovery should be cheap and read-only, not done by high-effort implementation agents.
+- Implementation agents need stable runtime settings so Codex does not silently inherit the main
+  agent's high-effort configuration.
+
 ## Workflow at a glance
 
 ```
-Phase 0  Understand        (READ-ONLY)  Explore agents + lean interview
+Phase 0  Understand        (READ-ONLY)  tool-native explorer + lean interview
 Phase 1  Design & plan     (READ-ONLY except the plan file)  decompose, auto-scale, write .plans/{feature}.md
 ───────  APPROVAL GATE  ──────────────  nothing else is written until the user approves
 Phase 2  Implement         scaffold + red tests (TDD depth only) → auto-scaled code-implementers
@@ -37,6 +43,11 @@ Default depth is **plan → implement → verify**. **TDD depth** (main agent sc
 qa-engineer writes failing tests before implementation) is opt-in, chosen during planning for
 logic-heavy, unit-testable work and recorded in the plan's Context.
 
+### Agent routing
+Planning uses the tool-native explorer (`Explore` in Claude Code, `explorer` in Codex) for read-only
+codebase discovery. Implementation uses `code-implementer`, pinned separately from the main agent
+(Codex: `gpt-5.5` + medium reasoning).
+
 ### Auto-scaled implementers
 Implementer count scales by file count (1–3→1, 4–6→2, 7–9→3, 10+→dependency-ordered batches), so
 small plans run lean without a separate "lite" skill. Independent tasks parallelize; `Depends on`
@@ -51,11 +62,25 @@ Verification`) at a flat `.plans/{feature-name}.md`. Each task carries a lightwe
 Sub-agents read the plan and report status; the main agent records it — no parallel-write collision.
 
 ### Cross-tool
-Both Claude Code and Codex expose `code-implementer` / `code-reviewer` / `qa-engineer`. The skill
-uses tool-agnostic prose prompts (no literal call syntax), never hardcodes a model tier, and resolves
-blockers with a **fresh agent** (no `SendMessage`/resume dependency).
+Both Claude Code and Codex expose the named agents used by this skill. The skill uses tool-agnostic
+prose prompts (no literal call syntax); agent files define runtime/model choices. Blockers use a
+**fresh agent** (no `SendMessage`/resume dependency).
 
 ## Changelog
+
+### 2026-06-30 — v3.1.1 — Use built-in explorers
+- Replaced the custom `explore-agent` dependency with each tool's built-in explorer for Phase 0
+  planning discovery: Claude Code `Explore`, Codex `explorer`.
+- Kept Codex runtime pinning for `code-implementer` so implementation still uses the predefined
+  model/effort.
+
+### 2026-06-30 — v3.1.0 — Codex agent runtime routing (superseded)
+- Temporarily added `explore-agent` for fast/read-only planning discovery; superseded by v3.1.1,
+  which uses built-in explorers instead.
+- Pinned Codex runtime for `code-implementer` separately from the main agent, with medium reasoning
+  for implementation work.
+- Added `codexModel` support to ek agent generation so source agents can carry Claude and Codex model
+  settings without leaking tool-specific fields across targets.
 
 ### 2026-06-29 — v3.0.0 — Merged single skill, gated planning
 - **Merged the lightweight `lite` variant into this skill and retired it.** Quota concerns are now
@@ -63,7 +88,7 @@ blockers with a **fresh agent** (no `SendMessage`/resume dependency).
   the lite variant from `base-kit`, `full-kit`, and the `dev-workflow` plugin.
 - **Added a hard Approval Gate.** Planning (Phases 0–1) is read-only except the plan file; scaffold,
   tests, and implementation only run after explicit user approval (ExitPlanMode in Claude Code).
-- **Planning raised to plan-mode quality** — parallel Explore agents for understanding, optional
+- **Planning raised to plan-mode quality** — parallel explore agents for understanding, optional
   Plan agents for design, clarifying interview, then approval.
 - **Default depth is Simplify** (plan→implement→verify); **TDD** (scaffold + failing tests) is now
   optional and decided during planning, not always-on.

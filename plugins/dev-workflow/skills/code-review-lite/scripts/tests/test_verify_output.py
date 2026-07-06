@@ -49,7 +49,7 @@ def write_report(root, profile, triggered, skipped, gate_status="PASS"):
             (
                 "# Code Review (Lite): Test",
                 "",
-                "**Skill**: code-review-lite v2.1.0",
+                "**Skill**: code-review-lite v2.1.1",
                 f"**Review Profile**: {profile}",
                 "**Main Runtime**: gpt-test / high",
                 f"**Agents Triggered**: {triggered}",
@@ -148,11 +148,11 @@ class VerifyOutputTests(unittest.TestCase):
                 "Performance Reviewer; Philosophy Reviewer; Standard Reviewer",
             )
             path.write_text(
-                path.read_text(encoding="utf-8").replace("2.1.0", "1.0.0"),
+                path.read_text(encoding="utf-8").replace("2.1.1", "1.0.0"),
                 encoding="utf-8",
             )
             failures = [message for level, message in evaluate(path) if level == "FAIL"]
-            self.assertIn("Skill is exactly code-review-lite v2.1.0", failures)
+            self.assertIn("Skill is exactly code-review-lite v2.1.1", failures)
 
     def test_expected_main_runtime(self):
         with tempfile.TemporaryDirectory() as root:
