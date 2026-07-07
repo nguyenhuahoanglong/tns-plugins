@@ -40,6 +40,17 @@ def write_case(root, profile, classifier, triggered, requirement_mode, gate_stat
               if gate_status == "SKIPPED"
               else "ADO work item type does not match branch prefix"),
     }
+    if gate_status == "WARN":
+        gate.update({
+            "branch": "hotfix/123",
+            "prefix": "hotfix",
+            "workItemId": "123",
+            "expectedType": "None",
+            "actualType": "User Story",
+            "title": "Valid story",
+            "state": "Active",
+            "reason": "Branch prefix is not US, BUG, or ISSUE; ADO work item ID is valid",
+        })
     gate_trigger = f"Branch Work Item Gate({runtime['build']}; branch work item convention)"
     triggered_records = list(triggered)
     skipped_records = list(SKIPPED[profile])
@@ -52,7 +63,7 @@ def write_case(root, profile, classifier, triggered, requirement_mode, gate_stat
         "\n".join([
             "# Code Review: Test",
             "",
-            "**Skill**: code-review-pro v2.1.1",
+            "**Skill**: code-review-pro v2.1.2",
             f"**Review Profile**: {profile}",
             "**Main Runtime**: gpt-test / high",
             "**Agents Triggered**: None" if not triggered_records else f"**Agents Triggered**: {' | '.join(triggered_records)}",
@@ -93,7 +104,7 @@ def write_case(root, profile, classifier, triggered, requirement_mode, gate_stat
     sidecar.write_text(json.dumps({
         "recordVersion": 2,
         "skillName": "code-review-pro",
-        "skillVersion": "2.1.1",
+        "skillVersion": "2.1.2",
         "reviewProfile": profile,
         "reviewKind": "initial",
         "classifier": classifier,
@@ -239,6 +250,22 @@ class VerifyOutputTests(unittest.TestCase):
                 ],
                 "inline",
                 gate_status="SKIPPED",
+            )
+            results = VERIFY.evaluate(report, sidecar)
+            self.assertFalse([item for item in results if item[0] == "FAIL"])
+
+    def test_branch_gate_warn_valid(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            report, sidecar = write_case(
+                Path(tmp), "Tiny",
+                {"filesChanged": 1, "changedLines": 20, "docsOnly": False,
+                 "riskTriggers": [], "specialistTriggers": {}},
+                [
+                    "Main(Tiny all-lens)",
+                    "Build Validator[repo](gpt-5.4-mini / low; code build)",
+                ],
+                "inline",
+                gate_status="WARN",
             )
             results = VERIFY.evaluate(report, sidecar)
             self.assertFalse([item for item in results if item[0] == "FAIL"])

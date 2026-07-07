@@ -31,6 +31,11 @@ Worktrees remain repo-local at `.CodeReview/.worktrees/{safe-branch}`. Every chi
 
 ## Changelog
 
+### 2026-07-07 - v2.1.2 branch gate warning mode
+
+- Added `WARN` branch gate status for non-standard or mismatched branch prefixes when the ADO work item ID exists and has an allowed type.
+- Kept `FAIL` for missing/unresolvable IDs and ADO work item types outside `User Story`, `Bug`, or `Issue`.
+
 ### 2026-07-06 - v2.1.1 optional branch slug
 
 - Relaxed Branch Work Item Gate branch parsing so `US/{id}`, `BUG/{id}`, and `ISSUE/{id}` pass without a slug.

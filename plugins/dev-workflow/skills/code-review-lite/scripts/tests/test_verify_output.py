@@ -37,6 +37,17 @@ def write_report(root, profile, triggered, skipped, gate_status="PASS"):
               if gate_status == "SKIPPED"
               else "ADO work item type does not match branch prefix"),
     }
+    if gate_status == "WARN":
+        gate.update({
+            "Branch": "hotfix/123",
+            "Prefix": "hotfix",
+            "Work Item ID": "123",
+            "Expected Type": "None",
+            "Actual Type": "User Story",
+            "Title": "Valid story",
+            "State": "Active",
+            "Reason": "Branch prefix is not US, BUG, or ISSUE; ADO work item ID is valid",
+        })
     branch_trigger = "Branch Work Item Gate(gpt-5.4-mini / low; branch work item convention)"
     if gate_status == "SKIPPED":
         skipped = f"{skipped}; Branch Work Item Gate(no created PR or branch scope)"
@@ -49,7 +60,7 @@ def write_report(root, profile, triggered, skipped, gate_status="PASS"):
             (
                 "# Code Review (Lite): Test",
                 "",
-                "**Skill**: code-review-lite v2.1.1",
+                "**Skill**: code-review-lite v2.1.2",
                 f"**Review Profile**: {profile}",
                 "**Main Runtime**: gpt-test / high",
                 f"**Agents Triggered**: {triggered}",
@@ -148,11 +159,11 @@ class VerifyOutputTests(unittest.TestCase):
                 "Performance Reviewer; Philosophy Reviewer; Standard Reviewer",
             )
             path.write_text(
-                path.read_text(encoding="utf-8").replace("2.1.1", "1.0.0"),
+                path.read_text(encoding="utf-8").replace("2.1.2", "1.0.0"),
                 encoding="utf-8",
             )
             failures = [message for level, message in evaluate(path) if level == "FAIL"]
-            self.assertIn("Skill is exactly code-review-lite v2.1.1", failures)
+            self.assertIn("Skill is exactly code-review-lite v2.1.2", failures)
 
     def test_expected_main_runtime(self):
         with tempfile.TemporaryDirectory() as root:
@@ -185,6 +196,18 @@ class VerifyOutputTests(unittest.TestCase):
                 "Requirement Validator(Code Tiny); Security Reviewer(Code Tiny); "
                 "Performance Reviewer(Code Tiny); Philosophy Reviewer(Code Tiny); Standard Reviewer(Code Tiny)",
                 gate_status="SKIPPED",
+            )
+            self.assert_valid(path, "Code Tiny")
+
+    def test_branch_gate_warn_valid(self):
+        with tempfile.TemporaryDirectory() as root:
+            path = write_report(
+                root,
+                "Code Tiny",
+                "Build Validator[repo](gpt-5.4-mini / low; code build)",
+                "Requirement Validator(Code Tiny); Security Reviewer(Code Tiny); "
+                "Performance Reviewer(Code Tiny); Philosophy Reviewer(Code Tiny); Standard Reviewer(Code Tiny)",
+                gate_status="WARN",
             )
             self.assert_valid(path, "Code Tiny")
 

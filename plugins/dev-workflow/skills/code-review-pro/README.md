@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Adaptive evidence-driven code review for PRs, branches, staged changes, and follow-up iterations. Version 2.1.1 classifies each diff as Docs-only, Tiny, or Pro, then runs the minimum valid review topology without weakening requirement or regression coverage.
+Adaptive evidence-driven code review for PRs, branches, staged changes, and follow-up iterations. Version 2.1.2 classifies each diff as Docs-only, Tiny, or Pro, then runs the minimum valid review topology without weakening requirement or regression coverage.
 
 ## Pain Points
 
@@ -30,6 +30,11 @@ Direct task/acceptance criteria are binding. Parent items supply context but do 
 Worktrees live under each repo at `.CodeReview/.worktrees/{safe-branch}`. Build children perform a read preflight before other children run. Reports carry combined skill/version provenance plus Review Profile, Main Runtime, Agents Triggered, and Agents Skipped fields. Sidecars use record version 2 and include `skillName`, `skillVersion`, and `reviewProfile`.
 
 ## Changelog
+
+### 2026-07-07 - v2.1.2 branch gate warning mode
+
+- Added `WARN` branch gate status for non-standard or mismatched branch prefixes when the ADO work item ID exists and has an allowed type.
+- Kept `FAIL` for missing/unresolvable IDs and ADO work item types outside `User Story`, `Bug`, or `Issue`.
 
 ### 2026-07-06 - v2.1.1 optional branch slug
 

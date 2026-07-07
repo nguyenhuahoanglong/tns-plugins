@@ -6,7 +6,7 @@ import re
 import sys
 from pathlib import Path
 
-SKILL = "code-review-lite v2.1.1"
+SKILL = "code-review-lite v2.1.2"
 PROFILES = {"Docs Tiny", "Code Tiny", "Lite"}
 BRANCH_GATE_FIELDS = {
     "Status", "Branch", "Prefix", "Work Item ID", "Expected Type",
@@ -156,13 +156,13 @@ def evaluate(output_path, expected_profile=None, expected_main_runtime=None):
     add(results, BRANCH_GATE_FIELDS <= set(gate),
         "Branch Work Item Gate reports required fields")
     gate_status = gate.get("Status")
-    add(results, gate_status in {"PASS", "FAIL", "SKIPPED"},
+    add(results, gate_status in {"PASS", "WARN", "FAIL", "SKIPPED"},
         "Branch Work Item Gate status is valid")
     branch_trigger_pattern = r"Branch Work Item Gate\(([^;()]+ / [^;()]+);\s*branch work item convention\)"
     branch_runtime_match = re.search(branch_trigger_pattern, triggered)
     branch_triggered = bool(re.search(branch_trigger_pattern, triggered))
     branch_skipped = "Branch Work Item Gate(" in skipped
-    if gate_status in {"PASS", "FAIL"}:
+    if gate_status in {"PASS", "WARN", "FAIL"}:
         add(results, branch_triggered,
             "Branch Work Item Gate uses Build Validator runtime when triggered")
         if build_runtime:

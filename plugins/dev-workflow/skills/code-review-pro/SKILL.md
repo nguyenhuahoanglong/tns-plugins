@@ -1,7 +1,7 @@
 ---
 name: code-review-pro
 description: Adaptive code review for PRs, branches, staged changes, and follow-ups. Use when Docs-only, Tiny, or Pro risk-based validation and reporting are needed.
-version: 2.1.1
+version: 2.1.2
 ---
 
 # Code Review Pro
@@ -68,13 +68,13 @@ Every classifier and specialist trigger must appear in both this announcement an
 
 #### Docs-only
 
-Run Branch Work Item Gate for PR/branch scope; skip it for staged, working, and file scope. Spawn no other agents and create no worktree. If the gate fails, report the CRITICAL branch/work-item violation and stop. Otherwise review changed documentation inline for internal consistency, broken paths/commands, requirement mismatch, and accidental behavior claims.
+Run Branch Work Item Gate for PR/branch scope; skip it for staged, working, and file scope. Spawn no other agents and create no worktree. If the gate fails, report the CRITICAL branch/work-item violation and stop. If it warns, record the warning and continue. Otherwise review changed documentation inline for internal consistency, broken paths/commands, requirement mismatch, and accidental behavior claims.
 
 #### Tiny
 
 Create repo-local worktrees. Run Branch Work Item Gate in parallel with exactly one `build-validator` per repo using `references/agents/build-validator.md`; both use `haiku / default`. Every child must echo the supplied preflight token before analysis.
 
-If Branch Work Item Gate fails, write the report with completed build results, mark the gate failure CRITICAL, skip later review, and stop.
+If Branch Work Item Gate fails, write the report with completed build results, mark the gate failure CRITICAL, skip later review, and stop. If it warns, record the warning and continue.
 
 After all child reads pass, the main agent reviews every changed line through all lenses in `references/tiny-review.md`. Do not spawn Requirement or specialist agents.
 
@@ -82,7 +82,7 @@ After all child reads pass, the main agent reviews every changed line through al
 
 Create repo-local worktrees. Run Branch Work Item Gate in parallel with exactly one `build-validator` per repo first; both use `haiku / default`. Repair/retry any `Child Read: FAIL`; do not dispatch readers against inaccessible paths. Every later child repeats the token preflight.
 
-If Branch Work Item Gate fails, write the report with completed build results, mark the gate failure CRITICAL, skip Requirement Validator and specialists, and stop.
+If Branch Work Item Gate fails, write the report with completed build results, mark the gate failure CRITICAL, skip Requirement Validator and specialists, and stop. If it warns, record the warning and continue.
 
 After child reads pass, always spawn one `requirement-validator` using `references/agents/requirement-validator.md`. With a direct work item, use `work-item` mode; without one, use `regression-only` mode.
 
@@ -130,7 +130,7 @@ Fix every FAIL. Then remove worktrees and the temporary diff; keep report and si
 
 - Docs-only uses only Branch Work Item Gate when scope is PR/branch. Tiny uses only Branch Work Item Gate and Build Validators; main agent owns all review lenses.
 - Pro always runs Build Validator(s) and one Requirement Validator; specialists require recorded triggers.
-- Branch Work Item Gate uses the Build Validator runtime, validates `US/`, `BUG/`, or `ISSUE/` branch IDs with optional slug against ADO work item type, and blocks later review on FAIL.
+- Branch Work Item Gate uses the Build Validator runtime, validates `{slug}/{work-item-id}` against ADO work item existence and allowed type. `WARN` covers branch convention/type-prefix mismatch and does not block review; `FAIL` blocks later review.
 - Use repo-local `.CodeReview/.worktrees/{safe-branch}` paths only.
 - Pass paths, not pasted diffs or reference contents, to agents.
 - Cleanup runs even on failures. Do not sync/install this skill as part of review execution.

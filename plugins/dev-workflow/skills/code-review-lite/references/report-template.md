@@ -16,7 +16,7 @@ Write `.CodeReview/{safe-branch}.lite.md`. Never use the full-review `.md` filen
 **Source**: {source}
 **Target**: {target}
 **Files Reviewed**: {count}
-**Skill**: code-review-lite v2.1.1
+**Skill**: code-review-lite v2.1.2
 **Review Profile**: Docs Tiny | Code Tiny | Lite
 **Main Runtime**: {resolved model} / {resolved effort}
 **Agents Triggered**: {actor(runtime; reason) | ... | None}
@@ -52,7 +52,7 @@ Skipped actors must include a reason. For Docs Tiny, Agents Triggered is `None` 
 
 ## Branch Work Item Gate
 
-- **Status**: PASS | FAIL | SKIPPED
+- **Status**: PASS | WARN | FAIL | SKIPPED
 - **Branch**: {source branch or None}
 - **Prefix**: US | BUG | ISSUE | None
 - **Work Item ID**: {id or None}
@@ -89,7 +89,7 @@ A `JS-SKIPPED` status means `prepare_worktree_deps.py` reported `skip-build` (th
 
 {Critical and High findings only, or "None."}
 
-Branch Work Item Gate `FAIL` is Critical and stops review after first gates. Include completed build results and state Requirement Validator/specialists were skipped.
+Branch Work Item Gate `FAIL` is Critical and stops review after first gates. Include completed build results and state Requirement Validator/specialists were skipped. Branch Work Item Gate `WARN` is advisory, records branch convention/type-prefix mismatch, and does not stop review.
 
 ## Detailed Findings
 

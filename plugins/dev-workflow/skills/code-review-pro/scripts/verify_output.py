@@ -7,7 +7,7 @@ import re
 import sys
 from pathlib import Path
 
-SKILL = "code-review-pro v2.1.1"
+SKILL = "code-review-pro v2.1.2"
 PROFILES = {"Docs-only", "Tiny", "Pro"}
 BRANCH_GATE_FIELDS = {
     "Status", "Branch", "Prefix", "Work Item ID", "Expected Type",
@@ -114,7 +114,7 @@ def evaluate(report_path, sidecar_path=None, expected_main_runtime=None):
 
     add(results, data.get("recordVersion") == 2, "recordVersion is 2")
     add(results, data.get("skillName") == "code-review-pro", "skillName is code-review-pro")
-    add(results, data.get("skillVersion") == "2.1.1", "skillVersion is 2.1.1")
+    add(results, data.get("skillVersion") == "2.1.2", "skillVersion is 2.1.2")
     add(results, data.get("reviewProfile") == values["Review Profile"],
         "reviewProfile matches report")
     required_sidecar = {
@@ -220,7 +220,7 @@ def evaluate(report_path, sidecar_path=None, expected_main_runtime=None):
         "sidecar branchWorkItemGate contains required fields")
     if isinstance(gate, dict) and BRANCH_GATE_SIDE_FIELDS <= set(gate):
         status = gate.get("status")
-        add(results, status in {"PASS", "FAIL", "SKIPPED"},
+        add(results, status in {"PASS", "WARN", "FAIL", "SKIPPED"},
             "Branch Work Item Gate status is valid")
         mapping = {
             "Status": "status",
@@ -244,7 +244,7 @@ def evaluate(report_path, sidecar_path=None, expected_main_runtime=None):
         branch_triggered = branch_trigger in triggered_records
         branch_skipped = any(item.startswith("Branch Work Item Gate(")
                              for item in skipped_records)
-        if status in {"PASS", "FAIL"}:
+        if status in {"PASS", "WARN", "FAIL"}:
             add(results, branch_triggered,
                 "Branch Work Item Gate uses Build Validator runtime when triggered")
             add(results, not branch_skipped,

@@ -14,7 +14,7 @@ Use these field names exactly and once:
 ```markdown
 # Code Review: {title}
 
-**Skill**: code-review-pro v2.1.1
+**Skill**: code-review-pro v2.1.2
 **Review Profile**: Docs-only | Tiny | Pro
 **Main Runtime**: {resolved model} / {resolved effort}
 **Agents Triggered**: {pipe-separated trigger/actor records, or None}
@@ -59,7 +59,7 @@ Skipped actors use `{Actor}({reason})`. Branch Work Item Gate is triggered for P
 ```markdown
 ## Branch Work Item Gate
 
-- **Status**: PASS | FAIL | SKIPPED
+- **Status**: PASS | WARN | FAIL | SKIPPED
 - **Branch**: {source branch or None}
 - **Prefix**: US | BUG | ISSUE | None
 - **Work Item ID**: {id or None}
@@ -106,7 +106,7 @@ For Docs-only, include a build row with `SKIPPED` / `NOT RUN`, and use requireme
 
 | Lens | Owner | Status | Evidence summary |
 |---|---|---|---|
-| Branch work item | Branch Work Item Gate / Skipped | Pass / Fail / Skipped | {brief} |
+| Branch work item | Branch Work Item Gate / Skipped | Pass / Warn / Fail / Skipped | {brief} |
 | Build | Build Validator / Skipped | Pass / Fail / Skipped | {brief} |
 | Requirement and regression | Main / Requirement Validator | Pass / Warn / Fail | {brief} |
 | Security | Main / Security Reviewer / Skipped | Pass / Warn / Skipped | {brief} |
@@ -118,7 +118,7 @@ For Docs-only, include a build row with `SKIPPED` / `NOT RUN`, and use requireme
 
 - **[CRITICAL|HIGH] [{Owner}] [mf:{stable-slug}]** {issue} - `{file}:{line}`
 
-Branch Work Item Gate `FAIL` is a CRITICAL Must Fix before merge. Include completed build results, skip later validators/specialists, and state that review stopped after first gates.
+Branch Work Item Gate `FAIL` is a CRITICAL Must Fix before merge. Include completed build results, skip later validators/specialists, and state that review stopped after first gates. Branch Work Item Gate `WARN` is advisory, records branch convention/type-prefix mismatch, and does not stop review.
 
 ## Files Changed
 

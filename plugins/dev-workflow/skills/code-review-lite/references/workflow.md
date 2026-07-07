@@ -107,7 +107,8 @@ Announce each actor with reason and exact runtime profile before dispatch.
 - PR/branch scope: Branch Work Item Gate runs with `haiku / default` in parallel with first Build Validator:
   `python <skill>/scripts/branch_work_item_gate.py --scope-type {scopeType} --branch "{sourceBranch}" --repo "{repo}"`
 - Staged, working, and files scope: run Branch Work Item Gate and record `SKIPPED`.
-- Branch Work Item Gate validates `(US|BUG|ISSUE)/{id}` with optional `-{slug}` and calls `az boards work-item show` to verify the ID exists and `System.WorkItemType` matches `User Story`, `Bug`, or `Issue`.
+- Branch Work Item Gate validates `{slug}/{work-item-id}` with optional `-{text}` and calls `az boards work-item show` to verify the ID exists and `System.WorkItemType` is `User Story`, `Bug`, or `Issue`.
+- Gate `WARN`: record the branch convention/type-prefix mismatch and continue review.
 - Gate `FAIL`: write a report with completed build results, record a Critical finding, skip Requirement Validator and specialists, and stop.
 - Docs Tiny: Branch Work Item Gate only when applicable; no other dispatch.
 - Code Tiny: Branch Work Item Gate plus Build Validators in parallel, one per repo.

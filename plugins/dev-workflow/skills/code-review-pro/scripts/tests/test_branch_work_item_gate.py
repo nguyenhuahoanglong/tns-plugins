@@ -67,6 +67,18 @@ class BranchWorkItemGateTests(unittest.TestCase):
         self.assertEqual("PASS", result["Status"])
         self.assertEqual("1878", result["Work Item ID"])
 
+    def test_unknown_prefix_warns_when_type_allowed(self):
+        result = self.evaluate("hotfix/1878", "User Story")
+        self.assertEqual("WARN", result["Status"])
+        self.assertEqual("1878", result["Work Item ID"])
+        self.assertEqual("User Story", result["Actual Type"])
+
+    def test_prefix_type_mismatch_warns_when_type_allowed(self):
+        result = self.evaluate("US/2101", "Bug")
+        self.assertEqual("WARN", result["Status"])
+        self.assertEqual("User Story", result["Expected Type"])
+        self.assertEqual("Bug", result["Actual Type"])
+
     def test_malformed_branch_fails(self):
         result = self.evaluate("US-1878-invalid", "User Story")
         self.assertEqual("FAIL", result["Status"])
@@ -75,17 +87,23 @@ class BranchWorkItemGateTests(unittest.TestCase):
     def test_empty_slug_fails(self):
         result = self.evaluate("US/1878-", "User Story")
         self.assertEqual("FAIL", result["Status"])
-        self.assertIn("optional -{slug}", result["Reason"])
+        self.assertIn("{slug}/{work-item-id}", result["Reason"])
+
+    def test_missing_branch_id_fails(self):
+        result = self.evaluate("hotfix/no-ticket", "User Story")
+        self.assertEqual("FAIL", result["Status"])
+        self.assertEqual("None", result["Work Item ID"])
 
     def test_work_item_not_found_fails(self):
         result = self.evaluate("US/1878-valid-story", "User Story", rc=1)
         self.assertEqual("FAIL", result["Status"])
         self.assertEqual("work item not found", result["Reason"])
 
-    def test_type_mismatch_fails(self):
-        result = self.evaluate("US/1878-valid-story", "Bug")
+    def test_disallowed_work_item_type_fails(self):
+        result = self.evaluate("US/1879", "Task")
         self.assertEqual("FAIL", result["Status"])
-        self.assertEqual("Bug", result["Actual Type"])
+        self.assertEqual("Task", result["Actual Type"])
+        self.assertEqual("User Story | Bug | Issue", result["Expected Type"])
 
     def test_az_unavailable_fails(self):
         with tempfile.TemporaryDirectory() as root:

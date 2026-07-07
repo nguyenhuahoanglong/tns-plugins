@@ -14,7 +14,7 @@ Require both:
 - `.CodeReview/{safe-branch}.md`
 - `.CodeReview/.{safe-branch}.review-meta.json`
 
-The sidecar must parse and contain `recordVersion: 2`, `skillName: code-review-pro`, `skillVersion: 2.1.1`, `scopeType`, `scopeBase`, and `diffFingerprint`. If missing, invalid, or v1, run a fresh full-scope review and write v2 records.
+The sidecar must parse and contain `recordVersion: 2`, `skillName: code-review-pro`, `skillVersion: 2.1.2`, `scopeType`, `scopeBase`, and `diffFingerprint`. If missing, invalid, or v1, run a fresh full-scope review and write v2 records.
 
 Recompute SHA-256 over the same normalized scoped diff:
 
@@ -52,7 +52,7 @@ Re-read code for every resolved Must Fix. Carry untouched findings forward. Remo
 {
   "recordVersion": 2,
   "skillName": "code-review-pro",
-  "skillVersion": "2.1.1",
+  "skillVersion": "2.1.2",
   "reviewProfile": "Pro",
   "reviewKind": "follow-up",
   "classifier": {

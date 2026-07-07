@@ -13,12 +13,13 @@ from pathlib import Path
 
 
 AZ_TIMEOUT_SECONDS = 60
-BRANCH_PATTERN = re.compile(r"^(US|BUG|ISSUE)/(\d{3,6})(?:-[a-z0-9][a-z0-9-]*)?$")
+BRANCH_PATTERN = re.compile(r"^([A-Za-z][A-Za-z0-9-]*)/(\d{3,6})(?:-[a-z0-9][a-z0-9-]*)?$")
 TYPE_BY_PREFIX = {
     "US": "User Story",
     "BUG": "Bug",
     "ISSUE": "Issue",
 }
+ALLOWED_TYPES = {"User Story", "Bug", "Issue"}
 FIELDS = "System.WorkItemType,System.Title,System.State"
 
 
@@ -150,11 +151,11 @@ def evaluate(scope_type, branch=None, repo=".", az_exe=None, runner=run):
             "FAIL",
             branch=source_branch or "None",
             source=scope,
-            reason="Branch must match (US|BUG|ISSUE)/{id} with optional -{slug}",
+            reason="Branch must match {slug}/{work-item-id} with optional -{text}",
         )
 
     prefix, work_item_id = match.group(1), match.group(2)
-    expected_type = TYPE_BY_PREFIX[prefix]
+    expected_type = TYPE_BY_PREFIX.get(prefix.upper())
     resolved_az = az_exe or shutil.which("az")
     if not resolved_az:
         return result(
@@ -195,18 +196,46 @@ def evaluate(scope_type, branch=None, repo=".", az_exe=None, runner=run):
     actual_type = fields.get("System.WorkItemType", "")
     title = fields.get("System.Title", "")
     state = fields.get("System.State", "")
-    if actual_type != expected_type:
+    if actual_type not in ALLOWED_TYPES:
         return result(
             "FAIL",
             branch=source_branch,
             prefix=prefix,
             work_item_id=work_item_id,
-            expected_type=expected_type,
+            expected_type="User Story | Bug | Issue",
             actual_type=actual_type or "None",
             title=title or "None",
             state=state or "None",
             source=scope,
-            reason="ADO work item type does not match branch prefix",
+            reason="ADO work item type must be User Story, Bug, or Issue",
+        )
+
+    if expected_type is None:
+        return result(
+            "WARN",
+            branch=source_branch,
+            prefix=prefix,
+            work_item_id=work_item_id,
+            expected_type="None",
+            actual_type=actual_type,
+            title=title or "None",
+            state=state or "None",
+            source=scope,
+            reason="Branch prefix is not US, BUG, or ISSUE; ADO work item ID is valid",
+        )
+
+    if actual_type != expected_type:
+        return result(
+            "WARN",
+            branch=source_branch,
+            prefix=prefix,
+            work_item_id=work_item_id,
+            expected_type=expected_type,
+            actual_type=actual_type,
+            title=title or "None",
+            state=state or "None",
+            source=scope,
+            reason="ADO work item type does not match branch prefix; ADO work item ID is valid",
         )
 
     return result(

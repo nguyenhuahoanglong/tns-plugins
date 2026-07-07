@@ -1,7 +1,7 @@
 ---
 name: code-review-lite
 description: "Adaptive low-cost code review. Use for quick review, lite review, or pre-merge checks; classifies Tiny changes, dispatches risk-based agents, and escalates broad risk."
-version: 2.1.1
+version: 2.1.2
 ---
 
 # Code Review Lite
@@ -90,16 +90,16 @@ Create agent worktrees per repo at `.CodeReview/.worktrees/{safe-branch}`. Compl
 
 ### Docs Tiny
 
-Run Branch Work Item Gate for PR/branch scope; skip it for staged, working, and file scope. If the gate fails, report the CRITICAL branch/work-item violation and stop. Otherwise main agent reviews accuracy, consistency, links, commands, and requirement alignment. Spawn no other agents.
+Run Branch Work Item Gate for PR/branch scope; skip it for staged, working, and file scope. If the gate fails, report the CRITICAL branch/work-item violation and stop. If it warns, record the warning and continue. Otherwise main agent reviews accuracy, consistency, links, commands, and requirement alignment. Spawn no other agents.
 
 ### Code Tiny
 
-Run Branch Work Item Gate and Build Validators in parallel. If the gate fails, write the report with completed build results and stop. Otherwise main agent reviews changed code for correctness, regressions, security, performance, design, and standards. Do not spawn Requirement Validator or specialist.
+Run Branch Work Item Gate and Build Validators in parallel. If the gate fails, write the report with completed build results and stop. If it warns, record the warning and continue. Otherwise main agent reviews changed code for correctness, regressions, security, performance, design, and standards. Do not spawn Requirement Validator or specialist.
 
 ### Lite
 
 1. Run Branch Work Item Gate and one Build Validator per repo in parallel.
-2. If Branch Work Item Gate fails, write the report with completed build results and stop.
+2. If Branch Work Item Gate fails, write the report with completed build results and stop; if it warns, record the warning and continue.
 3. Run one Requirement Validator even if build fails.
 4. On build failure, skip specialist to save tokens.
 5. Otherwise run the single triggered named specialist, if any.
@@ -119,7 +119,7 @@ Run Branch Work Item Gate and Build Validators in parallel. If the gate fails, w
 Write `.CodeReview/{safe-branch}.lite.md`. Include exact:
 
 - skill: `code-review-lite`
-- version: `2.1.1`
+- version: `2.1.2`
 - profile: `Docs Tiny`, `Code Tiny`, or `Lite`
 - main runtime: `{resolved model} / {resolved effort}`
 - triggered actors with runtime profiles and reasons
