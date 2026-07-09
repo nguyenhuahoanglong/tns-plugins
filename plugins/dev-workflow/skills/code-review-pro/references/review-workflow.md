@@ -26,19 +26,19 @@ Record `scopeType` (`pr`, `branch`, `staged`, `working`, or `files`) and `scopeB
 Create `.CodeReview/` and write one full-context diff:
 
 ```text
-git diff --no-prefix -U50 {base}..HEAD > ".CodeReview/.{safe-branch}.diff"
+git diff --no-prefix -U20 {base}..HEAD > ".CodeReview/.{safe-branch}.diff"
 git diff --name-only {base}..HEAD
 git diff --shortstat {base}..HEAD
 ```
 
-For staged scope, use `git diff --cached`. Count `changedLines` as additions + deletions, not diff-file line count. Pass the absolute diff path to children; never paste the diff into every prompt.
+For staged scope, use `git diff --cached`. Count `changedLines` as additions + deletions, not diff-file line count. Pass the absolute diff path to children; never paste the diff into every prompt. Child agents read the full file from the worktree whenever a hunk needs more surrounding context than the 20 lines shown.
 
 ## 3. Gather Context
 
 In parallel:
 
 - Detect repos and changed projects (`.sln`/`.csproj`, `package.json`, other build manifests).
-- Discover instruction/standard paths and 2-3 nearby exemplars per changed source file.
+- Discover instruction/standard paths and 2-3 exemplars per repo/stack (not per changed file).
 - Resolve work item:
 
 ```text
@@ -80,12 +80,16 @@ The worktree root convention and the containment check are unchanged — only th
 A fresh worktree has no `node_modules`, so JS/PCF build gates cannot run. After worktree add and before dispatching the Build Validator, for repos with JS projects:
 
 ```text
-python <skill-dir>/scripts/prepare_worktree_deps.py --worktree {worktree} --repo {REPO_ROOT} --diff {diff-path} --json
+python <skill-dir>/scripts/prepare_worktree_deps.py --worktree {worktree} --repo {REPO_ROOT} --diff {diff-path} --require-bin {build-tool} --json
 ```
 
-It junctions unchanged-dependency `node_modules` from the source repo (no install) and signals `skip-build` for any project whose `package.json`/lockfile changed. Record the `jsDepsStrategy` roll-up (`link | skip | mixed | none`). A `skip-build` project's build row is reported `JS-SKIPPED (deps changed)` — surfaced, never silently passed. Never authorize an implicit dependency install.
+Pass `--require-bin` with the exact tool the approved build command invokes (e.g. `vite` for `npm run build:dev` → `vite build`, `tsc`, `webpack`, `react-scripts`, `vitest`); repeat the flag for multiple tools. This makes the health check tool-aware: a **production-only** source `node_modules` (populated `.bin` but missing the build tool — e.g. `vite`, a devDependency — resolved uniformly against each project's `.bin`) is judged unusable and re-installed, rather than junctioning a broken tree that then fails with "{tool} is not recognized". It junctions the source repo's `node_modules` when usable (exists with a non-empty `.bin` **and** all `--require-bin` tools resolve, or the project has no deps). When source deps are missing/unusable and a lockfile exists, it performs a frozen, lockfile-gated install inside the worktree project (`npm ci --prefer-offline --no-audit --no-fund` / `yarn install --frozen-lockfile` / `pnpm install --frozen-lockfile --prefer-offline`) — strategy `install`; a failed install is `install-failed`, surfaced but not fatal. Otherwise it signals `skip-build` with reason `deps changed` or `no lockfile` (add `--no-install` to force `skip-build` with reason `deps unavailable` instead of installing). Record the `jsDepsStrategy` roll-up (`link | skip | install | mixed | none`).
 
-Agents receive absolute paths for worktree, diff, role prompt, standards, prior report, and changed files.
+**Dependency installs are performed ONLY by `prepare_worktree_deps.py`** (frozen, lockfile-gated) — child agents never install. Installs can take minutes: run the script itself with an extended command timeout (up to 10 minutes), independent of its own `--install-timeout` (default 480s).
+
+**Critical orchestration rule**: a project whose deps could not be made usable (script result `skip-build` or `install-failed`) gets build row `JS-SKIPPED ({reason})` with reason `deps changed` | `no lockfile` | `install failed`, and the Build Validator is **not** dispatched with that project's JS build command. An environment gap must never be reported as a build FAIL. A project whose strategy is `install` succeeded and is safe to build normally — its PASS reflects freshly installed dependencies, not stale ones.
+
+Agents receive absolute paths for worktree, diff, role prompt, standards, prior report, and changed files. Requirement Validator and the four specialist reviewers also receive `references/agents/_shared-contract.md` alongside their role prompt.
 
 ## 5. Branch Work Item Gate
 

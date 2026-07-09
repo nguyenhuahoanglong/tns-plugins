@@ -47,7 +47,7 @@ Priority directories:
 
 ### 3. Examine Existing Code Patterns (Mandatory)
 
-**Always run this step** — even when explicit standards exist. Use Glob/Grep to find 2–3 sibling files per changed file (same folder, same suffix, same feature folder) and read them for dominant patterns. This is the exemplar discovery step that feeds the Standard Reviewer.
+**Always run this step** — even when explicit standards exist. Use Glob/Grep to find 2–3 exemplar files per repo/stack (same suffix/feature folder, representative of the repo's dominant convention — not one set per changed file) and read them for dominant patterns. This is the exemplar discovery step that feeds the Standard Reviewer.
 
 Identify dominant patterns across these categories:
 - Naming conventions (camelCase, PascalCase, snake_case)

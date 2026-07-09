@@ -31,6 +31,15 @@ Worktrees remain repo-local at `.CodeReview/.worktrees/{safe-branch}`. Every chi
 
 ## Changelog
 
+### 2026-07-09 - v2.2.0 lockfile-gated worktree installs
+
+- `prepare_worktree_deps.py` now performs a frozen, lockfile-gated install (`npm ci` / `yarn install --frozen-lockfile` / `pnpm install --frozen-lockfile`) in the worktree when the source repo's `node_modules` is missing or stale; opt out with `--no-install`.
+- Added `--require-bin {tool}` (repeatable): a build-tool-aware source-deps health check. A production-only source `node_modules` (populated `.bin` but missing the build tool, e.g. `vite` as a devDependency) is now judged unusable and re-installed instead of junctioning a broken tree that fails with "vite is not recognized". The workflow passes the tool the approved build command invokes.
+- Fixed `branch_work_item_gate.py`: dropped the `--fields` argument to `az boards work-item show` (rejected by newer az-devops with "expand parameter can not be used with the fields parameter"), reading work-item type/title/state from the returned `fields` object — this was producing a false gate FAIL on every review.
+- Extended `JS-SKIPPED` reasons to `deps changed`, `no lockfile`, and `install failed`; the Build Validator is never dispatched against a project whose JS deps could not be made usable.
+- Added `NOT RUN (environment)` build status for a missing build tool, so an environment gap is never reported as a build FAIL.
+- Capped Build Validator error/warning listings at 10 each, with `(+N more)` totals beyond that.
+
 ### 2026-07-07 - v2.1.2 branch gate warning mode
 
 - Added `WARN` branch gate status for non-standard or mismatched branch prefixes when the ADO work item ID exists and has an allowed type.

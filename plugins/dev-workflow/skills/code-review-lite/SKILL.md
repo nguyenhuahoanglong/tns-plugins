@@ -1,7 +1,7 @@
 ---
 name: code-review-lite
 description: "Adaptive low-cost code review. Use for quick review, lite review, or pre-merge checks; classifies Tiny changes, dispatches risk-based agents, and escalates broad risk."
-version: 2.1.2
+version: 2.2.0
 ---
 
 # Code Review Lite
@@ -25,7 +25,7 @@ python <skill>/scripts/ado_work_item.py context [--pr {id}]
 
 User requirement text wins. Ask at most one skippable requirement-context question after fetch failure. Enrich resolved work items with design-doc context via the repo `AGENTS.md` design-doc root (see `references/workflow.md`). For **PR-only** requests ("review PR {id}"), a resolvable PR is required: gate with `ado_work_item.py pr-required` and stop on a hard error (exit 4/2) rather than falling back to other scopes; for PR scope review the merge preview and prepare JS deps per `references/workflow.md`, recording `PR-Only` and `mergePreviewStrategy` in the report.
 
-Resolve one exact approved build command per repo from project instructions. Do not authorize dependency install/restore implicitly.
+Resolve one exact approved build command per repo from project instructions. Dependency installs happen only inside `prepare_worktree_deps.py` (frozen, lockfile-gated); child agents still never install.
 
 ## 2. Classify
 
@@ -119,7 +119,7 @@ Run Branch Work Item Gate and Build Validators in parallel. If the gate fails, w
 Write `.CodeReview/{safe-branch}.lite.md`. Include exact:
 
 - skill: `code-review-lite`
-- version: `2.1.2`
+- version: `2.2.0`
 - profile: `Docs Tiny`, `Code Tiny`, or `Lite`
 - main runtime: `{resolved model} / {resolved effort}`
 - triggered actors with runtime profiles and reasons

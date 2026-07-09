@@ -63,7 +63,7 @@ def write_case(root, profile, classifier, triggered, requirement_mode, gate_stat
         "\n".join([
             "# Code Review: Test",
             "",
-            "**Skill**: code-review-pro v2.1.2",
+            "**Skill**: code-review-pro v2.2.0",
             f"**Review Profile**: {profile}",
             "**Main Runtime**: gpt-test / high",
             "**Agents Triggered**: None" if not triggered_records else f"**Agents Triggered**: {' | '.join(triggered_records)}",
@@ -104,7 +104,7 @@ def write_case(root, profile, classifier, triggered, requirement_mode, gate_stat
     sidecar.write_text(json.dumps({
         "recordVersion": 2,
         "skillName": "code-review-pro",
-        "skillVersion": "2.1.2",
+        "skillVersion": "2.2.0",
         "reviewProfile": profile,
         "reviewKind": "initial",
         "classifier": classifier,
@@ -445,6 +445,60 @@ class VerifyOutputTests(unittest.TestCase):
             results = VERIFY.evaluate(report, sidecar)
             self.assertTrue(any(
                 "JS-SKIPPED" in message
+                for level, message in results if level == "FAIL"
+            ))
+
+    def test_js_deps_skip_accepts_parenthesized_reason_row(self):
+        """JS-SKIPPED (reason) build row satisfies the skip/mixed requirement."""
+        with tempfile.TemporaryDirectory() as tmp:
+            report, sidecar = write_case(
+                Path(tmp), "Pro",
+                {"filesChanged": 1, "changedLines": 20, "docsOnly": False,
+                 "riskTriggers": ["auth-security-boundary"],
+                 "specialistTriggers": {"Security Reviewer": ["auth-security-boundary"]}},
+                [
+                    "Build Validator[repo](gpt-5.4-mini / low; code build)",
+                    "Requirement Validator(inherited current model / high; work-item)",
+                    "Security Reviewer(inherited current model / medium; auth-security-boundary)",
+                ],
+                "work-item",
+            )
+            data = json.loads(sidecar.read_text(encoding="utf-8"))
+            data["jsDepsStrategy"] = "skip"
+            sidecar.write_text(json.dumps(data), encoding="utf-8")
+            text = report.read_text(encoding="utf-8")
+            text = text.replace(
+                "## Build Status\nTest.",
+                "## Build Status\n| `repo` | JS-SKIPPED (no lockfile) |",
+            )
+            report.write_text(text, encoding="utf-8")
+            results = VERIFY.evaluate(report, sidecar)
+            self.assertFalse(any(
+                "JS-SKIPPED" in message
+                for level, message in results if level == "FAIL"
+            ))
+
+    def test_js_deps_install_is_valid(self):
+        """jsDepsStrategy=install is accepted (no JS-SKIPPED row required)."""
+        with tempfile.TemporaryDirectory() as tmp:
+            report, sidecar = write_case(
+                Path(tmp), "Pro",
+                {"filesChanged": 1, "changedLines": 20, "docsOnly": False,
+                 "riskTriggers": ["auth-security-boundary"],
+                 "specialistTriggers": {"Security Reviewer": ["auth-security-boundary"]}},
+                [
+                    "Build Validator[repo](gpt-5.4-mini / low; code build)",
+                    "Requirement Validator(inherited current model / high; work-item)",
+                    "Security Reviewer(inherited current model / medium; auth-security-boundary)",
+                ],
+                "work-item",
+            )
+            data = json.loads(sidecar.read_text(encoding="utf-8"))
+            data["jsDepsStrategy"] = "install"
+            sidecar.write_text(json.dumps(data), encoding="utf-8")
+            results = VERIFY.evaluate(report, sidecar)
+            self.assertFalse(any(
+                "jsDepsStrategy" in message
                 for level, message in results if level == "FAIL"
             ))
 

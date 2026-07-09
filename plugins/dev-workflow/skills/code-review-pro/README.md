@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Adaptive evidence-driven code review for PRs, branches, staged changes, and follow-up iterations. Version 2.1.2 classifies each diff as Docs-only, Tiny, or Pro, then runs the minimum valid review topology without weakening requirement or regression coverage.
+Adaptive evidence-driven code review for PRs, branches, staged changes, and follow-up iterations. Version 2.2.0 classifies each diff as Docs-only, Tiny, or Pro, then runs the minimum valid review topology without weakening requirement or regression coverage.
 
 ## Pain Points
 
@@ -30,6 +30,16 @@ Direct task/acceptance criteria are binding. Parent items supply context but do 
 Worktrees live under each repo at `.CodeReview/.worktrees/{safe-branch}`. Build children perform a read preflight before other children run. Reports carry combined skill/version provenance plus Review Profile, Main Runtime, Agents Triggered, and Agents Skipped fields. Sidecars use record version 2 and include `skillName`, `skillVersion`, and `reviewProfile`.
 
 ## Changelog
+
+### 2026-07-09 - v2.2.0 deps auto-install and token optimization
+
+- `prepare_worktree_deps.py` now performs a frozen, lockfile-gated install (`npm ci` / `yarn install --frozen-lockfile` / `pnpm install --frozen-lockfile`) inside the worktree when source `node_modules` is missing or unusable and a lockfile exists; junctioning remains the default when source deps are usable. New `--install-timeout` (default 480s) and `--no-install` flags.
+- `jsDepsStrategy` roll-up gains `install`; failed installs report `install-failed` (surfaced, not fatal).
+- Added `--require-bin {tool}` (repeatable): a build-tool-aware source-deps health check. A production-only source `node_modules` (populated `.bin` but missing the build tool, e.g. `vite` as a devDependency) is judged unusable and re-installed rather than junctioning a broken tree that fails with "vite is not recognized". Checked uniformly against each project's `.bin` (bin names don't reliably map to package names — `tsc` ships from `typescript` — so a declared-dependency filter would be unsound). The workflow passes the tool the approved build command invokes.
+- Fixed `branch_work_item_gate.py`: dropped the `--fields` argument to `az boards work-item show` (rejected by newer az-devops with "expand parameter can not be used with the fields parameter"), reading work-item type/title/state from the returned `fields` object — this was producing a false gate FAIL on every review.
+- Fixed a false build FAIL: a project whose deps could not be made usable (`skip-build` or `install-failed`) is reported `JS-SKIPPED ({reason})`, and the Build Validator is never dispatched with that project's JS build command — an environment gap is never reported as a code failure.
+- Build Validator reports `NOT RUN (environment)` when the approved build command's own tool is missing (e.g. absent from `node_modules/.bin`), and caps Errors/Warnings output at 10 verbatim entries plus `(+N more)`.
+- Token optimization (Balanced tier): full-context diff narrowed from `-U50` to `-U20` (children read full files from the worktree when a hunk needs more context); added `references/agents/_shared-contract.md` holding the preflight and finding-output contract shared by Requirement Validator and the four specialists, trimming each role prompt to its lens-specific content; Synthesize re-verifies only Critical/High findings, accepting Medium/Low on cited evidence; standards exemplar discovery moved from 2-3 per changed file to 2-3 per repo/stack.
 
 ### 2026-07-07 - v2.1.2 branch gate warning mode
 

@@ -14,7 +14,7 @@ Use these field names exactly and once:
 ```markdown
 # Code Review: {title}
 
-**Skill**: code-review-pro v2.1.2
+**Skill**: code-review-pro v2.2.0
 **Review Profile**: Docs-only | Tiny | Pro
 **Main Runtime**: {resolved model} / {resolved effort}
 **Agents Triggered**: {pipe-separated trigger/actor records, or None}
@@ -74,9 +74,11 @@ Skipped actors use `{Actor}({reason})`. Branch Work Item Gate is triggered for P
 
 | Repo / Project | Child Read | Build | Errors | Warnings |
 |---|---|---|---|---|
-| {name} | PASS | PASS / FAIL / NOT RUN / JS-SKIPPED | {n} | {n} |
+| {name} | PASS | PASS / FAIL / NOT RUN / NOT RUN (environment) / JS-SKIPPED | {n} | {n} |
 
-A `JS-SKIPPED` build row means `prepare_worktree_deps.py` reported `skip-build` for that project (its `package.json`/lockfile changed, so the source `node_modules` junction would be stale and no implicit install is allowed). State the reason; a JS-skipped row is not a build failure but must be surfaced, never silently passed.
+A `JS-SKIPPED` build row means `prepare_worktree_deps.py` could not make that project's dependencies usable. State the reason exactly: `deps changed` | `no lockfile` | `install failed`. A JS-skipped row is not a build failure but must be surfaced, never silently passed, and the Build Validator is never dispatched with that project's JS build command.
+
+A build row for a project reported with `jsDepsStrategy` strategy `install` means `prepare_worktree_deps.py` performed a fresh frozen, lockfile-gated install for that project before the build ran — a PASS there reflects freshly installed dependencies, not a stale/reused `node_modules`.
 
 ## Requirement Validation
 
@@ -134,6 +136,7 @@ Branch Work Item Gate `FAIL` is a CRITICAL Must Fix before merge. Include comple
    - **Evidence**: {base/new behavior, caller/consumer/event/state/test path}
    - **Impact**: {concrete effect}
    - **Suggestion**: {actionable fix}
+   - **Confidence**: High | Medium | Low (carried from the reporting agent; Medium/Low findings are synthesized on this evidence without re-verification)
 
 ## Reviewer Notes
 

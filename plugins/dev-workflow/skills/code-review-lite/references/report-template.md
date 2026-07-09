@@ -16,7 +16,7 @@ Write `.CodeReview/{safe-branch}.lite.md`. Never use the full-review `.md` filen
 **Source**: {source}
 **Target**: {target}
 **Files Reviewed**: {count}
-**Skill**: code-review-lite v2.1.2
+**Skill**: code-review-lite v2.2.0
 **Review Profile**: Docs Tiny | Code Tiny | Lite
 **Main Runtime**: {resolved model} / {resolved effort}
 **Agents Triggered**: {actor(runtime; reason) | ... | None}
@@ -69,7 +69,7 @@ Skipped actors must include a reason. For Docs Tiny, Agents Triggered is `None` 
 |---|---|---:|---:|
 | `{repo}` | PASS / FAIL / NOT RUN / JS-SKIPPED | {n} | {n} |
 
-A `JS-SKIPPED` status means `prepare_worktree_deps.py` reported `skip-build` (the project's `package.json`/lockfile changed; no implicit install is allowed). State the reason; it is not a failure but must be surfaced.
+A `JS-SKIPPED` status means `prepare_worktree_deps.py` could not make that project's JS deps usable, reason `deps changed` | `no lockfile` | `install failed`. State the reason; it is not a failure but must be surfaced. When deps were freshly installed by the review (strategy `install`), note it in the report so a PASS is understood to be on freshly installed deps.
 
 ## Requirement Evidence
 

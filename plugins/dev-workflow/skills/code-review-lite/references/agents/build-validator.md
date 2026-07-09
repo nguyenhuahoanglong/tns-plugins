@@ -16,11 +16,11 @@ First read the provided `.code-review-preflight` absolute path. Emit the exact e
 Validate affected build entry points from changed files and repository metadata. Run only the exact approved command supplied by the orchestrator; never decide to install/restore independently.
 
 - .NET: approved command may include restore, then clean/build affected solution or project.
-- Node/React: approved command may include lockfile-appropriate install, then declared build script.
+- Node/React: run the declared build script; deps are already prepared by `prepare_worktree_deps.py` — never install/restore them here.
 - Other stacks: use documented project build/test commands.
 - Documentation-only repositories should not reach this agent.
 
-Capture errors and warnings. Missing required tooling is a failure because the gate was not verified.
+Capture errors and warnings. If the approved build command's tool is missing (e.g. not present in `node_modules/.bin`), report project status `NOT RUN (environment)` naming the missing tool — never phrase an environment gap as a code failure.
 
 ## Output
 
@@ -33,18 +33,20 @@ Gate Result: PASS | FAIL
 - Repo: {absolute path}
 - Runtime: haiku / default
 - Commands: {commands}
-- Result: PASS | FAIL | PASS WITH WARNINGS
+- Result: PASS | FAIL | PASS WITH WARNINGS | NOT RUN (environment)
 - Errors: {count}
 - Warnings: {count}
 
 ## Errors
 - `{file}:{line}` {code}: {message}
+- (list at most 10; beyond that: `(+N more; total {count})`)
 
 ## Warnings
 - `{file}:{line}` {code}: {message}
+- (list at most 10; beyond that: `(+N more; total {count})`)
 
 ## Notes
 {tooling/version limits}
 ```
 
-`PASS` permits warnings. Compilation, restore, command, preflight, or missing-tool failures return `FAIL`.
+`PASS` permits warnings. Compilation, restore, command, or preflight failures return `FAIL`. A build-time environment gap — `NOT RUN (environment)` — does not fail the gate: `Gate Result` stays `PASS`; only the `Result` line differs.

@@ -4,21 +4,27 @@ Covers:
 - changed-path parsing from a sample diff and from --changed-file
 - project-root detection incl. nested/monorepo package.json
 - strategy selection: lockfile changed -> skip-build; manifest unchanged +
-  source node_modules present -> junction-linked; missing source -> missing-source
-- jsDepsStrategy roll-up (none/link/skip/mixed)
+  usable source node_modules -> junction-linked; missing/unusable source deps
+  with a lockfile -> install (frozen, lockfile-gated); no lockfile -> skip-build
+- --no-install opt-out restores junction-only (skip-build) behavior
+- jsDepsStrategy roll-up (none/link/skip/install/mixed)
 - junction round-trip: prepare creates a real junction, teardown removes ONLY
   the link — the target (with a sentinel file inside) survives intact
 - exit codes 0 / 2 / 3
 """
 
+import contextlib
 import importlib.util
+import io
 import json
 import os
 import subprocess
 import sys
 import tempfile
+import types
 import unittest
 from pathlib import Path
+from unittest import mock
 
 # ---------------------------------------------------------------------------
 # Load the module under test from the sibling directory
@@ -72,6 +78,51 @@ PKG_JSON_DIFF = """\
 
 def make_package_json(directory):
     (Path(directory) / "package.json").write_text('{"name":"test"}', encoding="utf-8")
+
+
+def make_package_json_with_deps(directory):
+    """package.json declaring a dependency — an empty/missing .bin then means stale."""
+    (Path(directory) / "package.json").write_text(
+        '{"name":"test","dependencies":{"react":"^18.0.0"}}', encoding="utf-8"
+    )
+
+
+def make_usable_node_modules(directory):
+    """node_modules with a populated .bin — the "real install" shape."""
+    nm = Path(directory) / "node_modules"
+    bin_dir = nm / ".bin"
+    bin_dir.mkdir(parents=True, exist_ok=True)
+    (bin_dir / "vite.cmd").write_text("@echo off", encoding="utf-8")
+    return nm
+
+
+def make_stale_node_modules(directory):
+    """node_modules present but with an empty .bin — the "stale install" shape."""
+    nm = Path(directory) / "node_modules"
+    (nm / ".bin").mkdir(parents=True, exist_ok=True)
+    return nm
+
+
+def make_package_json_with_dev_deps(directory, names):
+    """package.json declaring the given names as devDependencies."""
+    dev_deps = {name: "^1.0.0" for name in names}
+    (Path(directory) / "package.json").write_text(
+        json.dumps({"name": "test", "devDependencies": dev_deps}), encoding="utf-8"
+    )
+
+
+def make_populated_bin(directory, names, suffix=""):
+    """node_modules/.bin populated with the given entry names (+ optional shim suffix).
+
+    Mimics a production-only install: .bin has MANY entries but is missing the
+    project's own build tool (the PR-1583 shape) unless the build tool's name is
+    included in *names*.
+    """
+    bin_dir = Path(directory) / "node_modules" / ".bin"
+    bin_dir.mkdir(parents=True, exist_ok=True)
+    for name in names:
+        (bin_dir / f"{name}{suffix}").write_text("", encoding="utf-8")
+    return bin_dir
 
 
 class TestParseDiffPaths(unittest.TestCase):
@@ -194,15 +245,16 @@ class TestComputeStrategy(unittest.TestCase):
             result = MOD.compute_strategy(root, root, worktree, {"package.json"})
             self.assertEqual("skip-build", result["strategy"])
 
-    def test_source_nm_missing_yields_missing_source(self):
+    def test_source_nm_missing_no_lockfile_yields_skip_build(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             root = Path(tmpdir)
             worktree = Path(tmpdir) / "wt"
             worktree.mkdir()
             make_package_json(root)
-            # No node_modules in source
+            # No node_modules in source, no lockfile either
             result = MOD.compute_strategy(root, root, worktree, {"src/app.ts"})
-            self.assertEqual("missing-source", result["strategy"])
+            self.assertEqual("skip-build", result["strategy"])
+            self.assertEqual("no lockfile", result["reason"])
 
     def test_source_nm_present_worktree_absent_yields_junction_linked(self):
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -226,6 +278,240 @@ class TestComputeStrategy(unittest.TestCase):
             (worktree / "node_modules").mkdir()
             result = MOD.compute_strategy(root, root, worktree, {"src/app.ts"})
             self.assertEqual("already-exists", result["strategy"])
+
+    def test_stale_node_modules_with_declared_deps_yields_install(self):
+        """source node_modules exists, .bin is empty, package.json HAS deps -> install."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            worktree = Path(tmpdir) / "wt"
+            worktree.mkdir()
+            make_package_json_with_deps(root)
+            make_stale_node_modules(root)
+            (root / "package-lock.json").write_text("{}", encoding="utf-8")
+            result = MOD.compute_strategy(root, root, worktree, {"src/app.ts"})
+            self.assertEqual("install", result["strategy"])
+            self.assertIn("npm ci", result["command"])
+
+    def test_stale_node_modules_no_declared_deps_yields_junction_linked(self):
+        """source node_modules exists, .bin is empty, package.json has NO deps -> junction."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            worktree = Path(tmpdir) / "wt"
+            worktree.mkdir()
+            make_package_json(root)
+            make_stale_node_modules(root)
+            result = MOD.compute_strategy(root, root, worktree, {"src/app.ts"})
+            self.assertEqual("junction-linked", result["strategy"])
+
+    def test_missing_source_with_package_lock_yields_install_npm_ci(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            worktree = Path(tmpdir) / "wt"
+            worktree.mkdir()
+            make_package_json_with_deps(root)
+            (root / "package-lock.json").write_text("{}", encoding="utf-8")
+            # No node_modules in source at all
+            result = MOD.compute_strategy(root, root, worktree, {"src/app.ts"})
+            self.assertEqual("install", result["strategy"])
+            self.assertEqual("npm ci --prefer-offline --no-audit --no-fund", result["command"])
+            self.assertEqual(str(worktree), result["cwd"])
+
+    def test_missing_source_with_yarn_lock_yields_yarn_frozen_command(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            worktree = Path(tmpdir) / "wt"
+            worktree.mkdir()
+            make_package_json_with_deps(root)
+            (root / "yarn.lock").write_text("", encoding="utf-8")
+            result = MOD.compute_strategy(root, root, worktree, {"src/app.ts"})
+            self.assertEqual("install", result["strategy"])
+            self.assertEqual("yarn install --frozen-lockfile", result["command"])
+
+    def test_missing_source_with_pnpm_lock_yields_pnpm_frozen_command(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            worktree = Path(tmpdir) / "wt"
+            worktree.mkdir()
+            make_package_json_with_deps(root)
+            (root / "pnpm-lock.yaml").write_text("", encoding="utf-8")
+            result = MOD.compute_strategy(root, root, worktree, {"src/app.ts"})
+            self.assertEqual("install", result["strategy"])
+            self.assertEqual("pnpm install --frozen-lockfile --prefer-offline", result["command"])
+
+    def test_npm_lockfile_takes_precedence_over_yarn_and_pnpm(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            worktree = Path(tmpdir) / "wt"
+            worktree.mkdir()
+            make_package_json_with_deps(root)
+            (root / "package-lock.json").write_text("{}", encoding="utf-8")
+            (root / "yarn.lock").write_text("", encoding="utf-8")
+            (root / "pnpm-lock.yaml").write_text("", encoding="utf-8")
+            result = MOD.compute_strategy(root, root, worktree, {"src/app.ts"})
+            self.assertEqual("install", result["strategy"])
+            self.assertIn("npm ci", result["command"])
+
+    def test_missing_source_no_lockfile_yields_skip_build(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            worktree = Path(tmpdir) / "wt"
+            worktree.mkdir()
+            make_package_json_with_deps(root)
+            # No lockfile at all
+            result = MOD.compute_strategy(root, root, worktree, {"src/app.ts"})
+            self.assertEqual("skip-build", result["strategy"])
+            self.assertEqual("no lockfile", result["reason"])
+
+    def test_no_install_flag_yields_skip_build_deps_unavailable(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            worktree = Path(tmpdir) / "wt"
+            worktree.mkdir()
+            make_package_json_with_deps(root)
+            (root / "package-lock.json").write_text("{}", encoding="utf-8")
+            # Even with a lockfile present, --no-install must skip instead of installing
+            result = MOD.compute_strategy(root, root, worktree, {"src/app.ts"}, no_install=True)
+            self.assertEqual("skip-build", result["strategy"])
+            self.assertEqual("deps unavailable", result["reason"])
+
+
+class TestRequireBin(unittest.TestCase):
+    """--require-bin makes the health check tool-aware (PR-1583 regression)."""
+
+    def test_production_only_install_missing_required_bin_yields_install(self):
+        """.bin has many entries but is missing the required build tool -> install."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            worktree = Path(tmpdir) / "wt"
+            worktree.mkdir()
+            make_package_json_with_dev_deps(root, ["vite", "eslint"])
+            make_populated_bin(root, ["eslint", "prettier", "jest"])  # no vite
+            (root / "package-lock.json").write_text("{}", encoding="utf-8")
+            result = MOD.compute_strategy(
+                root, root, worktree, {"src/app.ts"}, require_bin=["vite"],
+            )
+            self.assertEqual("install", result["strategy"])
+            self.assertIn("npm ci", result["command"])
+
+    def test_required_bin_present_as_cmd_shim_yields_junction(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            worktree = Path(tmpdir) / "wt"
+            worktree.mkdir()
+            make_package_json_with_dev_deps(root, ["vite"])
+            make_populated_bin(root, ["vite"], suffix=".cmd")
+            result = MOD.compute_strategy(
+                root, root, worktree, {"src/app.ts"}, require_bin=["vite"],
+            )
+            self.assertEqual("junction-linked", result["strategy"])
+
+    def test_required_bin_present_as_ps1_shim_yields_junction(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            worktree = Path(tmpdir) / "wt"
+            worktree.mkdir()
+            make_package_json_with_dev_deps(root, ["tsc"])
+            make_populated_bin(root, ["tsc"], suffix=".ps1")
+            result = MOD.compute_strategy(
+                root, root, worktree, {"src/app.ts"}, require_bin=["tsc"],
+            )
+            self.assertEqual("junction-linked", result["strategy"])
+
+    def test_no_require_bin_given_is_unchanged_behavior(self):
+        """Regression guard: without --require-bin, a populated .bin stays usable
+        even if it happens not to contain some tool name (old behavior)."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            worktree = Path(tmpdir) / "wt"
+            worktree.mkdir()
+            make_package_json_with_dev_deps(root, ["vite"])
+            make_populated_bin(root, ["eslint", "prettier", "jest"])  # no vite
+            result = MOD.compute_strategy(root, root, worktree, {"src/app.ts"})
+            self.assertEqual("junction-linked", result["strategy"])
+
+    def test_required_bin_missing_with_no_install_yields_skip_build(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            worktree = Path(tmpdir) / "wt"
+            worktree.mkdir()
+            make_package_json_with_dev_deps(root, ["vite"])
+            make_populated_bin(root, ["eslint"])  # no vite
+            (root / "package-lock.json").write_text("{}", encoding="utf-8")
+            result = MOD.compute_strategy(
+                root, root, worktree, {"src/app.ts"}, require_bin=["vite"], no_install=True,
+            )
+            self.assertEqual("skip-build", result["strategy"])
+            self.assertEqual("deps unavailable", result["reason"])
+
+    def test_required_bin_check_applies_even_when_project_doesnt_declare_it(self):
+        """Uniform rule: the required-bin check is NOT filtered by declared deps.
+
+        A relevance filter keyed on package.json dependency names can't be made sound
+        (a bin's provider package name doesn't reliably match the bin name — see
+        test_tsc_required_but_only_typescript_declared_still_yields_install below), so
+        the check applies to every JS project root uniformly. This can over-fire on a
+        project that genuinely doesn't use the tool (safe over-install/skip), which is
+        the accepted trade for never missing a real broken build like PR-1583.
+        """
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            worktree = Path(tmpdir) / "wt"
+            worktree.mkdir()
+            make_package_json_with_dev_deps(root, ["react"])  # vite not declared at all
+            make_populated_bin(root, ["eslint", "prettier"])  # no vite either
+            (root / "package-lock.json").write_text("{}", encoding="utf-8")
+            result = MOD.compute_strategy(
+                root, root, worktree, {"src/app.ts"}, require_bin=["vite"],
+            )
+            self.assertEqual("install", result["strategy"])
+
+    def test_tsc_required_but_only_typescript_declared_still_yields_install(self):
+        """The discriminating case a declared-dependency relevance filter would miss.
+
+        "tsc" is provided by the "typescript" package, so a package.json declaring
+        "typescript" (not "tsc") would make a name-based relevance filter treat "tsc"
+        as irrelevant and skip the check entirely — silently reintroducing the
+        PR-1583 false-negative for any tool whose bin name != package name. The
+        uniform rule catches this correctly.
+        """
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            worktree = Path(tmpdir) / "wt"
+            worktree.mkdir()
+            make_package_json_with_dev_deps(root, ["typescript"])
+            make_populated_bin(root, ["eslint", "prettier", "jest"])  # no tsc*
+            (root / "package-lock.json").write_text("{}", encoding="utf-8")
+            result = MOD.compute_strategy(
+                root, root, worktree, {"src/app.ts"}, require_bin=["tsc"],
+            )
+            self.assertEqual("install", result["strategy"])
+
+    def test_missing_bin_with_malformed_package_json_still_yields_install(self):
+        """Unreadable/malformed package.json doesn't change the uniform bin check."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            worktree = Path(tmpdir) / "wt"
+            worktree.mkdir()
+            (root / "package.json").write_text("{not valid json", encoding="utf-8")
+            make_populated_bin(root, ["eslint"])  # no vite
+            (root / "package-lock.json").write_text("{}", encoding="utf-8")
+            result = MOD.compute_strategy(
+                root, root, worktree, {"src/app.ts"}, require_bin=["vite"],
+            )
+            self.assertEqual("install", result["strategy"])
+
+    def test_multiple_required_bins_mixed_shim_suffixes(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            worktree = Path(tmpdir) / "wt"
+            worktree.mkdir()
+            make_package_json_with_dev_deps(root, ["vite", "typescript"])
+            make_populated_bin(root, ["vite"], suffix=".cmd")
+            make_populated_bin(root, ["tsc"], suffix=".ps1")
+            result = MOD.compute_strategy(
+                root, root, worktree, {"src/app.ts"}, require_bin=["vite", "tsc"],
+            )
+            self.assertEqual("junction-linked", result["strategy"])
 
 
 class TestRollupStrategy(unittest.TestCase):
@@ -251,6 +537,163 @@ class TestRollupStrategy(unittest.TestCase):
     def test_missing_and_skip_is_skip(self):
         results = [{"strategy": "missing-source"}, {"strategy": "skip-build"}]
         self.assertEqual("skip", MOD.rollup_strategy(results))
+
+    def test_install_only_is_install(self):
+        results = [{"strategy": "install"}]
+        self.assertEqual("install", MOD.rollup_strategy(results))
+
+    def test_install_failed_only_is_skip(self):
+        results = [{"strategy": "install-failed"}]
+        self.assertEqual("skip", MOD.rollup_strategy(results))
+
+    def test_link_and_install_is_mixed(self):
+        results = [{"strategy": "junction-linked"}, {"strategy": "install"}]
+        self.assertEqual("mixed", MOD.rollup_strategy(results))
+
+    def test_already_exists_counts_as_link(self):
+        results = [{"strategy": "already-exists"}]
+        self.assertEqual("link", MOD.rollup_strategy(results))
+
+
+# ---------------------------------------------------------------------------
+# Install execution (cmd_prepare) — subprocess.run mocked, never runs real
+# npm/yarn/pnpm and never hits the network.
+# ---------------------------------------------------------------------------
+
+class TestCmdPrepareInstallExecution(unittest.TestCase):
+    """Exercises cmd_prepare's install step end-to-end with subprocess.run mocked."""
+
+    def _run_prepare(self, worktree, repo, changed_file, no_install=False, install_timeout=480,
+                      require_bin=None):
+        args = types.SimpleNamespace(
+            worktree=str(worktree),
+            repo=str(repo),
+            diff=None,
+            changed_file=list(changed_file),
+            json=True,
+            no_install=no_install,
+            install_timeout=install_timeout,
+            require_bin=require_bin,
+        )
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            MOD.cmd_prepare(args)
+        return json.loads(buf.getvalue())
+
+    def test_install_invoked_with_npm_ci_and_worktree_cwd(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            repo = Path(tmpdir) / "repo"
+            worktree = Path(tmpdir) / "wt"
+            repo.mkdir()
+            worktree.mkdir()
+            make_package_json_with_deps(repo)
+            (repo / "package-lock.json").write_text("{}", encoding="utf-8")
+            fake_proc = mock.Mock(returncode=0, stdout="", stderr="")
+            with mock.patch.object(MOD.subprocess, "run", return_value=fake_proc) as run_mock:
+                data = self._run_prepare(worktree, repo, ["src/app.ts"])
+            project = data["projects"][0]
+            self.assertEqual("install", project["strategy"])
+            self.assertIn("npm ci", project["command"])
+            run_mock.assert_called_once()
+            _, kwargs = run_mock.call_args
+            self.assertEqual(str(worktree), kwargs["cwd"])
+
+    def test_stale_bin_with_declared_deps_triggers_install(self):
+        """source node_modules exists, .bin empty, package.json HAS deps -> install."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            repo = Path(tmpdir) / "repo"
+            worktree = Path(tmpdir) / "wt"
+            repo.mkdir()
+            worktree.mkdir()
+            make_package_json_with_deps(repo)
+            make_stale_node_modules(repo)
+            (repo / "package-lock.json").write_text("{}", encoding="utf-8")
+            fake_proc = mock.Mock(returncode=0, stdout="", stderr="")
+            with mock.patch.object(MOD.subprocess, "run", return_value=fake_proc):
+                data = self._run_prepare(worktree, repo, ["src/app.ts"])
+            self.assertEqual("install", data["projects"][0]["strategy"])
+
+    def test_no_lockfile_skip_build_subprocess_not_called(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            repo = Path(tmpdir) / "repo"
+            worktree = Path(tmpdir) / "wt"
+            repo.mkdir()
+            worktree.mkdir()
+            make_package_json_with_deps(repo)
+            with mock.patch.object(MOD.subprocess, "run") as run_mock:
+                data = self._run_prepare(worktree, repo, ["src/app.ts"])
+            self.assertEqual("skip-build", data["projects"][0]["strategy"])
+            self.assertEqual("no lockfile", data["projects"][0]["reason"])
+            run_mock.assert_not_called()
+
+    def test_no_install_flag_skip_build_subprocess_not_called(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            repo = Path(tmpdir) / "repo"
+            worktree = Path(tmpdir) / "wt"
+            repo.mkdir()
+            worktree.mkdir()
+            make_package_json_with_deps(repo)
+            (repo / "package-lock.json").write_text("{}", encoding="utf-8")
+            with mock.patch.object(MOD.subprocess, "run") as run_mock:
+                data = self._run_prepare(worktree, repo, ["src/app.ts"], no_install=True)
+            self.assertEqual("skip-build", data["projects"][0]["strategy"])
+            self.assertEqual("deps unavailable", data["projects"][0]["reason"])
+            run_mock.assert_not_called()
+
+    def test_install_nonzero_returncode_yields_install_failed(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            repo = Path(tmpdir) / "repo"
+            worktree = Path(tmpdir) / "wt"
+            repo.mkdir()
+            worktree.mkdir()
+            make_package_json_with_deps(repo)
+            (repo / "package-lock.json").write_text("{}", encoding="utf-8")
+            fake_proc = mock.Mock(returncode=1, stdout="", stderr="npm ERR! network timeout")
+            with mock.patch.object(MOD.subprocess, "run", return_value=fake_proc):
+                data = self._run_prepare(worktree, repo, ["src/app.ts"])
+            project = data["projects"][0]
+            self.assertEqual("install-failed", project["strategy"])
+            self.assertIn("npm ERR!", project["reason"])
+
+    def test_install_timeout_yields_install_failed_with_timeout_reason(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            repo = Path(tmpdir) / "repo"
+            worktree = Path(tmpdir) / "wt"
+            repo.mkdir()
+            worktree.mkdir()
+            make_package_json_with_deps(repo)
+            (repo / "package-lock.json").write_text("{}", encoding="utf-8")
+            with mock.patch.object(
+                MOD.subprocess, "run",
+                side_effect=subprocess.TimeoutExpired(cmd="npm ci", timeout=5),
+            ):
+                data = self._run_prepare(worktree, repo, ["src/app.ts"], install_timeout=5)
+            project = data["projects"][0]
+            self.assertEqual("install-failed", project["strategy"])
+            self.assertIn("timeout after 5s", project["reason"])
+
+    def test_install_failed_does_not_raise_system_exit(self):
+        """install failures are non-fatal — exit code stays 0, unlike junction failures."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            repo = Path(tmpdir) / "repo"
+            worktree = Path(tmpdir) / "wt"
+            repo.mkdir()
+            worktree.mkdir()
+            make_package_json_with_deps(repo)
+            (repo / "package-lock.json").write_text("{}", encoding="utf-8")
+            fake_proc = mock.Mock(returncode=1, stdout="", stderr="boom")
+            args = types.SimpleNamespace(
+                worktree=str(worktree), repo=str(repo), diff=None,
+                changed_file=["src/app.ts"], json=True,
+                no_install=False, install_timeout=480, require_bin=None,
+            )
+            with mock.patch.object(MOD.subprocess, "run", return_value=fake_proc):
+                buf = io.StringIO()
+                try:
+                    with contextlib.redirect_stdout(buf):
+                        MOD.cmd_prepare(args)
+                except SystemExit as exc:
+                    self.fail(f"cmd_prepare should not exit on install failure, got {exc.code}")
 
 
 # ---------------------------------------------------------------------------
@@ -432,14 +875,14 @@ class TestExitCodes(unittest.TestCase):
             )
             self.assertEqual(0, rc)
 
-    def test_exit_0_missing_source(self):
+    def test_exit_0_missing_source_no_lockfile(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             repo = Path(tmpdir) / "repo"
             worktree = Path(tmpdir) / "wt"
             repo.mkdir()
             worktree.mkdir()
             make_package_json(repo)
-            # No node_modules in repo
+            # No node_modules in repo, no lockfile -> skip-build, not a fatal error
             rc, _, _ = self._run(
                 "--worktree", str(worktree),
                 "--repo", str(repo),
@@ -526,9 +969,9 @@ class TestExitCodes(unittest.TestCase):
                 "--repo", str(repo),
                 "--diff", str(diff_file),
             )
-            # Should succeed (missing-source, no node_modules in repo)
+            # Should succeed (no node_modules and no lockfile in repo -> skip-build)
             self.assertEqual(0, rc)
-            self.assertIn("missing-source", stdout)
+            self.assertIn("skip-build", stdout)
 
     def test_lockfile_in_diff_yields_skip_build(self):
         with tempfile.TemporaryDirectory() as tmpdir:

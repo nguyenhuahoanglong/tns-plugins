@@ -60,7 +60,7 @@ def write_report(root, profile, triggered, skipped, gate_status="PASS"):
             (
                 "# Code Review (Lite): Test",
                 "",
-                "**Skill**: code-review-lite v2.1.2",
+                "**Skill**: code-review-lite v2.2.0",
                 f"**Review Profile**: {profile}",
                 "**Main Runtime**: gpt-test / high",
                 f"**Agents Triggered**: {triggered}",
@@ -159,11 +159,11 @@ class VerifyOutputTests(unittest.TestCase):
                 "Performance Reviewer; Philosophy Reviewer; Standard Reviewer",
             )
             path.write_text(
-                path.read_text(encoding="utf-8").replace("2.1.2", "1.0.0"),
+                path.read_text(encoding="utf-8").replace("2.2.0", "1.0.0"),
                 encoding="utf-8",
             )
             failures = [message for level, message in evaluate(path) if level == "FAIL"]
-            self.assertIn("Skill is exactly code-review-lite v2.1.2", failures)
+            self.assertIn("Skill is exactly code-review-lite v2.2.0", failures)
 
     def test_expected_main_runtime(self):
         with tempfile.TemporaryDirectory() as root:
@@ -268,6 +268,63 @@ class VerifyOutputTests(unittest.TestCase):
             # Replace the PASS row with a JS-SKIPPED row
             text = path.read_text(encoding="utf-8")
             text = text.replace("| `repo` | PASS | 0 | 0 |", "| `repo` | JS-SKIPPED | 0 | 0 |")
+            path.write_text(text, encoding="utf-8")
+            failures = [message for level, message in evaluate(path, "Lite") if level == "FAIL"]
+            self.assertNotIn("Lite triggers one Build Validator runtime per repo", failures)
+
+    def test_not_run_environment_build_row_counts(self):
+        """A 'NOT RUN (environment)' build row satisfies repo/build parity for Lite."""
+        with tempfile.TemporaryDirectory() as root:
+            path = write_report(
+                root,
+                "Lite",
+                "Build Validator[repo](gpt-5.4-mini / low; repo); "
+                "Requirement Validator(inherited current model / high; non-Tiny Lite); "
+                "Performance Reviewer(inherited current model / medium; async lifecycle)",
+                "None",
+            )
+            text = path.read_text(encoding="utf-8")
+            text = text.replace(
+                "| `repo` | PASS | 0 | 0 |", "| `repo` | NOT RUN (environment) | 0 | 0 |"
+            )
+            path.write_text(text, encoding="utf-8")
+            failures = [message for level, message in evaluate(path, "Lite") if level == "FAIL"]
+            self.assertNotIn("Lite triggers one Build Validator runtime per repo", failures)
+
+    def test_js_skipped_install_failed_build_row_counts(self):
+        """A 'JS-SKIPPED (install failed)' build row satisfies repo/build parity for Lite."""
+        with tempfile.TemporaryDirectory() as root:
+            path = write_report(
+                root,
+                "Lite",
+                "Build Validator[repo](gpt-5.4-mini / low; repo); "
+                "Requirement Validator(inherited current model / high; non-Tiny Lite); "
+                "Performance Reviewer(inherited current model / medium; async lifecycle)",
+                "None",
+            )
+            text = path.read_text(encoding="utf-8")
+            text = text.replace(
+                "| `repo` | PASS | 0 | 0 |", "| `repo` | JS-SKIPPED (install failed) | 0 | 0 |"
+            )
+            path.write_text(text, encoding="utf-8")
+            failures = [message for level, message in evaluate(path, "Lite") if level == "FAIL"]
+            self.assertNotIn("Lite triggers one Build Validator runtime per repo", failures)
+
+    def test_pass_with_warnings_still_counts_after_reorder(self):
+        """Reordering alternation to put PASS WITH WARNINGS before PASS must not break it."""
+        with tempfile.TemporaryDirectory() as root:
+            path = write_report(
+                root,
+                "Lite",
+                "Build Validator[repo](gpt-5.4-mini / low; repo); "
+                "Requirement Validator(inherited current model / high; non-Tiny Lite); "
+                "Performance Reviewer(inherited current model / medium; async lifecycle)",
+                "None",
+            )
+            text = path.read_text(encoding="utf-8")
+            text = text.replace(
+                "| `repo` | PASS | 0 | 0 |", "| `repo` | PASS WITH WARNINGS | 0 | 1 |"
+            )
             path.write_text(text, encoding="utf-8")
             failures = [message for level, message in evaluate(path, "Lite") if level == "FAIL"]
             self.assertNotIn("Lite triggers one Build Validator runtime per repo", failures)

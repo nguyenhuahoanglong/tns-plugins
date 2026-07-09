@@ -24,10 +24,12 @@ If token mismatches, or any path is absent, outside the supplied worktree when i
 Run only the exact approved command supplied by the orchestrator. Build only affected projects. Never decide to restore/install independently.
 
 - .NET: approved command may include restore, then clean/build the project or solution.
-- Node/React: approved command may include lockfile-appropriate install, then configured build.
+- Node/React: run the declared build script; deps are already prepared by `prepare_worktree_deps.py` — never install/restore them here.
 - Other stacks: use repository instructions and detected build manifest.
 
-Capture errors and warnings. Missing SDK/tool is NOT RUN with reason and maps to gate failure; approved restore/compile failure is FAIL.
+Capture errors and warnings. Approved restore/compile failure is FAIL. If the approved build command's tool itself is missing (e.g. not present in `node_modules/.bin`), report that project's status as `NOT RUN (environment)` naming the missing tool — never phrase an environment gap as a code failure.
+
+Cap **Errors** and **Warnings** at 10 verbatim entries each; beyond that, append `(+N more)` where `N` is the remaining count, and still report accurate totals in the Summary.
 
 ## Output
 
@@ -38,7 +40,7 @@ Child Read: PASS {token}
 Gate Result: PASS | FAIL
 ```
 
-Use `Gate Result: FAIL` when detailed project status is `NOT RUN`.
+Use `Gate Result: FAIL` only when the child-read preflight itself fails (project status `NOT RUN`, no reason). A build-time environment gap — `NOT RUN (environment)` — does not fail the gate: `Child Read` and `Gate Result` stay `PASS`; only that project's `Status` differs.
 
 Then:
 
@@ -59,14 +61,16 @@ Then:
 ## Results
 ### `{project}`
 - **Type**: {type}
-- **Status**: PASS / FAIL / NOT RUN
+- **Status**: PASS / FAIL / NOT RUN / NOT RUN (environment)
 - **Command**: `{command}`
 
 #### Errors
 1. **`{file}:{line},{col}`** - {code}: {message}
+{(+N more) once 10 entries are listed}
 
 #### Warnings
 1. **`{file}:{line},{col}`** - {code}: {message}
+{(+N more) once 10 entries are listed}
 
 ## Notes
 {Maximum 3 sentences}

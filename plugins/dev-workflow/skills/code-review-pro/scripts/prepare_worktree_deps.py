@@ -4,9 +4,32 @@
 Mirrored in code-review-pro/scripts/ and code-review-lite/scripts/ — keep in sync.
 
 PREPARE mode: detects JS project roots from changed files (diff or --changed-file),
-then for each root either creates a Windows directory junction pointing at the source
-repo's node_modules or records a skip-build reason (when deps changed). Never runs
-npm/yarn/pnpm install.
+then for each root checks whether the source repo's node_modules is usable (present,
+and either its node_modules/.bin has installed binaries or the project declares no
+dependencies/devDependencies). Usable source deps are junction-linked into the
+worktree exactly as before. When source deps are missing or unusable (e.g. present
+but stale — package.json declares deps yet .bin is empty) and the diff didn't already
+force a skip-build (manifest/lockfile changed), a frozen, lockfile-gated install runs
+directly in the worktree project directory: ``npm ci --prefer-offline --no-audit
+--no-fund`` for package-lock.json/npm-shrinkwrap.json, ``yarn install
+--frozen-lockfile`` for yarn.lock, or ``pnpm install --frozen-lockfile
+--prefer-offline`` for pnpm-lock.yaml. No lockfile present -> skip-build instead.
+Pass --no-install to restore the old junction-only behavior: missing/unusable source
+deps become skip-build and no install subprocess ever runs.
+
+--require-bin NAME (repeatable) names a build tool the approved build command needs
+(e.g. vite, tsc, webpack, react-scripts, vitest). When given, a project's source
+node_modules is usable only if every required bin also resolves in that project's
+node_modules/.bin as NAME, NAME.cmd, NAME.ps1, or NAME.exe (Windows shims). This check
+applies uniformly to every JS project root found — it is deliberately NOT filtered by
+whether the project's package.json "declares" the tool, because a bin's provider
+package name doesn't reliably match the bin name (e.g. "tsc" ships from the
+"typescript" package), so a declared-dependency relevance filter can't be made sound
+and would silently miss exactly the broken-install shape this option exists to catch.
+A populated-but-incomplete .bin (e.g. present but missing the project's own build tool
+— a production-only install) is treated the same as an unusable source: falls through
+to the lockfile-gated install / skip-build path above. Without --require-bin,
+health-check behavior is unchanged.
 
 TEARDOWN mode: removes every node_modules junction under the worktree WITHOUT
 recursing into the junction target — i.e., it is safe and cannot delete real source
@@ -14,11 +37,12 @@ node_modules.
 
 Usage:
     python prepare_worktree_deps.py --worktree <abs> --repo <abs> [--diff <abs>]
-                                    [--changed-file <rel> ...] [--json]
+                                    [--changed-file <rel> ...] [--require-bin NAME ...]
+                                    [--no-install] [--install-timeout <seconds>] [--json]
     python prepare_worktree_deps.py --teardown --worktree <abs> [--json]
 
 Exit codes:
-    0  success (includes skip-build / missing-source / no JS projects)
+    0  success (includes skip-build / install / install-failed / no JS projects)
     2  IO/OS failure (junction create/remove failed; --worktree/--repo not a directory)
     3  (prepare only) no --diff readable and no --changed-file given
 """
@@ -101,6 +125,39 @@ def _create_junction(link, target):
         return False, f"mklink /J failed: {err}"
     except OSError as exc:
         return False, f"cmd mklink fallback failed: {exc}"
+
+
+def _run_install(command, cwd, timeout):
+    """Run *command* (a space-separated string) in *cwd*.
+
+    npm/yarn/pnpm ship as .cmd shims on Windows, so invoke through
+    ``cmd /c`` (mirrors the ``mklink`` fallback style above). Falls back to a
+    plain list invocation if ``cmd`` itself is unavailable (non-Windows).
+
+    Returns (success: bool, reason: str) where reason is empty on success.
+    """
+    argv = command.split()
+
+    def _invoke(cmd_argv):
+        return subprocess.run(
+            cmd_argv, cwd=cwd, capture_output=True, text=True, timeout=timeout,
+        )
+
+    try:
+        try:
+            proc = _invoke(["cmd", "/c"] + argv)
+        except FileNotFoundError:
+            # cmd.exe not available (non-Windows) — fall back to plain invocation
+            proc = _invoke(argv)
+    except subprocess.TimeoutExpired:
+        return False, f"timeout after {timeout}s"
+    except OSError as exc:
+        return False, str(exc)[-500:]
+
+    if proc.returncode == 0:
+        return True, ""
+    stderr_tail = (proc.stderr or "").strip()[-500:]
+    return False, stderr_tail or f"exit code {proc.returncode}"
 
 
 def _remove_junction(path):
@@ -204,10 +261,99 @@ def find_js_project_roots(changed_paths, repo_root):
 
 
 # ---------------------------------------------------------------------------
+# Source deps health check / install command selection
+# ---------------------------------------------------------------------------
+
+# Ordered so an npm lockfile takes precedence over yarn/pnpm when several exist.
+_LOCKFILE_COMMANDS = (
+    ("package-lock.json", "npm ci --prefer-offline --no-audit --no-fund"),
+    ("npm-shrinkwrap.json", "npm ci --prefer-offline --no-audit --no-fund"),
+    ("yarn.lock", "yarn install --frozen-lockfile"),
+    ("pnpm-lock.yaml", "pnpm install --frozen-lockfile --prefer-offline"),
+)
+
+
+def _has_declared_deps(pkg_json_path):
+    """True if package.json declares dependencies/devDependencies.
+
+    A malformed or unreadable package.json is treated conservatively as
+    "has deps" — we can't prove it's safe to trust an empty/missing .bin.
+    """
+    try:
+        data = json.loads(pkg_json_path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return True
+    if not isinstance(data, dict):
+        return True
+    return bool(data.get("dependencies")) or bool(data.get("devDependencies"))
+
+
+def _source_deps_usable(proj_abs):
+    """True if proj_abs/node_modules exists and can be trusted as-is.
+
+    Usable when node_modules/.bin has at least one installed entry, or the
+    project declares no dependencies/devDependencies (so an empty/missing
+    .bin is expected, not evidence of a stale install).
+    """
+    source_nm = proj_abs / "node_modules"
+    if not source_nm.exists():
+        return False
+    bin_dir = source_nm / ".bin"
+    if bin_dir.is_dir():
+        try:
+            if any(bin_dir.iterdir()):
+                return True
+        except OSError:
+            pass
+    return not _has_declared_deps(proj_abs / "package.json")
+
+
+def _pick_install_command(proj_abs):
+    """Return the frozen-install command string for the first lockfile found.
+
+    Returns None if no recognized lockfile exists in the project root.
+    """
+    for lockfile, command in _LOCKFILE_COMMANDS:
+        if (proj_abs / lockfile).exists():
+            return command
+    return None
+
+
+_BIN_SHIM_SUFFIXES = ("", ".cmd", ".ps1", ".exe")
+
+
+def _resolve_bin(bin_dir, name):
+    """True if *name* (or a Windows shim variant) exists directly in bin_dir."""
+    if not bin_dir.is_dir():
+        return False
+    return any((bin_dir / f"{name}{suffix}").exists() for suffix in _BIN_SHIM_SUFFIXES)
+
+
+def _missing_required_bins(proj_abs, required_bins):
+    """Return the subset of required_bins unresolved in proj_abs/node_modules/.bin.
+
+    Applied uniformly to every JS project root passed via --require-bin — deliberately
+    NOT filtered by whether the project's package.json "declares" the tool. A bin's
+    provider package name doesn't reliably match the bin name (e.g. "tsc" ships from
+    the "typescript" package, "webpack-cli" provides "webpack" for some setups), so a
+    declared-dependency relevance filter can't be made sound and would silently
+    under-check exactly the kind of broken install (PR-1583: node_modules/vite missing)
+    this option exists to catch. Uniform checking can over-fire on a monorepo project
+    that doesn't use the tool at all (safe over-install/skip), which is an acceptable
+    trade for never missing a real broken build.
+    """
+    if not required_bins:
+        return []
+    bin_dir = proj_abs / "node_modules" / ".bin"
+    return [name for name in required_bins if not _resolve_bin(bin_dir, name)]
+
+
+# ---------------------------------------------------------------------------
 # Strategy selection
 # ---------------------------------------------------------------------------
 
-def compute_strategy(proj_root, repo_root, worktree_root, changed_paths):
+def compute_strategy(proj_root, repo_root, worktree_root, changed_paths, no_install=False,
+                      require_bin=None):
     """Return (strategy, extra_kwargs) for a single JS project root.
 
     Args:
@@ -215,6 +361,9 @@ def compute_strategy(proj_root, repo_root, worktree_root, changed_paths):
         repo_root:    absolute Path of the source repo root
         worktree_root: absolute Path of the worktree root
         changed_paths: set of relative-to-repo_root path strings
+        require_bin:  optional iterable of build-tool bin names (e.g. "vite") that
+                       must resolve in the project's node_modules/.bin for source
+                       deps to be considered usable (see _missing_required_bins)
 
     Returns a dict with at minimum {"strategy": <str>} plus optional keys.
     """
@@ -249,27 +398,46 @@ def compute_strategy(proj_root, repo_root, worktree_root, changed_paths):
         if _in_changed(lockfile_rel):
             return {"strategy": "skip-build", "reason": "deps changed", "proj_rel": proj_rel_str}
 
-    # Check source node_modules existence
-    source_nm = repo_root / proj_rel / "node_modules"
-    if not source_nm.exists():
-        return {"strategy": "missing-source", "proj_rel": proj_rel_str}
-
-    # Check worktree node_modules
+    # Health check: is the source node_modules present and usable as-is?
+    proj_abs = repo_root / proj_rel
+    source_nm = proj_abs / "node_modules"
     worktree_nm = worktree_root / proj_rel / "node_modules"
-    if worktree_nm.exists():
+
+    usable = _source_deps_usable(proj_abs)
+    if usable and require_bin and _missing_required_bins(proj_abs, require_bin):
+        usable = False
+
+    if usable:
+        if worktree_nm.exists():
+            return {
+                "strategy": "already-exists",
+                "proj_rel": proj_rel_str,
+                "link": str(worktree_nm),
+                "target": str(source_nm),
+            }
+
+        # Create junction
         return {
-            "strategy": "already-exists",
+            "strategy": "junction-linked",
             "proj_rel": proj_rel_str,
             "link": str(worktree_nm),
             "target": str(source_nm),
         }
 
-    # Create junction
+    # Source deps are missing or unusable — install (frozen, lockfile-gated)
+    # unless the caller opted out with --no-install.
+    if no_install:
+        return {"strategy": "skip-build", "reason": "deps unavailable", "proj_rel": proj_rel_str}
+
+    command = _pick_install_command(proj_abs)
+    if command is None:
+        return {"strategy": "skip-build", "reason": "no lockfile", "proj_rel": proj_rel_str}
+
     return {
-        "strategy": "junction-linked",
+        "strategy": "install",
         "proj_rel": proj_rel_str,
-        "link": str(worktree_nm),
-        "target": str(source_nm),
+        "command": command,
+        "cwd": str(worktree_root / proj_rel),
     }
 
 
@@ -277,20 +445,37 @@ def compute_strategy(proj_root, repo_root, worktree_root, changed_paths):
 # jsDepsStrategy roll-up
 # ---------------------------------------------------------------------------
 
+_LINK_KIND_STRATEGIES = {"junction-linked", "already-exists"}
+_SKIP_KIND_STRATEGIES = {"skip-build", "install-failed"}
+_INSTALL_KIND_STRATEGIES = {"install"}
+
+
 def rollup_strategy(results):
-    """Compute the jsDepsStrategy roll-up string from a list of result dicts."""
+    """Compute the jsDepsStrategy roll-up string from a list of result dicts.
+
+    Vocabulary: link | skip | install | mixed | none.
+    - link:    junction-linked or already-exists (a usable link)
+    - skip:    skip-build or install-failed
+    - install: a successful install
+    - mixed:   2+ distinct kinds present
+    - none:    nothing actionable (e.g. only missing-source/junction-failed entries)
+    """
     if not results:
         return "none"
-    strategies = {r["strategy"] for r in results}
-    has_link = "junction-linked" in strategies
-    has_skip = "skip-build" in strategies
-    if has_link and has_skip:
-        return "mixed"
-    if has_link:
-        return "link"
-    if has_skip:
-        return "skip"
-    return "none"  # only missing-source or already-exists — no actionable links
+    kinds = set()
+    for r in results:
+        strategy = r["strategy"]
+        if strategy in _LINK_KIND_STRATEGIES:
+            kinds.add("link")
+        elif strategy in _SKIP_KIND_STRATEGIES:
+            kinds.add("skip")
+        elif strategy in _INSTALL_KIND_STRATEGIES:
+            kinds.add("install")
+    if not kinds:
+        return "none"
+    if len(kinds) == 1:
+        return next(iter(kinds))
+    return "mixed"
 
 
 # ---------------------------------------------------------------------------
@@ -340,10 +525,11 @@ def cmd_prepare(args):
 
     # 3. Compute strategy per project root
     for proj_root in sorted(js_roots):
-        result = compute_strategy(proj_root, repo, worktree, changed_paths)
+        result = compute_strategy(proj_root, repo, worktree, changed_paths,
+                                   no_install=args.no_install, require_bin=args.require_bin)
         results.append(result)
 
-    # 4. Execute junctions
+    # 4. Execute junctions and installs
     os_errors = []
     for result in results:
         if result["strategy"] == "junction-linked":
@@ -355,12 +541,21 @@ def cmd_prepare(args):
                 result["strategy"] = "junction-failed"
                 result["error"] = err_msg
                 os_errors.append(f"{result['proj_rel']}: {err_msg}")
+        elif result["strategy"] == "install":
+            Path(result["cwd"]).mkdir(parents=True, exist_ok=True)
+            ok, reason = _run_install(result["command"], result["cwd"], args.install_timeout)
+            if not ok:
+                # Non-fatal: surfaced in output, exit code stays 0.
+                result["strategy"] = "install-failed"
+                result["reason"] = reason
 
     # 5. Output
     n_linked = sum(1 for r in results if r["strategy"] == "junction-linked")
     n_skip = sum(1 for r in results if r["strategy"] == "skip-build")
     n_missing = sum(1 for r in results if r["strategy"] == "missing-source")
     n_failed = sum(1 for r in results if r["strategy"] == "junction-failed")
+    n_install = sum(1 for r in results if r["strategy"] == "install")
+    n_install_failed = sum(1 for r in results if r["strategy"] == "install-failed")
 
     if args.json:
         projects_out = []
@@ -370,6 +565,10 @@ def cmd_prepare(args):
                 entry["link"] = r["link"]
             if "target" in r:
                 entry["target"] = r["target"]
+            if "command" in r:
+                entry["command"] = r["command"]
+            if "cwd" in r:
+                entry["cwd"] = r["cwd"]
             if "reason" in r:
                 entry["reason"] = r["reason"]
             if "error" in r:
@@ -394,9 +593,14 @@ def cmd_prepare(args):
                 print(f"project  {proj}  strategy=already-exists  link={r['link']}")
             elif s == "junction-failed":
                 print(f"project  {proj}  strategy=junction-failed  error={r.get('error', '')}")
+            elif s == "install":
+                print(f"project  {proj}  strategy=install  command={r['command']}  cwd={r['cwd']}")
+            elif s == "install-failed":
+                print(f"project  {proj}  strategy=install-failed  reason={r.get('reason', '')}")
             else:
                 print(f"project  {proj}  strategy={s}")
-        print(f"Result: {n_linked} linked, {n_skip} skip-build, {n_missing} missing-source")
+        print(f"Result: {n_linked} linked, {n_skip} skip-build, {n_missing} missing-source, "
+              f"{n_install} installed, {n_install_failed} install-failed")
 
     if os_errors:
         fail(2, "one or more junctions could not be created:\n" + "\n".join(os_errors))
@@ -477,6 +681,18 @@ def main():
                         help="Relative changed file path (repeatable, prepare)")
     parser.add_argument("--teardown", action="store_true",
                         help="Remove node_modules junctions from the worktree")
+    parser.add_argument("--require-bin", action="append", metavar="NAME",
+                        help="Build tool bin name the approved build command needs, "
+                             "e.g. vite, tsc, webpack, react-scripts, vitest (repeatable, "
+                             "prepare). Checked uniformly against every JS project root; "
+                             "source node_modules is unusable if any required bin is "
+                             "missing from node_modules/.bin, even when .bin has other "
+                             "entries (production-only install detection)")
+    parser.add_argument("--no-install", action="store_true",
+                        help="Prepare only: never run npm/yarn/pnpm install; "
+                             "missing/unusable source deps become skip-build (prepare)")
+    parser.add_argument("--install-timeout", type=int, default=480, metavar="SECONDS",
+                        help="Timeout in seconds for the install subprocess (default: 480, prepare)")
     parser.add_argument("--json", action="store_true",
                         help="Emit JSON output instead of structured text")
 

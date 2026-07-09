@@ -1,7 +1,7 @@
 ---
 name: code-review-pro
 description: Adaptive code review for PRs, branches, staged changes, and follow-ups. Use when Docs-only, Tiny, or Pro risk-based validation and reporting are needed.
-version: 2.1.2
+version: 2.2.0
 ---
 
 # Code Review Pro
@@ -50,7 +50,7 @@ Read `references/review-workflow.md`. Determine scope, source branch, write one 
 
 If the request is **PR-only** ("review PR {id}" or explicit PR-only intent), a resolvable PR is required: gate with `scripts/ado_work_item.py pr-required` and stop on a hard error rather than falling back to branch/staged/working/files scope (see `references/review-workflow.md` §1). For PR scope, review the merge preview and prepare JS dependencies per `references/review-workflow.md`. Record `prOnlyMode`, `prMergePreview`, `mergePreviewStrategy`, and `jsDepsStrategy` in the sidecar.
 
-Resolve one exact approved build command per repo from project instructions. Do not authorize dependency install/restore implicitly; omit it unless already available or explicitly approved.
+Resolve one exact approved build command per repo from project instructions. For JS/PCF projects, dependency installs are performed only by `prepare_worktree_deps.py` (frozen, lockfile-gated) before Build Validator dispatch; child agents never install or restore dependencies implicitly for any stack.
 
 For an existing v2 sidecar, use `references/followup-review.md`. An absent, invalid, or v1 sidecar requires a fresh full-scope classification.
 
@@ -84,9 +84,9 @@ Create repo-local worktrees. Run Branch Work Item Gate in parallel with exactly 
 
 If Branch Work Item Gate fails, write the report with completed build results, mark the gate failure CRITICAL, skip Requirement Validator and specialists, and stop. If it warns, record the warning and continue.
 
-After child reads pass, always spawn one `requirement-validator` using `references/agents/requirement-validator.md`. With a direct work item, use `work-item` mode; without one, use `regression-only` mode.
+After child reads pass, always spawn one `requirement-validator` using `references/agents/requirement-validator.md` plus `references/agents/_shared-contract.md`. With a direct work item, use `work-item` mode; without one, use `regression-only` mode.
 
-If any build fails, still run Requirement Validator because requirement/regression is highest priority, but skip specialists to avoid spending tokens on broken code. Otherwise dispatch only specialists whose triggers fired:
+If any build fails, still run Requirement Validator because requirement/regression is highest priority, but skip specialists to avoid spending tokens on broken code. Otherwise dispatch only specialists whose triggers fired, each with its role prompt plus `references/agents/_shared-contract.md`:
 
 - Security Reviewer: `references/agents/security-reviewer.md`
 - Performance Reviewer: `references/agents/performance-reviewer.md`
@@ -97,7 +97,7 @@ Build failure is a CRITICAL finding. Continue Requirement validation when files 
 
 ### 4. Synthesize
 
-Read `references/report-template.md` and `references/analysis-framework.md`. Re-verify agent claims against code and evidence. Organize findings by file, preserve stable `[mf:slug]` tags, and write `.CodeReview/{safe-branch}.md`.
+Read `references/report-template.md` and `references/analysis-framework.md`. Re-verify only Critical and High agent claims against the worktree; accept Medium/Low findings on the agent's cited `file:line` evidence and reported Confidence. Organize findings by file, preserve stable `[mf:slug]` tags, and write `.CodeReview/{safe-branch}.md`.
 
 Write `.CodeReview/.{safe-branch}.review-meta.json` using record version 2 from `references/followup-review.md`. Include `skillName`, `skillVersion`, `reviewProfile`, classifier data, `branchWorkItemGate`, runtime, triggered/skipped records, repos reviewed, requirement mode, scope type/base/fingerprint, reviewed files/commit, iteration, and the PR/deps fields `prOnlyMode`, `prMergePreview`, `mergePreviewStrategy`, and `jsDepsStrategy`.
 

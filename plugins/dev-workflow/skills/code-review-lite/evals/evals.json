@@ -8,7 +8,7 @@
       "expectations": [
         "The profile is Docs Tiny because the change is documentation-only with no runtime effect; documentation size does not trigger child agents.",
         "No Build Validator, Requirement Validator, or named specialist is dispatched.",
-        "The report records code-review-lite v2.1.2, copies known launch model and effort exactly into Main Runtime, records Branch Work Item Gate status, and explains skipped actors."
+        "The report records code-review-lite v2.2.0, copies known launch model and effort exactly into Main Runtime, records Branch Work Item Gate status, and explains skipped actors."
       ]
     },
     {

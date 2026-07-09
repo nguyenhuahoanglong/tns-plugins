@@ -6,7 +6,7 @@ import re
 import sys
 from pathlib import Path
 
-SKILL = "code-review-lite v2.1.2"
+SKILL = "code-review-lite v2.2.0"
 PROFILES = {"Docs Tiny", "Code Tiny", "Lite"}
 BRANCH_GATE_FIELDS = {
     "Status", "Branch", "Prefix", "Work Item ID", "Expected Type",
@@ -64,7 +64,8 @@ def build_repo_count(text):
         return 0
     return len(
         re.findall(
-            r"^\|\s*`[^`]+`\s*\|\s*(?:PASS|FAIL|PASS WITH WARNINGS|NOT RUN|JS-SKIPPED)\s*\|",
+            r"^\|\s*`[^`]+`\s*\|\s*(?:PASS WITH WARNINGS|PASS|FAIL"
+            r"|NOT RUN(?:\s*\([^)|]*\))?|JS-SKIPPED(?:\s*\([^)|]*\))?)\s*\|",
             section.group(1),
             re.MULTILINE,
         )

@@ -20,7 +20,6 @@ TYPE_BY_PREFIX = {
     "ISSUE": "Issue",
 }
 ALLOWED_TYPES = {"User Story", "Bug", "Issue"}
-FIELDS = "System.WorkItemType,System.Title,System.State"
 
 
 def configure_utf8_console():
@@ -98,8 +97,6 @@ def fetch_work_item(az_exe, org_url, work_item_id, runner=run):
         "show",
         "--id",
         str(work_item_id),
-        "--fields",
-        FIELDS,
         "--organization",
         org_url,
         "-o",

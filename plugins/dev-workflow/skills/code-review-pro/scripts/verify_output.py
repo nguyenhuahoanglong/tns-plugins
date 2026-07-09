@@ -7,7 +7,7 @@ import re
 import sys
 from pathlib import Path
 
-SKILL = "code-review-pro v2.1.2"
+SKILL = "code-review-pro v2.2.0"
 PROFILES = {"Docs-only", "Tiny", "Pro"}
 BRANCH_GATE_FIELDS = {
     "Status", "Branch", "Prefix", "Work Item ID", "Expected Type",
@@ -114,7 +114,7 @@ def evaluate(report_path, sidecar_path=None, expected_main_runtime=None):
 
     add(results, data.get("recordVersion") == 2, "recordVersion is 2")
     add(results, data.get("skillName") == "code-review-pro", "skillName is code-review-pro")
-    add(results, data.get("skillVersion") == "2.1.2", "skillVersion is 2.1.2")
+    add(results, data.get("skillVersion") == "2.2.0", "skillVersion is 2.2.0")
     add(results, data.get("reviewProfile") == values["Review Profile"],
         "reviewProfile matches report")
     required_sidecar = {
@@ -147,7 +147,7 @@ def evaluate(report_path, sidecar_path=None, expected_main_runtime=None):
     js_deps_strategy = data.get("jsDepsStrategy")
 
     valid_merge_preview = {"server-merge", "local-merge", "source-head"}
-    valid_js_deps = {"link", "skip", "mixed", "none"}
+    valid_js_deps = {"link", "skip", "install", "mixed", "none"}
 
     if scope_type == "pr":
         add(results,
@@ -161,7 +161,7 @@ def evaluate(report_path, sidecar_path=None, expected_main_runtime=None):
     if js_deps_strategy is not None:
         add(results,
             js_deps_strategy in valid_js_deps,
-            "jsDepsStrategy is valid (link, skip, mixed, none)")
+            "jsDepsStrategy is valid (link, skip, install, mixed, none)")
 
     if js_deps_strategy in {"skip", "mixed"}:
         build_section = re.search(
@@ -171,7 +171,7 @@ def evaluate(report_path, sidecar_path=None, expected_main_runtime=None):
         )
         has_js_skipped_row = bool(
             build_section and re.search(
-                r"^\|\s*`[^`]+`\s*\|\s*JS-SKIPPED\s*\|",
+                r"^\|\s*`[^`]+`\s*\|\s*JS-SKIPPED(?:\s*\([^)|]*\))?\s*\|",
                 build_section.group(1),
                 re.MULTILINE,
             )
