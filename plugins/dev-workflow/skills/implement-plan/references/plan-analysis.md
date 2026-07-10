@@ -32,6 +32,41 @@ turns out to be built on a stale assumption.
 1. **Can I name specific files for every change?** If no → the design isn't locked; go back to Phase 0.
 2. **Does every task have a "Done when"?** If no → not ready (see `definition-criteria.md`).
 3. **Is the scope manageable?** ≤9 files → dispatch normally; 10+ → dependency-ordered batches.
+4. **Has every task passed the Actionability Gate?** If no → not ready (see below).
+
+## Per-task Actionability Gate
+
+Apply this checklist to EVERY task before writing it into the plan file. A task enters the plan only
+when ALL five pass — a task you cannot verify as actionable does not go in the plan; resolve it first.
+
+1. **Files confirmed.** Every file the task touches is named and confirmed to exist via glob/read —
+   or, for a new file, explicitly marked "new file" with its target folder confirmed.
+2. **Pattern verified.** The pattern/signature the task follows was verified by reading the actual
+   file — not assumed from an explorer summary.
+3. **Zero-context executable.** The description is executable by a sub-agent with zero conversation
+   context, from the plan text alone — concrete names, paths, signatures. No "appropriately", "as
+   needed", "handle properly", or other vague hand-waving.
+4. **Mechanically checkable "Done when."** See `definition-criteria.md` — a human or agent can verify
+   it without judgment calls.
+5. **`Depends on` stated.** Either a specific task edge or "none" — never left blank.
+
+Any item fails → the task is not ready. Go back and resolve it (re-explore, re-read the file, tighten
+the wording) before writing the task into the plan.
+
+## Design via Plan agents
+
+Scale the design step to the change, same discipline as explorer scaling:
+
+| Scope | Plan agents |
+|---|---|
+| Trivial (typo, rename, 1-file change) | **0** — skip; design directly, no agent dispatch |
+| Standard | **1** architect agent |
+| Complex / multi-area | **Up to 3**, in parallel, each with a distinct perspective (e.g. minimal-change vs clean-architecture vs risk-first) |
+
+Claude Code dispatches the built-in `Plan` agent; Codex dispatches an explorer sub-agent given a
+design brief (same read-only rigor, no built-in Plan agent available). When more than one agent runs,
+the main agent reconciles the proposals into ONE approach and owns the final decision — proposals
+inform the plan, they don't get merged verbatim or left as open options.
 
 ## Feasibility checks
 

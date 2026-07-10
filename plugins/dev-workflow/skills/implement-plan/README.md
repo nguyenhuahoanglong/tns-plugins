@@ -24,9 +24,14 @@ Claude Code plan mode or any Codex planning step, and runs identically in both t
 
 ```
 Phase 0  Understand        (READ-ONLY)  tool-native explorer + lean interview
-Phase 1  Design & plan     (READ-ONLY except the plan file)  decompose, auto-scale, write .plans/{feature}.md
+Phase 1  Design & plan     (READ-ONLY except the plan file)  Plan-agent design (1-3, scaled by
+                            complexity) → decompose + per-task actionability gate → auto-scale →
+                            write .plans/{feature}.md (incl. Agent Assignment) → plan quick-check
+                            (3+ tasks)
 ───────  APPROVAL GATE  ──────────────  nothing else is written until the user approves
-Phase 2  Implement         scaffold + red tests (TDD depth only) → auto-scaled code-implementers
+Phase 2  Implement         scaffold + red tests (TDD depth only) → auto-scaled code-implementers →
+                            verify-before-accept (main agent checks diff + Done-when evidence before
+                            recording complete)
 Phase 3  Verify            build/test/diff + optional code-review-lite (cap 2 loops) + AC check
 Phase 4  Report            (+ optional docs-sync for structural changes)
 ```
@@ -43,6 +48,45 @@ Default depth is **plan → implement → verify**. **TDD depth** (main agent sc
 qa-engineer writes failing tests before implementation) is opt-in, chosen during planning for
 logic-heavy, unit-testable work and recorded in the plan's Context.
 
+### Plan-agent design step
+Before decomposition, Phase 1.1 dispatches **1–3 tool-native architect agents** scaled by
+complexity: trivial (typo/rename/1-file) → skip straight to decomposition; standard → 1 agent;
+complex/multi-area → up to 3 in parallel, each with a distinct perspective (e.g. minimal-change vs
+clean-architecture vs risk-first). **Claude Code:** the `Plan` agent. **Codex:** an explorer sub-agent
+given a design brief (same intent, different name). Each agent gets Phase 0 findings, requirements,
+and ACs; the **main agent reconciles** the proposal(s) into ONE approach before decomposing — on
+divergence it picks the approach that best fits scope/ACs rather than averaging them.
+
+### Per-task Actionability Gate + plan quick-check
+Every task must pass a 5-item **Actionability Checklist** (`references/plan-analysis.md`) before it
+is written to the plan: files confirmed via glob/read, the pattern/signature was read in the actual
+file (not assumed), the description is executable by a sub-agent with zero conversation context,
+"Done when" is mechanically checkable, and `Depends on` is stated. A task that fails any item is
+resolved first — it does not go in the plan. Plans with **3 or more tasks** then get ONE cheap,
+read-only, fresh-eyes sub-agent that reads only the plan file and flags any task it could not execute
+without asking a question; token-lean by design, and skipped for 1–2-task plans.
+
+### Orchestrator verify-before-accept
+Phase 2 no longer records `complete` from an implementer's self-report. After each implementer
+returns, the main agent (a) reads the diff/changed files, (b) checks the task's **Done when** against
+that evidence, and (c) confirms no files outside the task's scope were touched — only then is
+`Status: complete` recorded and dependent tasks released. An evidence mismatch is treated as rework,
+routed through the existing fresh-agent blocker pattern, not accepted as `complete`.
+
+### Agent Assignment section
+The plan template's **Agent Assignment** section (wave / task / agent / verified-by) is mandatory —
+it declares which sub-agent handles which task in which dispatch wave. Waves derive from each task's
+`Depends on` edges (one independent set = one wave), and Phase 2 dispatch follows the table exactly;
+the main agent verifies each row before advancing to the next wave.
+
+### code-implementer contract alignment
+`code-implementer`'s primary input is now **plan path + task heading** (it reads the plan itself)
+rather than inlined files/plan text, matching how Phase 2 dispatches it. It reports a
+machine-checkable `Status: complete | blocked` / `Files changed` / `Done-when evidence` /
+`Issues` block instead of a free-form summary, and its self-check is now lean — re-read its own diff,
+run the scoped build/tests, confirm Done-when — rather than an embedded `code-review-lite` pass,
+which was redundant with Phase 3's single review over all changed files.
+
 ### Agent routing
 Planning uses the tool-native explorer (`Explore` in Claude Code, `explorer` in Codex) for read-only
 codebase discovery. Implementation uses `code-implementer`, pinned separately from the main agent
@@ -54,9 +98,9 @@ small plans run lean without a separate "lite" skill. Independent tasks parallel
 edges sequence. Don't rely on real concurrency for correctness (Codex may serialize).
 
 ### Simplified native plan file
-Plans use the Claude Code native shape (`Context → Goal → Acceptance Criteria → Tasks →
-Verification`) at a flat `.plans/{feature-name}.md`. Each task carries a lightweight `Status` and a
-`Done when` line; a full Definition-of-Done checklist appears only in TDD depth.
+Plans use the Claude Code native shape (`Context → Goal → Acceptance Criteria → Tasks → Agent
+Assignment → Verification`) at a flat `.plans/{feature-name}.md`. Each task carries a lightweight
+`Status` and a `Done when` line; a full Definition-of-Done checklist appears only in TDD depth.
 
 ### Main agent owns plan-file writes
 Sub-agents read the plan and report status; the main agent records it — no parallel-write collision.
@@ -67,6 +111,23 @@ prose prompts (no literal call syntax); agent files define runtime/model choices
 **fresh agent** (no `SendMessage`/resume dependency).
 
 ## Changelog
+
+### 2026-07-10 — v3.2.0 — Plan-mode parity + orchestrator verification
+- **Plan-mode-parity design step**: Phase 1 now dispatches 1–3 tool-native architect agents
+  (Claude Code `Plan`, Codex explorer with a design brief), scaled by complexity, with main-agent
+  reconciliation before decomposition.
+- **Per-task Actionability Gate**: a 5-item checklist (files confirmed, pattern read in the actual
+  file, description executable by a context-free sub-agent, mechanically-checkable "Done when",
+  `Depends on` stated) gates every task before it enters the plan; plans with 3+ tasks also get a
+  token-lean, fresh-eyes plan quick-check before the Approval Gate.
+- **Verify-before-accept**: the main agent now validates each implementer's diff and Done-when
+  evidence and confirms file scope before recording `Status: complete` — mismatches route to rework
+  instead of being accepted.
+- **Mandatory Agent Assignment section** in the plan template (wave / task / agent / verified-by);
+  waves derive from `Depends on`, and Phase 2 dispatch follows the table.
+- **`code-implementer` realigned** to the dispatch contract: plan-path + task-heading input, a
+  Done-when evidence report; dropped the embedded `code-review-lite` self-review and the
+  `implement-plan` skill preload.
 
 ### 2026-06-30 — v3.1.1 — Use built-in explorers
 - Replaced the custom `explore-agent` dependency with each tool's built-in explorer for Phase 0

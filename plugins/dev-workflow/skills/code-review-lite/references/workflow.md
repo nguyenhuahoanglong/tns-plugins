@@ -9,7 +9,7 @@ description: Scope, classification, local worktree, child-read preflight, and cl
 
 Resolve PR, branch, staged changes, or explicit files. Prefer PR metadata; fall back to git. Record source branch for PR/branch scope.
 
-When the request is PR-only ("review PR {id}" or explicit PR-only intent), a resolvable PR is required. Gate it with `python <skill>/scripts/ado_work_item.py pr-required --pr {id} --repo "{repo}"`: exit `0` proceeds in `pr` scope; exit `4` (PR not found) or `2` (az/auth unavailable) is a hard error — stop and report, do not fall back to branch/staged/working/files. Default (non-PR-only) reviews keep the existing fallbacks.
+When the request is PR-only ("review PR {id}" or explicit PR-only intent), a resolvable PR is required. Gate it with `python <skill>/scripts/ado_work_item.py pr-required --pr {id} --repo "{repo}"`: exit `0` proceeds in `pr` scope; exit `4` (PR not found) or `2` (az/auth unavailable) is a hard error â€” stop and report, do not fall back to branch/staged/working/files. Default (non-PR-only) reviews keep the existing fallbacks.
 
 Write the full diff once to:
 
@@ -69,9 +69,9 @@ git worktree add "{worktree}" "origin/{source-branch}"
 
 For PR scope, review the merge preview (source merged into target), not source HEAD. Resolve it with `python <skill>/scripts/ado_work_item.py merge-preview --pr {id} --repo "{repo}" --json`, then pick the first tier that works (always `git fetch` first):
 
-1. **Server merge** — `mergeStatus == succeeded` and `lastMergeCommit` set: fetch `refs/pull/{id}/merge` (or the SHA) and `git worktree add --detach "{worktree}" FETCH_HEAD`.
-2. **Local merge** — else worktree at `origin/{source-branch}`, then `git merge --no-ff --no-edit origin/{target-branch}`; on conflict `git merge --abort` and keep source HEAD.
-3. **Source HEAD** — when `az` is unavailable or the above fail: the committed-branch behavior above.
+1. **Server merge** â€” `mergeStatus == succeeded` and `lastMergeCommit` set: fetch `refs/pull/{id}/merge` (or the SHA) and `git worktree add --detach "{worktree}" FETCH_HEAD`.
+2. **Local merge** â€” else worktree at `origin/{source-branch}`, then `git merge --no-ff --no-edit origin/{target-branch}`; on conflict `git merge --abort` and keep source HEAD.
+3. **Source HEAD** â€” when `az` is unavailable or the above fail: the committed-branch behavior above.
 
 Record `mergePreviewStrategy` (`server-merge | local-merge | source-head`) in the report. The reviewed commit changes, but the worktree root convention does not.
 
@@ -84,7 +84,7 @@ For staged/working changes:
 
 Do not create a nested review worktree when already inside `.CodeReview/.worktrees/`.
 
-For repos with JS projects, after worktree add and before the Build Validator, run `python <skill>/scripts/prepare_worktree_deps.py --worktree "{worktree}" --repo "{repo}" --diff "{diff-path}" --require-bin {build-tool} --json` (allow up to a 10-minute command timeout — installs can take minutes). Pass `--require-bin` with the exact tool the approved build command invokes (e.g. `vite` for `npm run build:dev` → `vite build`, `tsc`, `webpack`, `react-scripts`, `vitest`); repeat the flag for multiple tools. This makes the source-deps health check tool-aware: a **production-only** source `node_modules` (populated `.bin` but missing the build tool, e.g. `vite` as a devDependency) is correctly judged unusable and re-installed, instead of junctioning a broken tree that then fails with "{tool} is not recognized". It junctions usable source `node_modules`, or performs a lockfile-gated frozen install in the worktree when source deps are missing/stale/tool-incomplete, or signals `skip-build` (`deps changed` / `no lockfile`). **Critical:** a project whose deps could not be made usable (`skip-build` or `install-failed`) gets build row `JS-SKIPPED ({reason})`, and the Build Validator must NOT be dispatched with that project's JS build command — an environment gap must never be reported as a build FAIL.
+For repos with JS projects, after worktree add and before the Build Validator, run `python <skill>/scripts/prepare_worktree_deps.py --worktree "{worktree}" --repo "{repo}" --diff "{diff-path}" --require-bin {build-tool} --json` (allow up to a 10-minute command timeout â€” installs can take minutes). Pass `--require-bin` with the exact tool the approved build command invokes (e.g. `vite` for `npm run build:dev` â†’ `vite build`, `tsc`, `webpack`, `react-scripts`, `vitest`); repeat the flag for multiple tools. This makes the source-deps health check tool-aware: a **production-only** source `node_modules` (populated `.bin` but missing the build tool, e.g. `vite` as a devDependency) is correctly judged unusable and re-installed, instead of junctioning a broken tree that then fails with "{tool} is not recognized". It junctions usable source `node_modules`, or performs a lockfile-gated frozen install in the worktree when source deps are missing/stale/tool-incomplete, or signals `skip-build` (`deps changed` / `no lockfile`). **Critical:** a project whose deps could not be made usable (`skip-build` or `install-failed`) gets build row `JS-SKIPPED ({reason})`, and the Build Validator must NOT be dispatched with that project's JS build command â€” an environment gap must never be reported as a build FAIL.
 
 ## Child-Read Preflight
 

@@ -43,6 +43,13 @@ State the chosen depth: **simplify** (default) or **TDD** (scaffold + failing te
 - Done when: {…}
 - ACs: AC-2
 
+## Agent Assignment
+| Wave | Task(s) | Agent | Verified by (main agent) |
+|---|---|---|---|
+| 1 | Task 1, Task 2 (parallel) | code-implementer | diff + Done-when evidence |
+| 2 | Task 3 (after Task 1) | code-implementer | scoped tests green |
+| — | failing tests (TDD only) | qa-engineer | tests exist, bind to scaffold, red |
+
 ## Verification
 {Narrative: the build/test commands to run and the manual confirmation steps that prove the ACs.
 E.g. "Run `npm test`; manually export an empty report and confirm a header-only CSV."}
@@ -73,3 +80,6 @@ into a failing test.
 5. **`Depends on` drives dispatch order** — independent tasks parallelize; dependents wait.
 6. **Main agent writes status** — sub-agents report; the main agent edits the plan. No parallel
    writes to the plan file.
+7. **Agent Assignment waves derive from `Depends on`** — one wave = one independent set of tasks;
+   Phase 2 dispatches exactly what this table says; the main agent verifies each row's output
+   (diff + Done-when evidence) before advancing to the next wave.

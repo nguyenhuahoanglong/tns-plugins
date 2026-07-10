@@ -31,6 +31,46 @@ Focus: {specific area/question; one focus per agent when parallel}
 - Keep output concise; include file paths and line anchors where useful.
 ```
 
+## Phase 1.1 — Plan agent (architect, read-only design)
+
+Dispatch 0–3 tool-native architect sub-agents scaled by complexity — 0 for a trivial change
+(typo/rename/1-file), 1 for a standard change, up to 3 with distinct perspectives (e.g.
+minimal-change vs clean-architecture vs risk-first) for a complex/multi-area change. Claude Code:
+the built-in `Plan` agent; Codex: an explorer given a design brief.
+
+```
+Dispatch a tool-native Plan/architect sub-agent:
+Design an implementation approach for: {feature/change summary}
+Project: {project-root} — read AGENTS.md and relevant docs.
+Phase 0 findings: {relevant files}, {patterns to reuse}, {constraints/risks}.
+Requirements + Acceptance Criteria: {paste from the interview/requirement}
+
+Propose a step-by-step implementation approach: name the concrete files to touch, the task
+boundaries, the dependency order between tasks, and the trade-offs you considered.
+
+## Rules
+- Read-only. No edits, installs, formatting, builds, or tests.
+- Return a concise plan proposal — files, task boundaries, dependency order, trade-offs.
+```
+
+The main agent reconciles the proposal(s) — one if solo, or multiple distinct perspectives when
+parallel — into a single approach and owns the decision.
+
+## Phase 1.5 — Plan quick-check (3+ task plans only)
+
+One cheap, read-only, fresh-eyes sub-agent — skip for 1–2-task plans.
+
+```
+Dispatch a lightweight sub-agent:
+Read ONLY the plan file at .plans/{feature-name}.md. For each task, answer: could you execute it
+from the plan text alone, without asking a single question?
+Return AT MOST a short list of "Task N: not executable because X" items, or "All tasks executable."
+Keep your entire response under ~15 lines. Do not read other files, do not suggest improvements
+beyond executability gaps.
+```
+
+The main agent fixes any flagged tasks, then proceeds to the Approval Gate.
+
 ## Phase 2.1 — Scaffold + test-first (TDD DEPTH ONLY)
 
 *Skip this whole section in the default Simplify depth.*
@@ -91,7 +131,13 @@ Read the plan. The Goal and ACs apply to the whole feature; your work is your ta
 - Only modify files listed under your task heading. Match existing patterns; no extra abstractions.
 ```
 
-After each agent returns, **the main agent** records its task `Status` in the plan.
+### Main-agent verification after each return
+
+Before recording `complete`, the main agent: (1) reads the diff / changed files, (2) checks the
+reported Done-when evidence actually holds, (3) confirms no files outside the task heading were
+touched. An evidence mismatch or scope violation means the task is NOT recorded as `complete` — route
+it to the Phase 3.3 rework prompt with a fresh implementer instead. Only after verification passes
+does the main agent record `Status: complete` in the plan and dispatch dependent tasks.
 
 ## Blocker resolution (fresh agent)
 

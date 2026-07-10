@@ -1,7 +1,7 @@
 ---
 name: implement-plan
 description: "Gated plan-then-implement workflow: understand + interview, write a plan to .plans/, get approval, then dispatch auto-scaled implementers (optional TDD) and verify. Use for '/implement-plan'."
-version: 3.1.1
+version: 3.2.0
 ---
 
 # Implement Plan
@@ -63,27 +63,57 @@ Understand what to build and the code it touches, to **Claude Code plan-mode qua
 
 Turn understanding into a concrete plan on disk. The **plan file is the only write allowed here.**
 
-- **Design & decompose** (`references/plan-analysis.md`): optionally dispatch **tool-native explorer
-  sub-agents** (up to 3) for non-trivial/multi-area design checks, then reconcile. Glob/grep to confirm files exist and
-  patterns hold. Decompose by **feature slice** (not by layer) — each task gets a name, file list,
-  description, **Done when**, ACs, and a `Depends on` edge. **File isolation:** no two tasks share a
-  file (merge if they must). Group into independent sets (parallelize) and chains (sequence).
-- **Choose depth:** **Simplify** (default) = plan→implement→verify; **TDD** (optional) adds Phase 2
-  scaffold + failing tests, for logic-heavy unit-testable work. **Record the depth in the plan's
-  Context.** When in doubt, default to Simplify.
-- **Auto-scale implementers:**
+### 1.1 Design via Plan agents
 
-  | Scope | Implementers |
-  |---|---|
-  | 1–3 files | 1 |
-  | 4–6 files | 2 |
-  | 7–9 files | 3 |
-  | 10+ files | Dependency-ordered batches, one at a time |
+Dispatch **1–3 tool-native architect agents**, scaled by complexity (`references/plan-analysis.md`):
+trivial (typo/rename/1-file) → skip, go straight to decomposition; standard → 1 agent; complex or
+multi-area → up to 3 in parallel, each given a **distinct perspective** (e.g. minimal-change vs
+clean-architecture vs risk-first). **Claude Code:** dispatch the `Plan` agent. **Codex:** dispatch an
+explorer sub-agent given a design brief (same intent, different name). Each agent gets Phase 0
+findings, requirements, and ACs, and returns a concrete implementation approach (prompt template in
+`references/agent-prompts.md`). The **main agent reconciles** the proposal(s) into ONE approach
+before decomposing — on divergence, pick the approach that best fits the locked scope/ACs, don't
+average them.
 
-- **Write** `.plans/{feature-name}.md` from `references/plan-template.md` (native shape:
-  `Context → Goal → Acceptance Criteria → Tasks → Verification`). In TDD depth, expand each task's
-  `Done when` into a `Definition of Done` checklist (`references/definition-criteria.md`). If a plan
-  already exists: resume if mid-flight, else overwrite with a fresh decomposition.
+### 1.2 Decompose + Actionability Gate
+
+Decompose the reconciled approach by **feature slice** (not by layer) — each task gets a name, file
+list, description, **Done when**, ACs, and a `Depends on` edge. **File isolation:** no two tasks
+share a file (merge if they must). Group into independent sets (parallelize) and chains (sequence).
+Glob/grep to confirm files exist and patterns hold.
+
+Before a task is written to the plan file, it must pass the **per-task Actionability Checklist**
+(`references/plan-analysis.md`): a task you cannot verify as actionable does not go in the plan —
+resolve it first.
+
+**Choose depth:** **Simplify** (default) = plan→implement→verify; **TDD** (optional) adds Phase 2
+scaffold + failing tests, for logic-heavy unit-testable work. **Record the depth in the plan's
+Context.** When in doubt, default to Simplify.
+
+### 1.3 Auto-scale implementers
+
+| Scope | Implementers |
+|---|---|
+| 1–3 files | 1 |
+| 4–6 files | 2 |
+| 7–9 files | 3 |
+| 10+ files | Dependency-ordered batches, one at a time |
+
+### 1.4 Write the plan
+
+**Write** `.plans/{feature-name}.md` from `references/plan-template.md` (native shape:
+`Context → Goal → Acceptance Criteria → Tasks → Agent Assignment → Verification`). The template's
+**Agent Assignment** section (wave / task / agent / verified-by) is mandatory — Phase 2 dispatch must
+follow it. In TDD depth, expand each task's `Done when` into a `Definition of Done` checklist
+(`references/definition-criteria.md`). If a plan already exists: resume if mid-flight, else overwrite
+with a fresh decomposition.
+
+### 1.5 Plan quick-check (3+ tasks only, token-lean)
+
+For plans with **3 or more tasks**, dispatch **ONE cheap read-only fresh-eyes sub-agent** that reads
+**only the plan file** (no other context) and answers: *"which tasks could you NOT execute without
+asking a question?"* (prompt in `references/agent-prompts.md`). Fix any flagged tasks, then proceed to
+the Approval Gate. **Skip this step for 1–2-task plans.**
 
 ## Approval Gate
 
@@ -104,6 +134,11 @@ scaffold, tests, implementation, or other writes.** On approval, autonomous mode
   plan path + its task heading (don't inline files/plan). A task is complete only when its **Done
   when** is met (TDD: scoped tests green). **The main agent owns ALL plan-file status writes** —
   implementers return `complete`/`blocked` + summary; the main agent records each `Status`.
+- **Verify before accept:** after each implementer returns, before recording anything, the main agent
+  (a) reads the diff / changed files, (b) checks the task's **Done when** against that evidence, and
+  (c) confirms no files outside the task's scope were touched. Only then record `Status: complete` and
+  release dependent tasks. An **evidence mismatch is rework**, not a `complete` — route it through the
+  fresh-agent blocker/rework pattern below.
 - **Blocker (fresh-agent pattern):** decide the specific question, then dispatch a **fresh**
   code-implementer carrying the plan path, task heading, the question + your decision, and the
   partial-progress summary. Single retry; if still blocked, set `Status: blocked` and report.
@@ -134,5 +169,6 @@ changed (count + list), AC status, build/test results, review verdict, manual fo
 | About to change code before approval | STOP — only the plan file is writable until the gate clears |
 | Agent hits blocker | Fresh code-implementer with the question + partial progress (1 retry); `blocked` if unresolved |
 | Tests red / Done-when unmet / review must-fix | Fresh implementer for the failing task → re-verify (cap 2 loops) |
+| Implementer reports complete but evidence doesn't hold | Treat as must-fix rework (fresh implementer); do not record complete |
 | Loop exhausted | Report with full context |
 | Scope 10+ files | Dependency-ordered batches, one batch at a time |
