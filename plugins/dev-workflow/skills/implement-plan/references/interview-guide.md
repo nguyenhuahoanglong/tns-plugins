@@ -6,7 +6,22 @@ already answers. The goal is not exhaustive requirements gathering — it is to 
 design, and **verifiable criteria** (see `definition-criteria.md`) to write the plan. Its output
 feeds the **plan file**, not code — no implementation happens until the plan is approved.
 
-If the input is already a complete plan with clear per-task criteria, skip the interview entirely.
+If input already answers a topic, do not ask it again. Existing plans may skip scope/design/criteria
+questions, but they skip preference questions only when both exact Context flags are present.
+
+## Required implementation preferences
+
+Resolve these two choices independently before creating or rewriting any plan. Use the tool's
+multiple-choice question UI; do not ask as open text. Ask only unresolved choices, in one prompt
+when both are missing:
+
+1. **Write unit tests?** — `No (Recommended)` or `Yes — use TDD flow`.
+2. **Run code review?** — `No (Recommended)` or `Yes — use code-review-lite`.
+
+An explicit request/decline in the initial input, an existing plan's exact Context flag, or a
+multiple-choice selection resolves that choice. Ambiguous wording does not. Plan creation stays
+blocked until both resolve. These two fixed preference questions do not count against the lean
+criteria-question budget.
 
 ## What every interview must end with
 
@@ -16,6 +31,8 @@ Before planning, you must be able to state all of:
 3. **Acceptance Criteria** — testable conditions for the whole feature.
 4. **"Done when" per task** — a mechanically checkable bar (a full Definition of Done only when TDD
    depth is chosen).
+5. **Implementation preferences** — unit tests and code review each explicitly requested or not
+   requested.
 
 If any is "I'm not sure," ask one more targeted question. If you'd need **more than ~5 questions across 2 rounds**, the request is too open for this skill — tell the user it needs to be scoped down, or capture the answers and proceed with explicit assumptions stated back to them.
 
@@ -34,14 +51,13 @@ If any is "I'm not sure," ask one more targeted question. If you'd need **more t
 - How will you verify this works? Give concrete input → expected output examples.
 - What are the error/edge scenarios, and what should happen for each?
 - What's the bar for "done"? (build clean, no warnings, specific behavior/tests)
-- Is this logic-heavy and unit-testable enough to warrant **TDD depth**, or is the default
-  plan→implement→verify sufficient?
 
 ## Technique
 
 - **Round 1** — ask the 3–5 highest-value questions, weighted toward criteria. Listen for implicit assumptions.
 - **Round 2 (only if needed)** — fill gaps the answers exposed; confirm each task's "Done when" is concrete and checkable.
-- **Hand off to planning** — the answers feed Phase 1, which writes the plan file. The user's
+- **Hand off to planning** — only after both implementation preferences resolve, answers feed Phase
+  1, which writes the plan file. The user's
   explicit sign-off comes later, at the **Approval Gate** (after the plan is written), not here.
 
 Translate every answer into a criterion, not prose. "It should be fast" → "responds in <200ms for 1k rows." If it can't be made checkable, it isn't done criteria yet.

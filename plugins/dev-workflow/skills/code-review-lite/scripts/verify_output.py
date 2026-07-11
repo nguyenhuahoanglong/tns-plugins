@@ -276,7 +276,7 @@ def main(argv=None):
     parser.add_argument("output_path", help="Path to a .lite.md review report")
     parser.add_argument("--expected-profile", choices=sorted(PROFILES))
     parser.add_argument("--expected-main-runtime",
-                        help="Exact launch runtime expected in the report, e.g. 'gpt-5.5 / xhigh'")
+                        help="Exact launch runtime expected in the report, e.g. 'gpt-5.6-sol / xhigh'")
     parser.add_argument("--dry-run", action="store_true", help="Read-only verification preview")
     args = parser.parse_args(argv)
 

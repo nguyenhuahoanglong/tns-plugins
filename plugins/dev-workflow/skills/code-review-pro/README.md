@@ -29,7 +29,20 @@ Direct task/acceptance criteria are binding. Parent items supply context but do 
 
 Worktrees live under each repo at `.CodeReview/.worktrees/{safe-branch}`. Build children perform a read preflight before other children run. Reports carry combined skill/version provenance plus Review Profile, Main Runtime, Agents Triggered, and Agents Skipped fields. Sidecars use record version 2 and include `skillName`, `skillVersion`, and `reviewProfile`.
 
+### Runtime routing
+
+Agent metadata owns cross-tool model selection. Build Validator uses the `fast` intent (Claude
+Haiku; Codex Luna/low), Requirement Validator uses `deep` (Claude Opus; Codex Sol/high), and named
+specialists use `standard` (Claude Sonnet; Codex Terra/medium). Reports and sidecars record the
+actual launch runtime for the main agent instead of assuming one.
+
 ## Changelog
+
+### 2026-07-11 - GPT-5.6 intent routing
+
+- Documented portable fast/standard/deep routing for Build, Requirement, and specialist reviewers.
+- Refreshed active follow-up examples, verifier help, and representative fixtures to Luna/Terra/Sol.
+- Preserved v2 report and sidecar semantics plus historical runtime entries.
 
 ### 2026-07-09 - v2.2.0 deps auto-install and token optimization
 

@@ -48,7 +48,7 @@ def write_report(root, profile, triggered, skipped, gate_status="PASS"):
             "State": "Active",
             "Reason": "Branch prefix is not US, BUG, or ISSUE; ADO work item ID is valid",
         })
-    branch_trigger = "Branch Work Item Gate(gpt-5.4-mini / low; branch work item convention)"
+    branch_trigger = "Branch Work Item Gate(gpt-5.6-luna / low; branch work item convention)"
     if gate_status == "SKIPPED":
         skipped = f"{skipped}; Branch Work Item Gate(no created PR or branch scope)"
     elif triggered == "None":
@@ -62,7 +62,7 @@ def write_report(root, profile, triggered, skipped, gate_status="PASS"):
                 "",
                 "**Skill**: code-review-lite v2.2.0",
                 f"**Review Profile**: {profile}",
-                "**Main Runtime**: gpt-test / high",
+                "**Main Runtime**: gpt-5.6-sol / xhigh",
                 f"**Agents Triggered**: {triggered}",
                 f"**Agents Skipped**: {skipped}",
                 "",
@@ -131,7 +131,7 @@ class VerifyOutputTests(unittest.TestCase):
             path = write_report(
                 root,
                 "Code Tiny",
-                "Build Validator[repo](gpt-5.4-mini / low; code build)",
+                "Build Validator[repo](gpt-5.6-luna / low; code build)",
                 "Requirement Validator(Code Tiny); Security Reviewer(Code Tiny); "
                 "Performance Reviewer(Code Tiny); Philosophy Reviewer(Code Tiny); Standard Reviewer(Code Tiny)",
             )
@@ -142,9 +142,9 @@ class VerifyOutputTests(unittest.TestCase):
             path = write_report(
                 root,
                 "Lite",
-                "Build Validator[repo](gpt-5.4-mini / low; repo); "
-                "Requirement Validator(inherited current model / high; non-Tiny Lite); "
-                "Performance Reviewer(inherited current model / medium; async lifecycle)",
+                "Build Validator[repo](gpt-5.6-luna / low; repo); "
+                "Requirement Validator(gpt-5.6-sol / high; non-Tiny Lite); "
+                "Performance Reviewer(gpt-5.6-terra / medium; async lifecycle)",
                 "None",
             )
             self.assert_valid(path, "Lite")
@@ -177,7 +177,7 @@ class VerifyOutputTests(unittest.TestCase):
             )
             failures = [
                 message for level, message in evaluate(
-                    path, "Docs Tiny", "gpt-test / high"
+                    path, "Docs Tiny", "gpt-5.6-sol / xhigh"
                 ) if level == "FAIL"
             ]
             self.assertEqual([], failures)
@@ -192,7 +192,7 @@ class VerifyOutputTests(unittest.TestCase):
             path = write_report(
                 root,
                 "Code Tiny",
-                "Build Validator[repo](gpt-5.4-mini / low; code build)",
+                "Build Validator[repo](gpt-5.6-luna / low; code build)",
                 "Requirement Validator(Code Tiny); Security Reviewer(Code Tiny); "
                 "Performance Reviewer(Code Tiny); Philosophy Reviewer(Code Tiny); Standard Reviewer(Code Tiny)",
                 gate_status="SKIPPED",
@@ -204,7 +204,7 @@ class VerifyOutputTests(unittest.TestCase):
             path = write_report(
                 root,
                 "Code Tiny",
-                "Build Validator[repo](gpt-5.4-mini / low; code build)",
+                "Build Validator[repo](gpt-5.6-luna / low; code build)",
                 "Requirement Validator(Code Tiny); Security Reviewer(Code Tiny); "
                 "Performance Reviewer(Code Tiny); Philosophy Reviewer(Code Tiny); Standard Reviewer(Code Tiny)",
                 gate_status="WARN",
@@ -216,13 +216,13 @@ class VerifyOutputTests(unittest.TestCase):
             path = write_report(
                 root,
                 "Code Tiny",
-                "Build Validator[repo](gpt-5.4-mini / low; code build)",
+                "Build Validator[repo](gpt-5.6-luna / low; code build)",
                 "Requirement Validator(Code Tiny); Security Reviewer(Code Tiny); "
                 "Performance Reviewer(Code Tiny); Philosophy Reviewer(Code Tiny); Standard Reviewer(Code Tiny)",
             )
             path.write_text(
                 path.read_text(encoding="utf-8").replace(
-                    "Branch Work Item Gate(gpt-5.4-mini / low; branch work item convention)",
+                    "Branch Work Item Gate(gpt-5.6-luna / low; branch work item convention)",
                     "Branch Work Item Gate(gpt-other / low; branch work item convention)",
                 ),
                 encoding="utf-8",
@@ -237,9 +237,9 @@ class VerifyOutputTests(unittest.TestCase):
             path = write_report(
                 root,
                 "Lite",
-                "Build Validator[repo](gpt-5.4-mini / low; repo); "
-                "Requirement Validator(inherited current model / high; non-Tiny Lite); "
-                "Performance Reviewer(inherited current model / medium; async lifecycle)",
+                "Build Validator[repo](gpt-5.6-luna / low; repo); "
+                "Requirement Validator(gpt-5.6-sol / high; non-Tiny Lite); "
+                "Performance Reviewer(gpt-5.6-terra / medium; async lifecycle)",
                 "None",
             )
             # Strip out Scope Drift marker from the fixture
@@ -260,9 +260,9 @@ class VerifyOutputTests(unittest.TestCase):
             path = write_report(
                 root,
                 "Lite",
-                "Build Validator[repo](gpt-5.4-mini / low; repo); "
-                "Requirement Validator(inherited current model / high; non-Tiny Lite); "
-                "Performance Reviewer(inherited current model / medium; async lifecycle)",
+                "Build Validator[repo](gpt-5.6-luna / low; repo); "
+                "Requirement Validator(gpt-5.6-sol / high; non-Tiny Lite); "
+                "Performance Reviewer(gpt-5.6-terra / medium; async lifecycle)",
                 "None",
             )
             # Replace the PASS row with a JS-SKIPPED row
@@ -278,9 +278,9 @@ class VerifyOutputTests(unittest.TestCase):
             path = write_report(
                 root,
                 "Lite",
-                "Build Validator[repo](gpt-5.4-mini / low; repo); "
-                "Requirement Validator(inherited current model / high; non-Tiny Lite); "
-                "Performance Reviewer(inherited current model / medium; async lifecycle)",
+                "Build Validator[repo](gpt-5.6-luna / low; repo); "
+                "Requirement Validator(gpt-5.6-sol / high; non-Tiny Lite); "
+                "Performance Reviewer(gpt-5.6-terra / medium; async lifecycle)",
                 "None",
             )
             text = path.read_text(encoding="utf-8")
@@ -297,9 +297,9 @@ class VerifyOutputTests(unittest.TestCase):
             path = write_report(
                 root,
                 "Lite",
-                "Build Validator[repo](gpt-5.4-mini / low; repo); "
-                "Requirement Validator(inherited current model / high; non-Tiny Lite); "
-                "Performance Reviewer(inherited current model / medium; async lifecycle)",
+                "Build Validator[repo](gpt-5.6-luna / low; repo); "
+                "Requirement Validator(gpt-5.6-sol / high; non-Tiny Lite); "
+                "Performance Reviewer(gpt-5.6-terra / medium; async lifecycle)",
                 "None",
             )
             text = path.read_text(encoding="utf-8")
@@ -316,9 +316,9 @@ class VerifyOutputTests(unittest.TestCase):
             path = write_report(
                 root,
                 "Lite",
-                "Build Validator[repo](gpt-5.4-mini / low; repo); "
-                "Requirement Validator(inherited current model / high; non-Tiny Lite); "
-                "Performance Reviewer(inherited current model / medium; async lifecycle)",
+                "Build Validator[repo](gpt-5.6-luna / low; repo); "
+                "Requirement Validator(gpt-5.6-sol / high; non-Tiny Lite); "
+                "Performance Reviewer(gpt-5.6-terra / medium; async lifecycle)",
                 "None",
             )
             text = path.read_text(encoding="utf-8")

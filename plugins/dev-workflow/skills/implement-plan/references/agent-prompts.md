@@ -90,7 +90,9 @@ Read it. For each unit-testable task, write unit tests that are the executable f
 Definition of Done. The scaffold (stubs/signatures) already exists — bind tests to those real
 surfaces. Tests are EXPECTED to be red (nothing is implemented yet).
 
-For tasks with a review-only gate (config/infra/UI), write no test — note it and move on.
+For tasks without a meaningful unit-test surface (config/infra/UI), write no test — identify the
+build, manual, or static check that verifies its Definition of Done. Do not enable code review as a
+fallback.
 
 ## Rules
 - Use the unit-testing skill's conventions for the stack (xUnit / Vitest / etc.).
@@ -158,16 +160,22 @@ Do NOT edit the plan file. If you hit a new blocker, return it.
 
 Single retry. Still blocked → main agent sets task `Status: blocked` and reports to the user.
 
-## Phase 3.3 — review & rework loop
+## Phase 3.2 — verification rework
 
-Run `code-review-lite` over the changed files (skill or sub-agent). For must-fix findings or red
-tests, dispatch a **fresh** code-implementer for the *failing task(s) only*:
+Red tests or unmet Done-when criteria always dispatch a fresh implementer for failing tasks and
+re-run verification. This does not enable code review.
+
+## Phase 3.3 — review & rework loop (`Code review: requested` only)
+
+Skip this entire section, including review offer and verdict, when Context says
+`Code review: not requested`. Otherwise run `code-review-lite` over changed files. For must-fix
+findings, dispatch a **fresh** code-implementer for the *failing task(s) only*:
 
 ```
 Dispatch a code-implementer sub-agent:
 Fix issues in task: {task-name}
 Project/Plan: {project-root}; plan .plans/{feature-name}.md; task heading ### Task {N}.
-Findings to fix: {must-fix items from code-review-lite, and/or failing test names + output}
+Findings to fix: {must-fix items from code-review-lite}
 
 ## Workflow
 Address every finding in the listed files only; re-confirm the "Done when"; return status + summary.

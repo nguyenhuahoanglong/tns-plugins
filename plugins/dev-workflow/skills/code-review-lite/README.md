@@ -23,6 +23,13 @@ Adaptive, low-cost code review for quick checks and pre-merge validation. Versio
 
 Tiny means at most 3 files and 100 changed lines, with no elevated shared behavior, API, schema, auth, dependency, async/lifecycle, state, or configuration risk.
 
+## Runtime routing
+
+Agent metadata owns cross-tool model selection. Build Validator uses the `fast` intent (Claude
+Haiku; Codex Luna/low), Requirement Validator uses `deep` (Claude Opus; Codex Sol/high), and named
+specialists use `standard` (Claude Sonnet; Codex Terra/medium). Reports record the actual launch
+runtime for the main agent instead of assuming one.
+
 ## Output
 
 Reports remain at `.CodeReview/{safe-branch}.lite.md`. Each report records combined skill/version provenance, selected profile, main runtime, triggered/skipped actors, reasons, and child runtime profiles.
@@ -30,6 +37,11 @@ Reports remain at `.CodeReview/{safe-branch}.lite.md`. Each report records combi
 Worktrees remain repo-local at `.CodeReview/.worktrees/{safe-branch}`. Every child must pass a read-token preflight before review work starts.
 
 ## Changelog
+
+### 2026-07-11 - GPT-5.6 intent routing
+
+- Documented portable fast/standard/deep routing for Build, Requirement, and specialist reviewers.
+- Refreshed verifier help and representative fixtures to Luna/Terra/Sol without changing report semantics.
 
 ### 2026-07-09 - v2.2.0 lockfile-gated worktree installs
 

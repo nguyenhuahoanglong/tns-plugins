@@ -48,7 +48,7 @@ Before every spawn emit:
 
 Read `references/review-workflow.md`. Determine scope, source branch, write one diff file, count changed files and added+removed lines, detect repos/projects, discover standards/neighbors, and resolve optional work-item context through `scripts/ado_work_item.py`.
 
-If the request is **PR-only** ("review PR {id}" or explicit PR-only intent), a resolvable PR is required: gate with `scripts/ado_work_item.py pr-required` and stop on a hard error rather than falling back to branch/staged/working/files scope (see `references/review-workflow.md` Â§1). For PR scope, review the merge preview and prepare JS dependencies per `references/review-workflow.md`. Record `prOnlyMode`, `prMergePreview`, `mergePreviewStrategy`, and `jsDepsStrategy` in the sidecar.
+If the request is **PR-only** ("review PR {id}" or explicit PR-only intent), a resolvable PR is required: gate with `scripts/ado_work_item.py pr-required` and stop on a hard error rather than falling back to branch/staged/working/files scope (see `references/review-workflow.md` §1). For PR scope, review the merge preview and prepare JS dependencies per `references/review-workflow.md`. Record `prOnlyMode`, `prMergePreview`, `mergePreviewStrategy`, and `jsDepsStrategy` in the sidecar.
 
 Resolve one exact approved build command per repo from project instructions. For JS/PCF projects, dependency installs are performed only by `prepare_worktree_deps.py` (frozen, lockfile-gated) before Build Validator dispatch; child agents never install or restore dependencies implicitly for any stack.
 

@@ -4,28 +4,73 @@
     {
       "id": 1,
       "prompt": "$implement-plan \"Add CSV export to the orders grid\"",
-      "expected_output": "The skill performs read-only planning, writes a plan file, waits for approval, then dispatches implementation agents in dependency order.",
+      "expected_output": "Before writing a plan, the skill asks both unresolved multiple-choice preference questions.",
       "expectations": [
-        "Phase 0 dispatches the tool-native explorer for codebase discovery instead of code-implementer.",
-        "Planning stays read-only except for the plan file until explicit approval.",
-        "Implementation dispatches code-implementer after approval, using the agent's configured runtime rather than inline model choices.",
-        "The main agent owns plan status writes and verifies build/test/diff evidence before reporting done."
+        "Asks Write unit tests with No recommended and Yes TDD choices.",
+        "Asks Run code review with No recommended and Yes code-review-lite choices.",
+        "Does not write the plan until both choices are resolved.",
+        "Planning stays read-only except for writing the plan file before the approval gate."
       ]
     },
     {
       "id": 2,
-      "prompt": "$implement-plan .plans/existing-feature.md",
-      "expected_output": "The skill treats the existing file as the source plan, skips unnecessary interview, and uses configured named agents for exploration and implementation.",
+      "prompt": "$implement-plan \"Add CSV export. Write unit tests using TDD.\"",
+      "expected_output": "Unit tests are already resolved as requested, so the skill asks only about code review.",
       "expectations": [
-        "Existing plan input keeps its path and does not create a duplicate plan file.",
-        "Any additional design checks use tool-native explorer subagents.",
-        "Implementation work is delegated to code-implementer only after approval.",
-        "No prompt asks subagents to override their configured model or reasoning effort."
+        "Does not ask whether to write unit tests.",
+        "Asks the multiple-choice code-review question.",
+        "Records Unit tests: requested after the remaining choice resolves.",
+        "Uses scaffold, qa-engineer red tests, and TDD implementation after approval."
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "$implement-plan \"Add CSV export. Run code-review-lite after implementation.\"",
+      "expected_output": "Code review is resolved as requested, so the skill asks only about unit tests.",
+      "expectations": [
+        "Does not ask the code-review question.",
+        "Asks the multiple-choice unit-test question.",
+        "Records Code review: requested after the remaining choice resolves.",
+        "Runs code-review-lite and caps review rework at two iterations after approval."
+      ]
+    },
+    {
+      "id": 4,
+      "prompt": "$implement-plan \"Add CSV export. Do not run code review.\"",
+      "expected_output": "Code review is already resolved as not requested, so the skill asks only about unit tests.",
+      "expectations": [
+        "Does not ask the code-review question.",
+        "Asks the multiple-choice unit-test question.",
+        "Skips review offer, fallback, loop, and verdict after Code review: not requested is recorded.",
+        "Still runs the existing build and test suite."
+      ]
+    },
+    {
+      "id": 5,
+      "prompt": "$implement-plan \"Add CSV export. Write unit tests with TDD and run code-review-lite.\"",
+      "expected_output": "Both opt-ins are explicit, so the skill asks neither question and enables both flows.",
+      "expectations": [
+        "Records Unit tests: requested and Code review: requested.",
+        "Uses qa-engineer to create failing unit tests before implementation.",
+        "Runs code-review-lite after build and test verification.",
+        "Keeps plan and implementation behind the approval gate."
+      ]
+    },
+    {
+      "id": 6,
+      "prompt": "$implement-plan .plans/existing-feature.md where Context contains Unit tests: not requested and Code review: not requested",
+      "expected_output": "The skill keeps the existing plan path and resumes without preference questions.",
+      "expectations": [
+        "Keeps the existing plan path and does not create a duplicate.",
+        "Does not ask either preference question because both exact flags exist.",
+        "Creates no new tests and runs the existing test suite.",
+        "Skips code-review offer, fallback, loop, and verdict."
       ]
     }
   ],
   "non_goals": [
-    "Do not force every implementation through TDD depth.",
+    "Do not infer TDD or code review from task shape.",
+    "Do not create new tests or run code review without explicit selection.",
     "Do not inline full plan contents into subagent prompts.",
     "Do not make subagents edit the plan status file."
   ]

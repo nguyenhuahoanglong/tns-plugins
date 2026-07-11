@@ -402,7 +402,7 @@ def main(argv=None):
     parser.add_argument("report", help="Path to .CodeReview report")
     parser.add_argument("--sidecar", help="Path to v2 review sidecar")
     parser.add_argument("--expected-main-runtime",
-                        help="Exact launch runtime expected in report and sidecar, e.g. 'gpt-5.5 / xhigh'")
+                        help="Exact launch runtime expected in report and sidecar, e.g. 'gpt-5.6-sol / xhigh'")
     parser.add_argument("--dry-run", action="store_true", help="Validate read-only and label output")
     args = parser.parse_args(argv)
     text, failures = render(

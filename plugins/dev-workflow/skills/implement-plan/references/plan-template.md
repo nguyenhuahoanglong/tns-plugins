@@ -16,7 +16,10 @@ the plan but do not edit it (they report status back). Keep task headings unique
 
 ## Context
 {Why this change — the problem/need, prior state, and decisions locked with the user.
-State the chosen depth: **simplify** (default) or **TDD** (scaffold + failing tests first).}
+Include these exact lines:
+Unit tests: {requested or not requested}
+Code review: {requested or not requested}
+Depth: TDD when unit tests are requested; otherwise simplify.}
 
 ## Goal
 {1-2 paragraphs — enough for an implementer to understand what to build without the original source.}
@@ -48,14 +51,14 @@ State the chosen depth: **simplify** (default) or **TDD** (scaffold + failing te
 |---|---|---|---|
 | 1 | Task 1, Task 2 (parallel) | code-implementer | diff + Done-when evidence |
 | 2 | Task 3 (after Task 1) | code-implementer | scoped tests green |
-| — | failing tests (TDD only) | qa-engineer | tests exist, bind to scaffold, red |
+| — | failing tests (only when unit tests requested) | qa-engineer | tests exist, bind to scaffold, red |
 
 ## Verification
 {Narrative: the build/test commands to run and the manual confirmation steps that prove the ACs.
 E.g. "Run `npm test`; manually export an empty report and confirm a header-only CSV."}
 ```
 
-For **TDD depth**, expand each task's single `Done when:` line into a `Definition of Done:` checklist
+When `Unit tests: requested`, expand each task's single `Done when:` line into a `Definition of Done:` checklist
 of named, mechanically checkable items (see `definition-criteria.md`) — the qa-engineer turns each
 into a failing test.
 
@@ -83,3 +86,5 @@ into a failing test.
 7. **Agent Assignment waves derive from `Depends on`** — one wave = one independent set of tasks;
    Phase 2 dispatches exactly what this table says; the main agent verifies each row's output
    (diff + Done-when evidence) before advancing to the next wave.
+8. **Preference flags are mandatory** — do not write the plan until both are resolved; unit tests
+   control TDD/new test creation, while code review independently controls review/rework/verdict.

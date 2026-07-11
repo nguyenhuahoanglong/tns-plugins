@@ -19,10 +19,10 @@ def write_case(root, profile, classifier, triggered, requirement_mode, gate_stat
         for trigger in triggers
     ) or "None"
     runtime = {
-        "main": "gpt-test / high",
-        "build": "gpt-5.4-mini / low",
-        "requirement": "inherited current model / high",
-        "specialists": "inherited current model / medium",
+        "main": "gpt-5.6-sol / xhigh",
+        "build": "gpt-5.6-luna / low",
+        "requirement": "gpt-5.6-sol / high",
+        "specialists": "gpt-5.6-terra / medium",
     }
     gate = {
         "status": gate_status,
@@ -65,7 +65,7 @@ def write_case(root, profile, classifier, triggered, requirement_mode, gate_stat
             "",
             "**Skill**: code-review-pro v2.2.0",
             f"**Review Profile**: {profile}",
-            "**Main Runtime**: gpt-test / high",
+            "**Main Runtime**: gpt-5.6-sol / xhigh",
             "**Agents Triggered**: None" if not triggered_records else f"**Agents Triggered**: {' | '.join(triggered_records)}",
             f"**Agents Skipped**: {' | '.join(skipped_records) if skipped_records else 'None'}",
             "",
@@ -177,7 +177,7 @@ class VerifyOutputTests(unittest.TestCase):
                 {"filesChanged": 2, "changedLines": 80, "docsOnly": False, "riskTriggers": [], "specialistTriggers": {}},
                 [
                     "Main(Tiny all-lens)",
-                    "Build Validator[repo](gpt-5.4-mini / low; code build)",
+                    "Build Validator[repo](gpt-5.6-luna / low; code build)",
                 ],
                 "inline",
             )
@@ -191,7 +191,7 @@ class VerifyOutputTests(unittest.TestCase):
                 {"filesChanged": 1, "changedLines": 10, "docsOnly": True, "riskTriggers": [], "specialistTriggers": {}},
                 [
                     "Main(docs-only inline)",
-                    "Build Validator[repo](gpt-5.4-mini / low; invalid)",
+                    "Build Validator[repo](gpt-5.6-luna / low; invalid)",
                 ],
                 "not-applicable",
             )
@@ -209,9 +209,9 @@ class VerifyOutputTests(unittest.TestCase):
                  "riskTriggers": ["auth-security-boundary"],
                  "specialistTriggers": {"Security Reviewer": ["auth-security-boundary"]}},
                 [
-                    "Build Validator[repo](gpt-5.4-mini / low; code build)",
-                    "Requirement Validator(inherited current model / high; work-item)",
-                    "Security Reviewer(inherited current model / medium; auth-security-boundary)",
+                    "Build Validator[repo](gpt-5.6-luna / low; code build)",
+                    "Requirement Validator(gpt-5.6-sol / high; work-item)",
+                    "Security Reviewer(gpt-5.6-terra / medium; auth-security-boundary)",
                 ],
                 "work-item",
             )
@@ -226,11 +226,11 @@ class VerifyOutputTests(unittest.TestCase):
                  "riskTriggers": [], "specialistTriggers": {}},
                 [
                     "Main(Tiny all-lens)",
-                    "Build Validator[repo](gpt-5.4-mini / low; code build)",
+                    "Build Validator[repo](gpt-5.6-luna / low; code build)",
                 ],
                 "inline",
             )
-            results = VERIFY.evaluate(report, sidecar, "gpt-test / high")
+            results = VERIFY.evaluate(report, sidecar, "gpt-5.6-sol / xhigh")
             self.assertFalse([item for item in results if item[0] == "FAIL"])
             mismatch = VERIFY.evaluate(report, sidecar, "gpt-other / low")
             self.assertTrue(any(
@@ -246,7 +246,7 @@ class VerifyOutputTests(unittest.TestCase):
                  "riskTriggers": [], "specialistTriggers": {}},
                 [
                     "Main(Tiny all-lens)",
-                    "Build Validator[repo](gpt-5.4-mini / low; code build)",
+                    "Build Validator[repo](gpt-5.6-luna / low; code build)",
                 ],
                 "inline",
                 gate_status="SKIPPED",
@@ -262,7 +262,7 @@ class VerifyOutputTests(unittest.TestCase):
                  "riskTriggers": [], "specialistTriggers": {}},
                 [
                     "Main(Tiny all-lens)",
-                    "Build Validator[repo](gpt-5.4-mini / low; code build)",
+                    "Build Validator[repo](gpt-5.6-luna / low; code build)",
                 ],
                 "inline",
                 gate_status="WARN",
@@ -278,7 +278,7 @@ class VerifyOutputTests(unittest.TestCase):
                  "riskTriggers": [], "specialistTriggers": {}},
                 [
                     "Main(Tiny all-lens)",
-                    "Build Validator[repo](gpt-5.4-mini / low; code build)",
+                    "Build Validator[repo](gpt-5.6-luna / low; code build)",
                 ],
                 "inline",
             )
@@ -299,13 +299,13 @@ class VerifyOutputTests(unittest.TestCase):
                  "riskTriggers": [], "specialistTriggers": {}},
                 [
                     "Main(Tiny all-lens)",
-                    "Build Validator[repo](gpt-5.4-mini / low; code build)",
+                    "Build Validator[repo](gpt-5.6-luna / low; code build)",
                 ],
                 "inline",
             )
             report.write_text(
                 report.read_text(encoding="utf-8").replace(
-                    "Branch Work Item Gate(gpt-5.4-mini / low; branch work item convention)",
+                    "Branch Work Item Gate(gpt-5.6-luna / low; branch work item convention)",
                     "Branch Work Item Gate(gpt-other / low; branch work item convention)",
                 ),
                 encoding="utf-8",
@@ -324,9 +324,9 @@ class VerifyOutputTests(unittest.TestCase):
                  "riskTriggers": ["api-contract"],
                  "specialistTriggers": {"Philosophy Reviewer": ["api-contract"]}},
                 [
-                    "Build Validator[repo](gpt-5.4-mini / low; code build)",
-                    "Requirement Validator(inherited current model / high; inline)",
-                    "Security Reviewer(inherited current model / medium; auth)",
+                    "Build Validator[repo](gpt-5.6-luna / low; code build)",
+                    "Requirement Validator(gpt-5.6-sol / high; inline)",
+                    "Security Reviewer(gpt-5.6-terra / medium; auth)",
                 ],
                 "inline",
             )
@@ -342,7 +342,7 @@ class VerifyOutputTests(unittest.TestCase):
                  "specialistTriggers": {"Security Reviewer": ["auth-security-boundary"]}},
                 [
                     "Main(Tiny all-lens)",
-                    "Build Validator[repo](gpt-5.4-mini / low; code build)",
+                    "Build Validator[repo](gpt-5.6-luna / low; code build)",
                 ],
                 "inline",
             )
@@ -359,9 +359,9 @@ class VerifyOutputTests(unittest.TestCase):
                  "riskTriggers": ["auth-security-boundary"],
                  "specialistTriggers": {"Security Reviewer": ["auth-security-boundary"]}},
                 [
-                    "Build Validator[repo](gpt-5.4-mini / low; code build)",
-                    "Requirement Validator(inherited current model / high; work-item)",
-                    "Security Reviewer(inherited current model / medium; auth-security-boundary)",
+                    "Build Validator[repo](gpt-5.6-luna / low; code build)",
+                    "Requirement Validator(gpt-5.6-sol / high; work-item)",
+                    "Security Reviewer(gpt-5.6-terra / medium; auth-security-boundary)",
                 ],
                 "work-item",
             )
@@ -382,9 +382,9 @@ class VerifyOutputTests(unittest.TestCase):
                  "riskTriggers": ["auth-security-boundary"],
                  "specialistTriggers": {"Security Reviewer": ["auth-security-boundary"]}},
                 [
-                    "Build Validator[repo](gpt-5.4-mini / low; code build)",
-                    "Requirement Validator(inherited current model / high; work-item)",
-                    "Security Reviewer(inherited current model / medium; auth-security-boundary)",
+                    "Build Validator[repo](gpt-5.6-luna / low; code build)",
+                    "Requirement Validator(gpt-5.6-sol / high; work-item)",
+                    "Security Reviewer(gpt-5.6-terra / medium; auth-security-boundary)",
                 ],
                 "work-item",
             )
@@ -407,9 +407,9 @@ class VerifyOutputTests(unittest.TestCase):
                  "riskTriggers": ["auth-security-boundary"],
                  "specialistTriggers": {"Security Reviewer": ["auth-security-boundary"]}},
                 [
-                    "Build Validator[repo](gpt-5.4-mini / low; code build)",
-                    "Requirement Validator(inherited current model / high; work-item)",
-                    "Security Reviewer(inherited current model / medium; auth-security-boundary)",
+                    "Build Validator[repo](gpt-5.6-luna / low; code build)",
+                    "Requirement Validator(gpt-5.6-sol / high; work-item)",
+                    "Security Reviewer(gpt-5.6-terra / medium; auth-security-boundary)",
                 ],
                 "work-item",
             )
@@ -432,9 +432,9 @@ class VerifyOutputTests(unittest.TestCase):
                  "riskTriggers": ["auth-security-boundary"],
                  "specialistTriggers": {"Security Reviewer": ["auth-security-boundary"]}},
                 [
-                    "Build Validator[repo](gpt-5.4-mini / low; code build)",
-                    "Requirement Validator(inherited current model / high; work-item)",
-                    "Security Reviewer(inherited current model / medium; auth-security-boundary)",
+                    "Build Validator[repo](gpt-5.6-luna / low; code build)",
+                    "Requirement Validator(gpt-5.6-sol / high; work-item)",
+                    "Security Reviewer(gpt-5.6-terra / medium; auth-security-boundary)",
                 ],
                 "work-item",
             )
@@ -457,9 +457,9 @@ class VerifyOutputTests(unittest.TestCase):
                  "riskTriggers": ["auth-security-boundary"],
                  "specialistTriggers": {"Security Reviewer": ["auth-security-boundary"]}},
                 [
-                    "Build Validator[repo](gpt-5.4-mini / low; code build)",
-                    "Requirement Validator(inherited current model / high; work-item)",
-                    "Security Reviewer(inherited current model / medium; auth-security-boundary)",
+                    "Build Validator[repo](gpt-5.6-luna / low; code build)",
+                    "Requirement Validator(gpt-5.6-sol / high; work-item)",
+                    "Security Reviewer(gpt-5.6-terra / medium; auth-security-boundary)",
                 ],
                 "work-item",
             )
@@ -487,9 +487,9 @@ class VerifyOutputTests(unittest.TestCase):
                  "riskTriggers": ["auth-security-boundary"],
                  "specialistTriggers": {"Security Reviewer": ["auth-security-boundary"]}},
                 [
-                    "Build Validator[repo](gpt-5.4-mini / low; code build)",
-                    "Requirement Validator(inherited current model / high; work-item)",
-                    "Security Reviewer(inherited current model / medium; auth-security-boundary)",
+                    "Build Validator[repo](gpt-5.6-luna / low; code build)",
+                    "Requirement Validator(gpt-5.6-sol / high; work-item)",
+                    "Security Reviewer(gpt-5.6-terra / medium; auth-security-boundary)",
                 ],
                 "work-item",
             )
@@ -512,9 +512,9 @@ class VerifyOutputTests(unittest.TestCase):
                  "riskTriggers": ["auth-security-boundary"],
                  "specialistTriggers": {"Security Reviewer": ["auth-security-boundary"]}},
                 [
-                    "Build Validator[repo](gpt-5.4-mini / low; code build)",
-                    "Requirement Validator(inherited current model / high; work-item)",
-                    "Security Reviewer(inherited current model / medium; auth-security-boundary)",
+                    "Build Validator[repo](gpt-5.6-luna / low; code build)",
+                    "Requirement Validator(gpt-5.6-sol / high; work-item)",
+                    "Security Reviewer(gpt-5.6-terra / medium; auth-security-boundary)",
                 ],
                 "work-item",
             )

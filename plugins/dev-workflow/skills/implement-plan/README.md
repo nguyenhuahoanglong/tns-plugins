@@ -5,7 +5,7 @@
 The single planning + implementation skill. Self-contained and tool-agnostic: it understands the
 codebase to **Claude Code plan-mode quality**, interviews the user to lock verifiable criteria,
 writes a simplified plan to `.plans/`, **stops for explicit approval**, then — and only then —
-dispatches auto-scaled implementers and runs a verification + review pass. It does **not** depend on
+dispatches auto-scaled implementers, always verifies, and runs code review only when selected. It does **not** depend on
 Claude Code plan mode or any Codex planning step, and runs identically in both tools.
 
 ## When to use
@@ -23,7 +23,7 @@ Claude Code plan mode or any Codex planning step, and runs identically in both t
 ## Workflow at a glance
 
 ```
-Phase 0  Understand        (READ-ONLY)  tool-native explorer + lean interview
+Phase 0  Understand        (READ-ONLY)  explorer + lean interview + unit-test/review choices
 Phase 1  Design & plan     (READ-ONLY except the plan file)  Plan-agent design (1-3, scaled by
                             complexity) → decompose + per-task actionability gate → auto-scale →
                             write .plans/{feature}.md (incl. Agent Assignment) → plan quick-check
@@ -32,7 +32,7 @@ Phase 1  Design & plan     (READ-ONLY except the plan file)  Plan-agent design (
 Phase 2  Implement         scaffold + red tests (TDD depth only) → auto-scaled code-implementers →
                             verify-before-accept (main agent checks diff + Done-when evidence before
                             recording complete)
-Phase 3  Verify            build/test/diff + optional code-review-lite (cap 2 loops) + AC check
+Phase 3  Verify            existing build/test/diff + selected code-review-lite (cap 2 loops) + AC check
 Phase 4  Report            (+ optional docs-sync for structural changes)
 ```
 
@@ -44,9 +44,12 @@ is the only editable artifact. Scaffold, tests, and all implementation happen st
 user approves the plan at the Approval Gate.
 
 ### Default Simplify, optional TDD
-Default depth is **plan → implement → verify**. **TDD depth** (main agent scaffolds stubs, then a
-qa-engineer writes failing tests before implementation) is opt-in, chosen during planning for
-logic-heavy, unit-testable work and recorded in the plan's Context.
+Planning resolves two independent multiple-choice preferences before writing the plan: new unit
+tests and code review. Missing choices block plan creation; explicit request text or existing exact
+Context flags skip their matching questions. Unit tests selected means **TDD depth** (main agent
+scaffolds stubs, then qa-engineer writes failing tests); not selected means no new tests while
+existing suites still run. Code review selected means `code-review-lite` with a two-iteration cap;
+not selected means no offer, fallback, or verdict. Both choices are recorded in Context.
 
 ### Plan-agent design step
 Before decomposition, Phase 1.1 dispatches **1–3 tool-native architect agents** scaled by
@@ -89,8 +92,8 @@ which was redundant with Phase 3's single review over all changed files.
 
 ### Agent routing
 Planning uses the tool-native explorer (`Explore` in Claude Code, `explorer` in Codex) for read-only
-codebase discovery. Implementation uses `code-implementer`, pinned separately from the main agent
-(Codex: `gpt-5.5` + medium reasoning).
+codebase discovery. Implementation uses `code-implementer` with the portable `standard` intent,
+separate from the main agent (Claude: Sonnet; Codex: Terra with medium reasoning).
 
 ### Auto-scaled implementers
 Implementer count scales by file count (1–3→1, 4–6→2, 7–9→3, 10+→dependency-ordered batches), so
@@ -111,6 +114,18 @@ prose prompts (no literal call syntax); agent files define runtime/model choices
 **fresh agent** (no `SendMessage`/resume dependency).
 
 ## Changelog
+
+### 2026-07-11 — v3.3.0 — Explicit unit-test and review choices
+- Added independent multiple-choice planning questions for new unit tests and code review; questions
+  are skipped only when request or existing plan already resolves them.
+- Made new-test generation, TDD, review, review rework, and review verdict conditional on recorded
+  Context flags while keeping existing build/test verification mandatory.
+- Replaced automatic review fallback for non-unit-testable TDD tasks with build/manual/static checks.
+
+### 2026-07-11 — GPT-5.6 intent routing
+- Replaced the prior provider-specific implementation example with the portable `standard` intent: Claude
+  resolves it to Sonnet and Codex resolves it to Terra with medium reasoning.
+- Kept the main-agent runtime user-selected and kept historical runtime-routing entries intact.
 
 ### 2026-07-10 — v3.2.0 — Plan-mode parity + orchestrator verification
 - **Plan-mode-parity design step**: Phase 1 now dispatches 1–3 tool-native architect agents

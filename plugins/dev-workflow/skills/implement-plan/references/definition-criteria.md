@@ -40,9 +40,9 @@ checklist drives three things:
 2. **Implementer done-signal** — a task is not complete until its scoped tests are green.
 3. **Verification** — the main agent checks each task against its DoD before marking it complete.
 
-Tasks with no meaningful unit test (config, infra, pure UI/style) get a **review-only gate** instead:
-the build still succeeds and `code-review-lite` returns no must-fix findings. Don't invent low-value
-tests to satisfy the TDD step — flag the task honestly and let the review gate cover it.
+Tasks with no meaningful unit test (config, infra, pure UI/style) get a **build, manual, or static
+gate** instead. Don't invent low-value tests to satisfy the TDD step. Code review remains controlled
+only by the independent `Code review` preference and is never enabled as a fallback.
 
 ## Interview tie-in
 

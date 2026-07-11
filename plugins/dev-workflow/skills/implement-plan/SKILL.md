@@ -1,7 +1,6 @@
 ---
 name: implement-plan
-description: "Gated plan-then-implement workflow: understand + interview, write a plan to .plans/, get approval, then dispatch auto-scaled implementers (optional TDD) and verify. Use for '/implement-plan'."
-version: 3.2.0
+description: "Gated workflow: inspect + interview for unit-test/review choices, write an approved plan to .plans/, dispatch auto-scaled implementers, then verify. Use for '/implement-plan'."
 ---
 
 # Implement Plan
@@ -30,7 +29,7 @@ explorer for planning (`Explore` in Claude Code, `explorer` in Codex); use named
 | Inline text / idea | Treat as the starting requirement; interview to flesh out |
 | No argument | Ask the user what to build, then interview |
 | Path to a `requirement.md` / backlog `.md` | Read as source requirement; interview only to fill gaps |
-| Path to an existing plan file (`.plans/*.md`) | Treat as a pre-written plan; skip the interview unless it lacks clear criteria; keep its path |
+| Path to an existing plan file (`.plans/*.md`) | Treat as a pre-written plan; keep its path; ask only for missing criteria or preference flags |
 | Folder path (e.g., `.backlog/{feature}/`) | Look for a `*-plan.md` / `requirement.md` inside; read as source |
 | Work item ID (numeric) | Fetch via the `azdevops-operations` skill; interview to fill gaps |
 
@@ -56,8 +55,12 @@ Understand what to build and the code it touches, to **Claude Code plan-mode qua
 - **Lean interview** (`references/interview-guide.md`, ~5 questions, like plan-mode clarifications):
   lock **scope** (in/out), **design** (where code lives, patterns), **Acceptance Criteria**, and a
   per-task **"Done when"**. Don't proceed until you can state *what to build, how each piece is
-  verified, and how you'd know the whole thing is done.* Skip the interview if the input is already
-  a complete plan with clear criteria.
+  verified, and how you'd know the whole thing is done.*
+- **Resolve two independent preferences** with multiple-choice questions when the request or an
+  existing plan does not already answer them: **Write unit tests?** and **Run code review?** Skip
+  only questions already answered explicitly. Do not create or rewrite a plan until both choices
+  are resolved; a multiple-choice selection counts as an explicit request. Record the exact Context
+  flags from `references/plan-template.md`.
 
 ## Phase 1 — Design & Write Plan (READ-ONLY except the plan file)
 
@@ -86,9 +89,9 @@ Before a task is written to the plan file, it must pass the **per-task Actionabi
 (`references/plan-analysis.md`): a task you cannot verify as actionable does not go in the plan —
 resolve it first.
 
-**Choose depth:** **Simplify** (default) = plan→implement→verify; **TDD** (optional) adds Phase 2
-scaffold + failing tests, for logic-heavy unit-testable work. **Record the depth in the plan's
-Context.** When in doubt, default to Simplify.
+**Derive depth from the resolved unit-test choice:** `not requested` → **Simplify**
+(plan→implement→verify, no new test files); `requested` → **TDD** (Phase 2 scaffold + failing unit
+tests). Never infer TDD from task shape. Record both independent preferences in Context.
 
 ### 1.3 Auto-scale implementers
 
@@ -124,7 +127,8 @@ scaffold, tests, implementation, or other writes.** On approval, autonomous mode
 
 ## Phase 2 — Implement (AFTER approval)
 
-- **(TDD depth only) Scaffold + test-first** — *skip in Simplify.* The main agent writes
+- **(Unit tests requested / TDD only) Scaffold + test-first** — otherwise create no new test files.
+  The main agent writes
   signatures/stubs that compile and fail at runtime (no logic; mark tasks `scaffolded`). Then
   dispatch a **qa-engineer** (via the `unit-testing` skill) to write failing tests that are the
   executable form of each task's Definition of Done (`references/agent-prompts.md`); verify they
@@ -147,9 +151,11 @@ scaffold, tests, implementation, or other writes.** On approval, autonomous mode
 
 - **Per-task check:** verify each task's **Done when** (TDD: tests green; build clean; behavior
   present); update each `Status` in the plan.
-- **Build & test:** run the project's build + test suite **once** + `git diff` to confirm changes
-  match intent; record results in the plan's Verification.
-- **Code review (capped loop):** offer `code-review-lite` over changed files. On **must-fix**
+- **Build & test:** run the project's build + existing test suite **once** + `git diff` to confirm
+  changes match intent; record results in the plan's Verification. This remains required when new
+  unit tests were not requested. Red tests trigger fresh-implementer rework for failing tasks.
+- **Code review (only when `Code review: requested`):** run `code-review-lite` over changed files.
+  On **must-fix**
   findings or red tests, dispatch a **fresh** code-implementer for the *failing task(s) only* →
   re-verify → re-review. **Cap: 2 iterations**, then report with full context.
 - **AC check:** tick the plan's Acceptance-Criteria checkboxes from evidence (note any left unmet).
@@ -159,7 +165,8 @@ scaffold, tests, implementation, or other writes.** On approval, autonomous mode
 If all tasks complete and ACs satisfied, mark the plan done. For **structural** changes (new
 modules/scripts/folders/commands), offer to sync project docs (`AGENTS.md`, `README.md`, index
 tables) via a sub-agent per file; skip for pure behavior changes. **Report:** plan path, files
-changed (count + list), AC status, build/test results, review verdict, manual follow-ups.
+changed (count + list), AC status, build/test results, manual follow-ups, and review verdict only
+when code review was requested.
 
 ## Quick Reference: Error Handling
 
@@ -168,7 +175,8 @@ changed (count + list), AC status, build/test results, review verdict, manual fo
 | User can't state how a task is verified | Resolve in Phase 0 — don't plan a task without a "Done when" |
 | About to change code before approval | STOP — only the plan file is writable until the gate clears |
 | Agent hits blocker | Fresh code-implementer with the question + partial progress (1 retry); `blocked` if unresolved |
-| Tests red / Done-when unmet / review must-fix | Fresh implementer for the failing task → re-verify (cap 2 loops) |
+| Tests red / Done-when unmet | Fresh implementer for the failing task → re-verify (cap 2 loops) |
+| Review must-fix (`Code review: requested` only) | Fresh implementer for the failing task → re-verify → re-review (cap 2 loops) |
 | Implementer reports complete but evidence doesn't hold | Treat as must-fix rework (fresh implementer); do not record complete |
 | Loop exhausted | Report with full context |
 | Scope 10+ files | Dependency-ordered batches, one batch at a time |
