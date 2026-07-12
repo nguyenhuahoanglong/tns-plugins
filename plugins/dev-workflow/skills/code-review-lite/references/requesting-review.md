@@ -25,13 +25,13 @@ Dispatch reviews to catch issues before they cascade.
 
 ### 1. Prepare Context
 
-```bash
+```powershell
 # Get commit range
-BASE_SHA=$(git merge-base origin/main HEAD)
-HEAD_SHA=$(git rev-parse HEAD)
+$BASE_SHA = git merge-base origin/main HEAD
+$HEAD_SHA = git rev-parse HEAD
 
 # Summary of changes
-git diff --stat $BASE_SHA..$HEAD_SHA
+git diff --stat "$BASE_SHA..$HEAD_SHA"
 ```
 
 ### 2. Provide Review Context

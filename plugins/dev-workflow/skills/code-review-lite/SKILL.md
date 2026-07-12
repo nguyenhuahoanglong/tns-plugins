@@ -145,5 +145,5 @@ Then clean worktrees unconditionally. Keep the `.lite.md` report.
 
 ## Related Protocols
 
-- Received feedback: `references/feedback-reception.md`
-- Requesting review: `references/requesting-review.md`
+- Responding to feedback on a published review (from the user, a PR thread, or an external reviewer): reading `references/feedback-reception.md` is REQUIRED before acting. Core contract: verify before implementing, no performative agreement (`"You're absolutely right!"` is forbidden), push back on wrong findings with technical reasoning.
+- Requesting review from others (milestone triggers — after a major feature/task, before merging to main, after fixing complex bugs): see `references/requesting-review.md`.

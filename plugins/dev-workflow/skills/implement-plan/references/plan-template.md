@@ -1,7 +1,8 @@
 # Plan Template (implement-plan)
 
 Use this when writing `.plans/{feature-name}.md` in Phase 1.4. The shape follows the **Claude Code
-native plan pattern**: `Context → Goal → Acceptance Criteria → Tasks → Verification`.
+native plan pattern**: `Context → Goal → Global Constraints → Acceptance Criteria → Tasks →
+Verification`.
 
 **Filename:** flat `.plans/{feature-name}.md` (e.g. `csv-export.md`). Keep an existing plan file's
 name if the input was already a plan.
@@ -24,6 +25,11 @@ Depth: TDD when unit tests are requested; otherwise simplify.}
 ## Goal
 {1-2 paragraphs — enough for an implementer to understand what to build without the original source.}
 
+## Global Constraints
+{Project-wide requirements copied VERBATIM from the requirements/spec — naming rules, framework/
+library versions, protected paths, non-goals. One line each, exact values. This block is handed
+verbatim to every implementer and reviewer dispatch; every task's requirements implicitly include it.}
+
 ## Acceptance Criteria
 - [ ] AC-1: {concrete, observable, testable}
 - [ ] AC-2: {concrete, observable, testable}
@@ -35,6 +41,8 @@ Depth: TDD when unit tests are requested; otherwise simplify.}
 - Depends on: none
 - Files: `path/to/file1`, `path/to/file2`
 - Description: {what to implement — specific enough to act on}
+- Interfaces (optional — required whenever another task shares this task's type/function boundary):
+  - Produces: {exact symbols this task creates that other tasks consume — name, params, return type}
 - Done when: {mechanically checkable — e.g. "dotnet build passes; GET /api/users returns 200 with UserDto[]"}
 - ACs: AC-1
 
@@ -43,6 +51,8 @@ Depth: TDD when unit tests are requested; otherwise simplify.}
 - Depends on: Task 1
 - Files: `path/to/other`
 - Description: {…}
+- Interfaces:
+  - Consumes: {exact symbols/types from other tasks this task calls — name, params, return type}
 - Done when: {…}
 - ACs: AC-2
 
@@ -88,3 +98,6 @@ into a failing test.
    (diff + Done-when evidence) before advancing to the next wave.
 8. **Preference flags are mandatory** — do not write the plan until both are resolved; unit tests
    control TDD/new test creation, while code review independently controls review/rework/verdict.
+9. **No placeholders** — never write "TBD", "TODO: decide later", "add appropriate error handling",
+   or "similar to Task N" (repeat the detail instead — tasks may execute out of order or in
+   isolation); never reference a type/function that no task defines.

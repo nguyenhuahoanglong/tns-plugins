@@ -75,7 +75,7 @@ Keep a mapping so coverage is auditable:
 
 ## Step 4: Write the tests
 
-Read `references/best-practices.md` (shared rules: AAA, naming, mock-at-boundary, determinism), then the stack reference for syntax:
+Read `references/best-practices.md` (shared rules: AAA, naming, mock-at-boundary, determinism), then the stack reference for syntax. If any test involves a mock, also read `references/testing-anti-patterns.md` first — it covers the failure modes (asserting on mocks instead of behavior, test-only production methods, incomplete mocks, mocking without understanding the real dependency) before you write them.
 
 | Stack | Reference | Framework |
 |---|---|---|
@@ -94,7 +94,9 @@ Core rules (full detail in `best-practices.md`):
 When generating tests *while* an implementer builds the function (e.g. dispatched concurrently from `implement-plan`):
 
 - Derive tests from the **spec/acceptance criteria**, not from code that may not exist yet.
+- If any test involves a mock, read `references/testing-anti-patterns.md` before writing it — the same failure modes (incomplete mocks, mocking without understanding the real dependency) apply to spec-first tests.
 - It is expected and correct for these tests to be **RED** (failing/not-compiling) until the implementation lands — they encode the contract.
+- Verify each RED test fails for the **expected reason** — an assertion about missing/incorrect behavior — not a typo, a missing import, or a setup error. A compile error or import error is not a valid RED; fix the test scaffolding until the failure is the assertion itself.
 - Never write to the same files the implementer writes. Tests live in the test project/folder only; **never modify source code**.
 
 ## Verify Output (Guardrail)
@@ -114,5 +116,6 @@ It checks the deterministic acceptance criteria: tests exist for the target, fol
 - `references/best-practices.md` — shared testing principles and the requirement-mapping format
 - `references/csharp-xunit.md`, `references/react-vitest-jest.md`, `references/pcf-testing.md` — per-stack syntax
 - `references/legacy-characterization.md` — pinning current behavior as a regression net
+- `references/testing-anti-patterns.md` — mock-related failure modes to check before writing tests
 - `scripts/detect_test_framework.py` — deterministic stack/framework detection
 - `scripts/verify_output.py` — output guardrail

@@ -15,6 +15,11 @@ sub-agents read the plan and report back, they do **not** edit it.
 contents (agents read via their file tools); point at `AGENTS.md` for standards; add a one-line
 patterns note from the Phase 0 Explore pass (e.g. "follow `UserRepository.cs`").
 
+**Anti-pre-judging (reviewer & quick-check dispatches):** never tell a dispatched agent what NOT to
+flag and never pre-rate a finding's severity — forbidden phrasings: "do not flag", "don't treat X as
+a defect", "at most Minor", "the plan chose this so it's fine". Hand it the plan's Global Constraints
+block verbatim instead of interpreting it for the agent.
+
 ## Phase 0 — tool-native explorer (read-only planning)
 
 Dispatch 1–3 explorer sub-agents per `plan-analysis.md`.
@@ -113,7 +118,8 @@ Implement task: {task-name}
 Project: {project-root} — read AGENTS.md before writing code.
 Plan: .plans/{feature-name}.md
 Your task heading: ### Task {N}: {task-name}
-Read the plan. The Goal and ACs apply to the whole feature; your work is your task heading only.
+Read the plan. The Goal, Global Constraints, and ACs apply to the whole feature; your work is your
+task heading only.
 
 ## Patterns to follow
 {one-line note from Phase 0 Explore, if any}
@@ -126,14 +132,31 @@ Read the plan. The Goal and ACs apply to the whole feature; your work is your ta
 1. Read the plan file (and, in TDD depth, your scoped unit tests).
 2. Implement ONLY the files listed under your task heading (in TDD depth, replace the scaffold stubs).
 3. Confirm your "Done when" is met (TDD depth: run your scoped tests until they pass).
-4. Do NOT edit the plan file. Return: status (complete | blocked), files changed, and how the
-   "Done when" is satisfied. If blocked, return partial progress + the specific question.
+4. Do NOT edit the plan file. End with exactly one status below, plus files changed.
+
+## Report contract (end with exactly one)
+- **DONE** — every "Done when" criterion met; include the evidence.
+- **DONE_WITH_CONCERNS** — works, but list concerns (risk, assumption, scope judgment call).
+- **NEEDS_CONTEXT** — specific question(s); no changes made beyond what's reported.
+- **BLOCKED** — cannot proceed; reason + what was attempted.
+
+It is always OK to stop and report BLOCKED — bad work is worse than no work.
 
 ## Rules
 - Only modify files listed under your task heading. Match existing patterns; no extra abstractions.
 ```
 
-### Main-agent verification after each return
+### Main-agent handling per status
+
+- **DONE** → verify as usual (below), then record `Status: complete`.
+- **DONE_WITH_CONCERNS** → resolve every listed concern before recording `complete`; a concern is not
+  automatically fine just because the agent proceeded past it.
+- **NEEDS_CONTEXT** → answer the question(s), then dispatch a **fresh** agent carrying the answers
+  (don't resume the same agent).
+- **BLOCKED** → never ignore the escalation and never re-dispatch the same prompt unchanged — fix the
+  input (plan, context, or scope) first; see Blocker resolution below.
+
+### Main-agent verification after each DONE return
 
 Before recording `complete`, the main agent: (1) reads the diff / changed files, (2) checks the
 reported Done-when evidence actually holds, (3) confirms no files outside the task heading were
@@ -168,8 +191,9 @@ re-run verification. This does not enable code review.
 ## Phase 3.3 — review & rework loop (`Code review: requested` only)
 
 Skip this entire section, including review offer and verdict, when Context says
-`Code review: not requested`. Otherwise run `code-review-lite` over changed files. For must-fix
-findings, dispatch a **fresh** code-implementer for the *failing task(s) only*:
+`Code review: not requested`. Otherwise run `code-review-lite` over changed files, handing it the
+plan's Global Constraints block verbatim (see Anti-pre-judging above — do not tell it what to skip).
+For must-fix findings, dispatch a **fresh** code-implementer for the *failing task(s) only*:
 
 ```
 Dispatch a code-implementer sub-agent:

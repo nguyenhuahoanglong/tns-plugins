@@ -11,6 +11,10 @@ Review only the injected named role. Run no git commands and do not broaden scop
 
 First read the supplied preflight file and emit exact `Child Read: PASS {token}`. On failure emit `Child Read: FAIL` and stop.
 
+## Dispatch Neutrality
+
+When the main agent constructs this specialist's dispatch, it must never tell the reviewer what NOT to flag and never pre-rate severity. Forbidden phrasings: "do not flag", "don't treat X as a defect", "at most Minor/Low", "this was a deliberate choice so skip it". Hand context to the specialist as facts (requirements, constraints) — never as verdicts.
+
 ## Named Role Checks
 
 ### Security

@@ -105,7 +105,8 @@ tests). Never infer TDD from task shape. Record both independent preferences in 
 ### 1.4 Write the plan
 
 **Write** `.plans/{feature-name}.md` from `references/plan-template.md` (native shape:
-`Context → Goal → Acceptance Criteria → Tasks → Agent Assignment → Verification`). The template's
+`Context → Goal → Global Constraints → Acceptance Criteria → Tasks → Agent Assignment →
+Verification`). The template's
 **Agent Assignment** section (wave / task / agent / verified-by) is mandatory — Phase 2 dispatch must
 follow it. In TDD depth, expand each task's `Done when` into a `Definition of Done` checklist
 (`references/definition-criteria.md`). If a plan already exists: resume if mid-flight, else overwrite
@@ -127,22 +128,32 @@ scaffold, tests, implementation, or other writes.** On approval, autonomous mode
 
 ## Phase 2 — Implement (AFTER approval)
 
+**Continuous execution:** once approved, do not pause for "should I continue?" check-ins or long
+progress narration between tasks — stop only for a BLOCKED escalation, genuine ambiguity, or
+completion.
+
 - **(Unit tests requested / TDD only) Scaffold + test-first** — otherwise create no new test files.
   The main agent writes
   signatures/stubs that compile and fail at runtime (no logic; mark tasks `scaffolded`). Then
   dispatch a **qa-engineer** (via the `unit-testing` skill) to write failing tests that are the
   executable form of each task's Definition of Done (`references/agent-prompts.md`); verify they
-  bind to the scaffold and are red.
+  bind to the scaffold and are red **for the expected reason** — an assertion about missing behavior,
+  failing output captured as evidence. Compile/import errors are not valid RED; a passing new test
+  means it tests existing behavior — fix the test.
 - **Dispatch implementers** per task, **auto-scaled** and **in dependency order** — parallelize an
-  independent set, sequence across `Depends on` (`references/agent-prompts.md`). Each agent gets the
+  independent set, sequence across `Depends on` (`references/agent-prompts.md`). Before dispatching,
+  record the current HEAD as that task's **base SHA**. Each agent gets the
   plan path + its task heading (don't inline files/plan). A task is complete only when its **Done
-  when** is met (TDD: scoped tests green). **The main agent owns ALL plan-file status writes** —
-  implementers return `complete`/`blocked` + summary; the main agent records each `Status`.
+  when** is met (TDD: scoped tests green — the minimal implementation that turns RED to GREEN; resist
+  adding unrequested options/config, YAGNI). **The main agent owns ALL plan-file status writes** —
+  implementers return one of four statuses (`references/agent-prompts.md`) + summary; the main agent
+  records each `Status`.
 - **Verify before accept:** after each implementer returns, before recording anything, the main agent
-  (a) reads the diff / changed files, (b) checks the task's **Done when** against that evidence, and
-  (c) confirms no files outside the task's scope were touched. Only then record `Status: complete` and
-  release dependent tasks. An **evidence mismatch is rework**, not a `complete` — route it through the
-  fresh-agent blocker/rework pattern below.
+  (a) reads the diff via `git diff <base>..HEAD` — **never `HEAD~1`**, which silently drops all but
+  the last commit of a multi-commit task — (b) checks the task's **Done when** against that evidence,
+  and (c) confirms no files outside the task's scope were touched. Only then record `Status: complete`
+  and release dependent tasks. An **evidence mismatch is rework**, not a `complete` — route it through
+  the fresh-agent blocker/rework pattern below.
 - **Blocker (fresh-agent pattern):** decide the specific question, then dispatch a **fresh**
   code-implementer carrying the plan path, task heading, the question + your decision, and the
   partial-progress summary. Single retry; if still blocked, set `Status: blocked` and report.
@@ -155,9 +166,9 @@ scaffold, tests, implementation, or other writes.** On approval, autonomous mode
   changes match intent; record results in the plan's Verification. This remains required when new
   unit tests were not requested. Red tests trigger fresh-implementer rework for failing tasks.
 - **Code review (only when `Code review: requested`):** run `code-review-lite` over changed files.
-  On **must-fix**
-  findings or red tests, dispatch a **fresh** code-implementer for the *failing task(s) only* →
-  re-verify → re-review. **Cap: 2 iterations**, then report with full context.
+  On **must-fix** findings or red tests, dispatch **ONE** fresh code-implementer carrying the complete
+  findings list — never one agent per finding — for the *failing task(s) only* → re-verify →
+  re-review. **Cap: 2 iterations**, then report with full context.
 - **AC check:** tick the plan's Acceptance-Criteria checkboxes from evidence (note any left unmet).
 
 ## Phase 4 — Report (+ optional docs-sync)
@@ -180,3 +191,4 @@ when code review was requested.
 | Implementer reports complete but evidence doesn't hold | Treat as must-fix rework (fresh implementer); do not record complete |
 | Loop exhausted | Report with full context |
 | Scope 10+ files | Dependency-ordered batches, one batch at a time |
+| Context compacted/summarized | Trust the plan file's task `Status` fields + `git log` over recollection; never re-dispatch a task already `complete` |

@@ -123,7 +123,7 @@ Fix every FAIL. Then remove worktrees and the temporary diff; keep report and si
 ## Follow-up, Feedback, Requests
 
 - Follow-up/re-review: `references/followup-review.md`; reclassify the delta with the same classifier.
-- Received feedback: `references/feedback-reception.md`.
+- Responding to feedback on a published review (from the user, a PR thread, or an external reviewer): reading `references/feedback-reception.md` is REQUIRED before acting. Core contract: verify before implementing, no performative agreement (`"You're absolutely right!"` is forbidden), push back on wrong findings with technical reasoning.
 - Requesting review from others: `references/requesting-review.md`.
 
 ## Enforcement

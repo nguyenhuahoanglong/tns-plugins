@@ -33,6 +33,11 @@ turns out to be built on a stale assumption.
 2. **Does every task have a "Done when"?** If no → not ready (see `definition-criteria.md`).
 3. **Is the scope manageable?** ≤9 files → dispatch normally; 10+ → dependency-ordered batches.
 4. **Has every task passed the Actionability Gate?** If no → not ready (see below).
+5. **Type-consistency:** does every symbol mentioned in more than one task have the identical name
+   and signature everywhere? (`clearLayers()` in Task 3 vs `clearFullLayers()` in Task 7 is a plan
+   bug.) If no → fix the mismatched task(s) before writing the plan.
+6. **Placeholder scan:** search the draft for "TBD", "TODO", "appropriate", or "similar to Task N".
+   Any hit fails the check — resolve it before writing the plan.
 
 ## Per-task Actionability Gate
 

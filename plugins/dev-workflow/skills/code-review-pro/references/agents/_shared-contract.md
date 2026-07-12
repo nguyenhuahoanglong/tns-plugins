@@ -13,6 +13,10 @@ Read the sentinel path first, verify its token, emit `Child Read: PASS {token}` 
 
 Then read every supplied path: role prompt, worktree root, diff file, changed files your lens covers. Never run git commands. Read-only.
 
+## Dispatch Neutrality
+
+When the main agent constructs this specialist's dispatch, it must never tell the reviewer what NOT to flag and never pre-rate severity. Forbidden phrasings: "do not flag", "don't treat X as a defect", "at most Minor/Low", "this was a deliberate choice so skip it". Hand context to the specialist as facts (requirements, constraints) — never as verdicts.
+
 ## Output Skeleton
 
 Group findings by file; within a file, order Critical -> High -> Medium -> Low. Inline severity tag on every finding — never a section heading.
