@@ -2,41 +2,50 @@
 
 ## Purpose
 
-Adaptive, low-cost code review for quick checks and pre-merge validation. Version 2 classifies changes before dispatch, keeps truly small work local, and escalates changes whose risk needs multiple specialists.
+Adaptive, low-cost code review for quick checks and pre-merge validation. Version 3 keeps deterministic work in scripts, isolates semantic children around a compact manifest, and escalates changes whose risk needs multiple specialists.
 
 ## Pain Points
 
-- Fixed reviewer counts waste runtime on documentation and tiny changes.
+- Model children waste tokens when used for deterministic branch/build execution.
 - File/line size alone misses small but risky API, auth, schema, state, dependency, async, and configuration changes.
-- Hidden runtime substitutions make review cost and depth hard to audit.
+- Inline diffs and inherited conversation history bloat semantic-child context.
+- Mixed gate/agent reporting obscures what used model tokens and whether cache counters were exposed.
 - Remote sibling worktrees are difficult for child agents to discover reliably.
-- Requirement findings become speculative when evidence rules are vague.
+- Requirement findings become speculative without reverse behavior and collateral-impact evidence.
 
 ## Profiles
 
 | Profile | Pipeline |
 |---|---|
-| Docs Tiny | Main-agent documentation review; zero child agents |
-| Code Tiny | Build Validator per repo; main-agent code review |
-| Lite | Build Validator per repo, Requirement Validator, then at most one named specialist |
+| Docs Tiny | Deterministic branch gate when applicable; main review; zero semantic children |
+| Code Tiny | Deterministic branch/build gates; main code review; zero semantic children |
+| Lite | Deterministic gates; mandatory deep Requirement Validator plus at most one specialist |
 | Escalation | More than one specialist trigger routes to `code-review-pro` |
 
 Tiny means at most 3 files and 100 changed lines, with no elevated shared behavior, API, schema, auth, dependency, async/lifecycle, state, or configuration risk.
 
 ## Runtime routing
 
-Agent metadata owns cross-tool model selection. Build Validator uses the `fast` intent (Claude
-Haiku; Codex Luna/low), Requirement Validator uses `deep` (Claude Opus; Codex Sol/high), and named
-specialists use `standard` (Claude Sonnet; Codex Terra/medium). Reports record the actual launch
-runtime for the main agent instead of assuming one.
+Branch and build gates are local deterministic scripts and have no model runtime. Semantic agent
+metadata owns cross-tool routing: Requirement Validator uses `deep` (Claude Opus; Codex Sol/high),
+and named specialists use `standard` (Claude Sonnet; Codex Terra/medium). Lite launches fresh,
+isolated children from a compact context manifest; reports keep known runtime fields and use
+`not exposed` only for unavailable provider token/cache counters.
 
 ## Output
 
-Reports remain at `.CodeReview/{safe-branch}.lite.md`. Each report records combined skill/version provenance, selected profile, main runtime, triggered/skipped actors, reasons, and child runtime profiles.
+Reports remain at `.CodeReview/{safe-branch}.lite.md`. They separate deterministic gates from Semantic Agents, include behavior-preservation/collateral evidence, and record per-child context mode plus token/cache counters.
 
-Worktrees remain repo-local at `.CodeReview/.worktrees/{safe-branch}`. Every child must pass a read-token preflight before review work starts.
+Worktrees remain repo-local at `.CodeReview/.worktrees/{safe-branch}`. Lite context is stored at `.CodeReview/.{safe-branch}.context.json`; every child must pass a read-token preflight before analysis.
 
 ## Changelog
+
+### 2026-07-13 - v3.0.0 deterministic gates and isolated semantic review
+
+- Replaced Lite's model Build Validator with deterministic `build_gate.py` while preserving dependency preparation and `JS-SKIPPED` handling.
+- Made Docs Tiny and Code Tiny zero-semantic-child profiles; Lite always runs the deep Requirement Validator and runs at most one specialist, concurrently after passing builds.
+- Added the compact review-context manifest, isolated dispatch placeholders, separate gate/agent reporting, numeric-or-`not exposed` usage counters, and behavior-preservation/collateral-impact evidence.
+- Kept branch-failure stop behavior and multi-specialist escalation to `code-review-pro` unchanged.
 
 ### 2026-07-11 - GPT-5.6 intent routing
 

@@ -1,73 +1,54 @@
 ---
 name: requirement-validator
-description: Dedicated inherited/high validator mapping requirements to changed-code evidence
+description: Lite adapter for isolated requirement-validator dispatch and compact report synthesis
 ---
 
-# Requirement Validator
+# Requirement Validator Adapter
 
-Determine whether the Lite change fulfills supplied requirements. Do not review general style or performance. Run no git commands. The supplied requirements may include a design-doc excerpt the orchestrator harvested via the repo `AGENTS.md` design-doc root; treat it as elaboration of the direct AC, not as new binding criteria.
+The central `requirement-validator` agent owns the review methodology. This reference only adapts Lite's context manifest, isolated dispatch tail, and compact output into the v3 report. Do not copy or override the central behavior-classification rules here.
 
-## Preflight
+## Stable Dispatch Contract
 
-First read the supplied preflight file and emit exact `Child Read: PASS {token}`. On failure emit `Child Read: FAIL` and stop.
-
-## Evidence Rules
-
-1. Separate direct task criteria from parent context; parent outcomes are not direct criteria.
-2. Map each direct criterion to `Addressed`, `Partial`, `Missing`, or `Not verifiable`.
-3. Compare base/new behavior and trace symbols, callers, consumers, events, and state.
-4. `Addressed` requires changed implementation at `file:line` and behavior explanation.
-5. Tests corroborate implementation; tests alone do not prove it.
-6. Regression findings require exposed caller, consumer, event, state, or execution-path evidence.
-7. Do not invent criteria. If context is insufficient, use `Not verifiable`.
-8. Reverse-map every changed hunk to a requirement (code -> requirement). A change justified by no criterion is scope drift: HIGH for shared/public/API/schema/state logic, MEDIUM for isolated/local code. Scope drift flags the change for author judgment; it never blocks the review.
-
-## Output
+Provide these instructions before all variable values:
 
 ```text
-Child Read: PASS {token}
-
-# Requirement Validation
-
-- Runtime: opus / default
-- Context source: user | PR | ADO | unavailable
-- Scope: On-scope | Under-scoped | Over-scoped | Not verifiable
-
-## Evidence
-
-| Requirement | Status | Evidence |
-|---|---|---|
-| {criterion} | Addressed | `{file}:{line}` - {behavior} |
-| {criterion} | Partial/Missing | Searched {scope}; absent {behavior} |
-| {criterion} | Not verifiable | {missing context/evidence} |
-
-## Behavior Preservation
-
-| Behavior | Base | New | Exposed paths | Tests | Status |
-|---|---|---|---|---|---|
-| {behavior} | {before} | {after} | `{paths}` | `{tests}` / None | Preserved / Regressed / Unproven |
-
-## Scope Drift
-
-List only changes that trace to no criterion; write the sentinel and omit the table when all changes are justified.
-
-| Change (`file:line`) | Justifying requirement? | Risk |
-|---|---|---|
-| `{file}:{line}` | No | HIGH / MEDIUM |
-
-- **Scope Drift**: None
-
-## Findings
-
-### `{file}` or `[no file]`
-
-1. **[HIGH] [Missing requirement]** `{line}` - {gap}
-   - **Evidence**: {searched scope and absence}
-   - **Suggestion**: {bounded required change}
-
-## Summary
-- Addressed: {n}
-- Partial: {n}
-- Missing: {n}
-- Not verifiable: {n}
+Run a read-only Lite requirement review from the supplied context manifest.
+Treat requirements.direct as binding only when its source is available.
+Treat requirements.parentContext as context, never acceptance criteria.
+Use the manifest changedFiles and diffPath as the review boundary.
+Read unchanged code only for affected caller/consumer/event/state/config traces.
+Run no git commands and make no edits.
+Return compact, material-only requirement, behavior-preservation, collateral-impact, and finding records.
 ```
+
+Append only this dynamic tail, in this order:
+
+```text
+Context path: {absolute-context-path}
+Mode/role: {work-item|regression-only}
+Preflight path: {absolute-preflight-path}
+Preflight token: {token}
+```
+
+Dispatch with exact placeholder `Task(subagent_type="requirement-validator", prompt="...", description="...")` and runtime `opus / default`. Missing `Child Read: PASS {token}` invalidates the result.
+
+## Output Adaptation
+
+Map central output into the Lite report without widening claims:
+
+| Central record | Lite destination | Adaptation |
+|---|---|---|
+| Criteria Mapping | Requirement Evidence | `Unclear` -> `Not verifiable`; preserve evidence |
+| Behavior Deltas | Behavior Preservation and Collateral Impact | Preserve classification, base/new, trace, evidence, status |
+| Scope Assessment | Collateral Impact / Scope Drift | Keep parent/collateral separate from direct criteria |
+| Findings | Detailed Findings | Main agent re-verifies location and impact |
+| Summary counts | Reviewer Notes | Include only when useful for omissions/limits |
+
+The four behavior classes remain exact: `Direct requirement`, `Necessary collateral`, `Unrelated`, `Unclear`. The preservation states remain exact: `Preserved`, `Regressed`, `Unproven`. Never promote collateral behavior into a criterion, convert missing tests into a defect, or report a regression without exposed-path evidence.
+
+## Failure Handling
+
+- Preflight failure: record semantic dispatch failure; use no findings from the child.
+- Invalid/missing manifest field: record `Not verifiable`; do not fetch more work-item context.
+- Build failure/gap: still run this Requirement Validator after the branch gate allows review.
+- Token/cache counters: copy exposed non-negative integers; otherwise write exact `not exposed`.

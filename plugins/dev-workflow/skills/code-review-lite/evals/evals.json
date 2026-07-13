@@ -3,49 +3,76 @@
   "evals": [
     {
       "id": 1,
-      "prompt": "Run a lite review of seven Markdown files. The diff changes 500 lines and only corrects user-guide wording and links.",
-      "expected_output": "Select Docs Tiny, use zero child agents, review inline, and produce a self-describing .lite.md report.",
+      "prompt": "Quick-review a one-file, 42-line null-check fix in a private C# helper on branch US/418200-null-guard. The change touches no public API, schema, dependency, async lifecycle, persistent state, runtime configuration, authentication, or trust boundary. The approved repository build command is dotnet test src/Widget.Tests/Widget.Tests.csproj --no-restore.",
+      "expected_output": "Select Code Tiny, run branch and build checks as deterministic gates, use zero semantic children, review inline, and emit a valid v3 Lite report.",
       "expectations": [
-        "The profile is Docs Tiny because the change is documentation-only with no runtime effect; documentation size does not trigger child agents.",
-        "No Build Validator, Requirement Validator, or named specialist is dispatched.",
-        "The report records code-review-lite v2.2.0, copies known launch model and effort exactly into Main Runtime, records Branch Work Item Gate status, and explains skipped actors."
+        "The report selects Code Tiny only after recording one changed file, no more than 100 changed lines, Documentation Only false, and no risk or specialist trigger.",
+        "The branch check and the exact approved dotnet command run as deterministic processes; the build table contains one complete row for the repository and neither gate appears under Semantic Agents or Agent Usage.",
+        "Triggered and Agent Usage are both None because Code Tiny dispatches zero Requirement Validator or specialist children.",
+        "The report identifies code-review-lite v3.0.0 and passes scripts/verify_output.py with expected profile Code Tiny."
       ]
     },
     {
       "id": 2,
-      "prompt": "Quick-review a one-file 42-line null-check fix in a private helper. It changes no API, shared behavior, state, config, dependency, auth, schema, or async lifecycle.",
-      "expected_output": "Select Code Tiny, run one Build Validator for the repository, and have the main agent review code without other child reviewers.",
+      "prompt": "Lite-review six changed Python files implementing cancellation and cleanup for a background import worker. The branch and approved pytest build pass. The only specialist family is Performance. Requirements say cancellation must stop queued imports without losing the final progress event.",
+      "expected_output": "Select Lite and, after deterministic gates pass, launch the deep Requirement Validator and Performance Reviewer concurrently in isolated manifest context.",
       "expectations": [
-        "The profile is Code Tiny only after every Tiny risk exclusion is checked.",
-        "Exactly one dedicated Build Validator per repository is triggered with the active tool's fast runtime.",
-        "Branch Work Item Gate uses the Build Validator runtime, accepts branch IDs with optional text, treats prefix mismatch as WARN, then Requirement Validator and named specialists are skipped while the main agent performs the code review."
+        "The report selects Lite, records Performance Reviewer as the only specialist trigger, and contains one complete deterministic build row without listing a Build Validator agent.",
+        "Requirement Validator and Performance Reviewer are the only triggered semantic children and both have Agent Usage rows whose context mode is isolated manifest.",
+        "The workflow dispatches the two semantic lanes concurrently only after the branch and all build gates allow continuation.",
+        "Behavior Preservation and Collateral Impact maps the progress-event behavior through its caller, event, or state path and classifies it as Direct requirement, Necessary collateral, Unrelated, or Unclear with Preserved, Regressed, or Unproven status.",
+        "Every token/cache counter is a non-negative integer or exact not exposed, and Collateral Impact plus Scope Drift are reported explicitly."
       ]
     },
     {
       "id": 3,
-      "prompt": "Lite-review six changed files implementing cancellation and disposal for a background worker. No API, auth, schema, dependency, state, or config behavior changes.",
-      "expected_output": "Select Lite, run build and requirement validation, then one Performance Reviewer.",
+      "prompt": "Lite-review a five-file TypeScript retry change. The branch gate passes, but the approved npm test command exits 1 with two test failures. The only classified specialist would be Performance. Requirements say retries must remain capped at three and must preserve the existing failure event.",
+      "expected_output": "Preserve deterministic build-failure evidence, run only the mandatory Requirement Validator, skip the Performance specialist, and report the Critical build failure plus behavior evidence.",
       "expectations": [
-        "The profile is Lite because the change exceeds Tiny limits and triggers only Performance Reviewer.",
-        "One dedicated Build Validator per repository uses fast runtime and one dedicated Requirement Validator uses deep runtime.",
-        "Exactly one generic code-reviewer is triggered as Performance Reviewer with standard runtime after Branch Work Item Gate passes."
+        "The deterministic Build Gates table records FAIL, the exact approved command, numeric exit/errors/warnings, and bounded log/reason evidence; it is not represented as an agent.",
+        "Requirement Validator is the only triggered semantic child even though a Performance specialist was classified, and Agent Usage has exactly the matching Requirement Validator row.",
+        "The report records the build failure as Critical while still producing Requirement Evidence and Behavior Preservation and Collateral Impact from the requirement lane.",
+        "The specialist skip reason names build failure, and the report does not claim parallel specialist execution or build success."
       ]
     },
     {
       "id": 4,
-      "prompt": "Review an OAuth endpoint change that also modifies a public response schema and package lockfile.",
-      "expected_output": "Announce Security, Philosophy, and Standard triggers and route to code-review-pro without running the Lite pipeline.",
+      "prompt": "Review a three-file OAuth endpoint change that also modifies a public response schema and package lockfile. The diff is only 70 lines.",
+      "expected_output": "Reject Tiny eligibility, identify multiple specialist families, and route directly to code-review-pro without starting the Lite pipeline or writing a Lite report.",
       "expectations": [
-        "Tiny is rejected regardless of file or line count because auth, public schema, and dependency risks are present.",
-        "More than one named specialist is identified.",
-        "The skill announces escalation and routes to code-review-pro instead of dispatching Lite agents or writing a Lite report."
+        "Authentication or trust-boundary changes identify Security, public schema changes identify Philosophy, and the manifest or lockfile change identifies Standard regardless of the Tiny file and line thresholds.",
+        "Because more than one specialist family is present, the skill announces escalation and invokes code-review-pro.",
+        "No Lite deterministic gates, semantic children, context manifest, Agent Usage table, or .lite.md report are produced before escalation."
+      ]
+    },
+    {
+      "id": 5,
+      "prompt": "For the same passing Lite cancellation review, show the exact semantic-child dispatch plan for both Claude Code and Codex. Do not execute the review. Include only the stable contract and dynamic tail fields needed to prove context isolation and runtime routing.",
+      "expected_output": "Describe host-specific isolated dispatch with equivalent semantic roles: Claude named custom agents and Codex custom agent_type calls with fork_turns none.",
+      "expectations": [
+        "Claude uses the isolated Requirement Validator and code-reviewer named-agent mappings without preloading code-review-lite into the reviewer child.",
+        "Codex uses the custom requirement-validator and code-reviewer agent_type contract with fork_turns set to none; it does not silently fall back to inherited history or main-model routing.",
+        "Requirement Validator retains deep routing and the named specialist retains standard routing for each host.",
+        "Each prompt keeps stable instructions first and limits the dynamic tail to absolute context path, mode or role, preflight path, and preflight token; the full diff and requirements are not inlined."
+      ]
+    },
+    {
+      "id": 6,
+      "prompt": "Given a Lite review context manifest for a shared cache invalidation change, provide the compact Requirement Validator result. The direct requirement is to invalidate on dealer reassignment; callers also rely on unchanged expiry behavior. A regression test covers reassignment, but no evidence covers expiry. Return only material child records for orchestrator verification.",
+      "expected_output": "Return compact preflight, requirement, behavior-preservation, and material finding records without a general review narrative or invented collateral criteria.",
+      "expectations": [
+        "The child starts with Child Read PASS and the supplied preflight token, then returns only compact requirement coverage, behavior preservation, and material finding records.",
+        "Dealer-reassignment invalidation is evaluated as a Direct requirement with changed implementation evidence; expiry is classified as Necessary collateral rather than promoted into a new acceptance criterion.",
+        "Missing expiry proof is Unproven rather than automatically a defect, while any Regressed status requires a concrete caller, consumer, event, state, or config exposure path.",
+        "The output contains no git command, code edit, nested agent request, full-diff reproduction, or unrelated general-review commentary."
       ]
     }
   ],
   "non_goals": [
     "Replace code-review-pro for changes requiring multiple specialist families.",
-    "Publish review comments or modify Azure DevOps work items.",
+    "Publish review comments, update pull requests, or modify Azure DevOps work items.",
     "Fix reviewed code automatically.",
+    "Create a prompt cache, result cache, replay engine, or nested-agent workflow.",
     "Sync or install the skill into deployed tool directories."
   ]
 }

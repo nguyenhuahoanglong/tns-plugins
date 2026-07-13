@@ -1,7 +1,7 @@
 ---
 name: code-review-lite
-description: "Adaptive low-cost code review. Use for quick review, lite review, or pre-merge checks; classifies Tiny changes, dispatches risk-based agents, and escalates broad risk."
-version: 2.2.0
+description: "Adaptive low-cost code review. Use for quick review, lite review, or pre-merge checks; runs deterministic gates, isolated risk review, and escalates broad risk."
+version: 3.0.0
 ---
 
 # Code Review Lite
@@ -10,140 +10,92 @@ Run an adaptive review. Read `references/workflow.md` and `references/report-tem
 
 ## 1. Gather
 
-Resolve scope, repos, target branch, changed files, and full diff. Count:
+Resolve scope, repos, source/target, changed files, full diff, and exact approved build command per repo. Count files, additions plus deletions excluding headers, and risk families. User requirement text wins; otherwise fetch once with `ado_work_item.py context`, ask at most one skippable question after failure, and keep parent/design context non-binding.
 
-- files changed
-- changed lines = additions + deletions, excluding diff headers
-- risk families below
-- source branch for PR/branch scopes
-
-Fetch requirement context non-blockingly with:
-
-```text
-python <skill>/scripts/ado_work_item.py context [--pr {id}]
-```
-
-User requirement text wins. Ask at most one skippable requirement-context question after fetch failure. Enrich resolved work items with design-doc context via the repo `AGENTS.md` design-doc root (see `references/workflow.md`). For **PR-only** requests ("review PR {id}"), a resolvable PR is required: gate with `ado_work_item.py pr-required` and stop on a hard error (exit 4/2) rather than falling back to other scopes; for PR scope review the merge preview and prepare JS deps per `references/workflow.md`, recording `PR-Only` and `mergePreviewStrategy` in the report.
-
-Resolve one exact approved build command per repo from project instructions. Dependency installs happen only inside `prepare_worktree_deps.py` (frozen, lockfile-gated); child agents still never install.
+For an explicit PR-only request, require `ado_work_item.py pr-required` success and review its merge preview. Do not fall back to another scope. Follow `references/workflow.md` for merge-preview strategy, worktree safety, dependency preparation, and child-read preflight.
 
 ## 2. Classify
 
-`Tiny` requires both `<=3` files and `<=100` changed lines. It is ineligible when any changed behavior touches:
+`Tiny` requires `<=3` files, `<=100` changed lines, and no changed behavior involving shared/public API, schema/serialization/migration, auth/secrets/trust, dependencies/manifests/lockfiles, async/concurrency/lifecycle/background work, persistent/shared state, or runtime config/deployment/flags/environment.
 
-- shared behavior or public API
-- schema, serialization, or data migration
-- authentication, authorization, secrets, or trust boundaries
-- dependencies, package manifests, or lockfiles
-- async, concurrency, resource lifecycle, or background work
-- persistent/shared state
-- runtime configuration, deployment, feature flags, or environment behavior
+| Profile | Condition | Deterministic gates | Semantic children |
+|---|---|---|---|
+| Docs Tiny | Documentation-only, any size | Branch when applicable; no build | 0 |
+| Code Tiny | Tiny with code | Branch when applicable + build per repo | 0 |
+| Lite | Not Tiny; at most one specialist | Branch when applicable + build per repo | Requirement Validator + 0/1 specialist |
+| Escalate | More than one specialist | Route to `code-review-pro` | Lite pipeline does not run |
 
-Profiles:
-
-| Profile | Condition | Review actors |
-|---|---|---|
-| Docs Tiny | Documentation-only at any size | Main agent only; zero child agents |
-| Code Tiny | Tiny with code | Main agent + one Build Validator per repo |
-| Lite | Not Tiny and at most one specialist | Build Validator per repo + Requirement Validator + zero/one specialist |
-| Escalate | More than one specialist | Route to `code-review-pro`; do not run Lite pipeline |
-
-Documentation-only excludes executable code, tests, config, schema, manifests, lockfiles, scripts, and generated runtime assets.
+Documentation-only excludes executable code/tests, config, schema, manifests, lockfiles, scripts, and generated runtime assets.
 
 ## 3. Select Specialist
 
-Use same specialist triggers as Pro:
+Use the Pro triggers unchanged:
 
 | Reviewer | Trigger examples |
 |---|---|
-| Security | auth, authorization, secrets, crypto, untrusted input, trust boundary |
-| Performance | async/concurrency, lifecycle, query/loop hot paths, I/O, resource ownership |
-| Philosophy | shared behavior, public API/schema, state/config ownership, abstraction/coupling |
-| Standard | explicit project rule, new pattern/folder, build/config convention, exemplar divergence |
+| Security | auth, secrets, crypto, untrusted input, trust boundary |
+| Performance | async/concurrency, lifecycle, hot paths, I/O, resources |
+| Philosophy | shared/public API/schema, state/config ownership, coupling |
+| Standard | explicit project rule, new pattern/folder, build convention |
 
-One reviewer triggers one generic `code-reviewer` with that named role injected. Two or more reviewers trigger `code-review-pro`. Announce every trigger or escalation before dispatch.
+One family selects one `code-reviewer` named role. Two or more announce escalation and invoke `code-review-pro` without running Lite.
 
-## 4. Runtime and Visibility
+## 4. Prepare and Gate
 
-Use these exact child profiles:
+Create repo-local worktrees and run `prepare_worktree_deps.py` exactly as `references/workflow.md` specifies. Preserve lockfile-gated frozen installs and `JS-SKIPPED`; children never install dependencies.
 
-| Actor | Agent type | Model | Effort |
-|---|---|---|---|
-| Branch Work Item Gate | lightweight gate runner | `haiku / default` | configured |
-| Build Validator | `build-validator` | `haiku / default` | configured |
-| Requirement Validator | `requirement-validator` | `opus / default` | configured |
-| Named specialist | `code-reviewer` | `sonnet / default` | configured |
-
-Resolve the main runtime before classification: explicit launch/review metadata, then current host/session metadata, then a configured default only when confirmed active. Use `not exposed` only for an individual field that remains unavailable. Never replace a known model or effort with `not exposed`; Codex parent/orchestrator prompts must pass both values when the child cannot inspect launch settings.
-
-Before each dispatch announce:
+Branch and build gates are deterministic processes, never agents. For PR/branch scope run `branch_work_item_gate.py`; otherwise record `SKIPPED`. For each non-doc repo not marked `JS-SKIPPED`, run only:
 
 ```text
-Agent trigger: {actor} | Model/Effort: {runtime} | Reason: {risk/scope}
+python <skill>/scripts/build_gate.py --repo "{worktree}" --command "{approved-command}" --timeout-seconds {n} --log "{absolute-log}" --json
 ```
 
-Dispatch Build with `Task(subagent_type="build-validator", prompt="...", description="...")`, Requirement with `Task(subagent_type="requirement-validator", prompt="...", description="...")`, and named specialist with `Task(subagent_type="code-reviewer", prompt="...", description="...")`. Run Branch Work Item Gate with `python <skill>/scripts/branch_work_item_gate.py --scope-type {scopeType} --branch "{sourceBranch}" --repo "{repo}"`; record it with the Build Validator runtime.
+Run applicable branch and build gates concurrently. A branch `WARN` continues. A branch `FAIL` is Critical: wait for started gates, report their completed evidence, skip all semantic children, and stop. A code build `FAIL` is Critical; `NOT RUN (environment|timeout)` and `JS-SKIPPED ({reason})` are explicit gaps, not fabricated code failures.
 
-Create agent worktrees per repo at `.CodeReview/.worktrees/{safe-branch}`. Complete the child-read preflight in `references/workflow.md` before analysis. Child agents run no git commands.
+## 5. Create Lite Context
 
-## 5. Execute
+For Lite, write the compact `.CodeReview/.{safe-branch}.context.json` contract from `references/workflow.md`. Store the diff and requirements in files/manifest, not dispatch text. Put stable child instructions first and only context path, role/mode, and preflight values in the dynamic tail.
 
-### Docs Tiny
+Use semantic runtimes only:
 
-Run Branch Work Item Gate for PR/branch scope; skip it for staged, working, and file scope. If the gate fails, report the CRITICAL branch/work-item violation and stop. If it warns, record the warning and continue. Otherwise main agent reviews accuracy, consistency, links, commands, and requirement alignment. Spawn no other agents.
+| Child | Runtime | Dispatch |
+|---|---|---|
+| Requirement Validator | `opus / default` | `Task(subagent_type="requirement-validator", prompt="...", description="...")` |
+| Named specialist | `sonnet / default` | `Task(subagent_type="code-reviewer", prompt="...", description="...")` |
 
-### Code Tiny
+Before each semantic dispatch announce `Agent trigger: {child} | Model/Effort: {runtime} | Reason: {risk/scope}`. If a host rejects isolated custom-agent syntax, stop instead of inheriting the main context/runtime.
 
-Run Branch Work Item Gate and Build Validators in parallel. If the gate fails, write the report with completed build results and stop. If it warns, record the warning and continue. Otherwise main agent reviews changed code for correctness, regressions, security, performance, design, and standards. Do not spawn Requirement Validator or specialist.
+## 6. Execute
 
-### Lite
+- **Docs Tiny:** after branch pass/warn/skip, main agent checks accuracy, consistency, links, commands, and requirement alignment. Spawn zero semantic children.
+- **Code Tiny:** after gates pass/warn/skip, main agent reviews correctness, regressions, security, performance, design, and standards. Spawn zero semantic children.
+- **Lite, all builds pass/pass-with-warnings:** dispatch the mandatory Requirement Validator and the one selected specialist, if any, concurrently. Main agent verifies and synthesizes both.
+- **Lite, build fails:** dispatch only the mandatory Requirement Validator after branch pass/warn/skip; skip the specialist, then report the build failure and requirement result.
+- **Lite, build not run/JS-skipped:** dispatch the mandatory Requirement Validator; record the validation gap and specialist skip reason.
 
-1. Run Branch Work Item Gate and one Build Validator per repo in parallel.
-2. If Branch Work Item Gate fails, write the report with completed build results and stop; if it warns, record the warning and continue.
-3. Run one Requirement Validator even if build fails.
-4. On build failure, skip specialist to save tokens.
-5. Otherwise run the single triggered named specialist, if any.
-6. Main agent verifies and synthesizes findings.
+Use `references/agents/requirement-validator.md` as the Lite dispatch/output adapter. Do not inline the central agent methodology.
 
-## Requirement Evidence
+## Requirement and Collateral Evidence
 
-- Map each explicit requirement to `Addressed`, `Partial`, `Missing`, or `Not verifiable`.
-- `Addressed` needs changed-code evidence: `file:line` plus behavior explanation.
-- Tests support evidence but do not replace implementation evidence.
-- `Partial`/`Missing` must state searched scope and absent behavior.
-- Regression claims need caller, consumer, or execution-path evidence.
-- Never invent criteria; use user text, PR text, or fetched work item only.
+- Map direct requirements to `Addressed`, `Partial`, `Missing`, or `Not verifiable`; changed implementation at `file:line` is required for `Addressed`.
+- Classify each material behavior delta as `Direct requirement`, `Necessary collateral`, `Unrelated`, or `Unclear`; collateral never becomes a new criterion.
+- Record base-to-new behavior, affected caller/consumer/event/state/config paths, and tests or equivalent preservation evidence.
+- Mark missing proof `Unproven`; missing tests alone are not a defect. Regression findings require concrete exposed-path evidence.
 
-## 6. Report
+## 7. Report
 
-Write `.CodeReview/{safe-branch}.lite.md`. Include exact:
+Write `.CodeReview/{safe-branch}.lite.md` with skill `code-review-lite v3.0.0`. Separate Deterministic Gates from Semantic Agents. Agent Usage records context mode and input, cache-read, cache-write, and output tokens as a number or exact `not exposed`; never estimate.
 
-- skill: `code-review-lite`
-- version: `2.2.0`
-- profile: `Docs Tiny`, `Code Tiny`, or `Lite`
-- main runtime: `{resolved model} / {resolved effort}`
-- triggered actors with runtime profiles and reasons
-- skipped actors with reasons
-- Branch Work Item Gate status and evidence
+## Related Protocols
 
-Preserve the ADO autolink guard:
-
-```text
-python <code-review-publish-skill>/scripts/ado_autolink_guard.py fix ".CodeReview/{safe-branch}.lite.md"
-python <code-review-publish-skill>/scripts/ado_autolink_guard.py check ".CodeReview/{safe-branch}.lite.md"
-```
+Before responding to published-review feedback, read `references/feedback-reception.md`. For milestone review requests, see `references/requesting-review.md`.
 
 ## Verify Output
 
-Run before declaring completion:
+Run the ADO autolink fix/check commands in `references/report-template.md`, then:
 
 ```text
 python <skill>/scripts/verify_output.py ".CodeReview/{safe-branch}.lite.md"
 ```
 
-Then clean worktrees unconditionally. Keep the `.lite.md` report.
-
-## Related Protocols
-
-- Responding to feedback on a published review (from the user, a PR thread, or an external reviewer): reading `references/feedback-reception.md` is REQUIRED before acting. Core contract: verify before implementing, no performative agreement (`"You're absolutely right!"` is forbidden), push back on wrong findings with technical reasoning.
-- Requesting review from others (milestone triggers — after a major feature/task, before merging to main, after fixing complex bugs): see `references/requesting-review.md`.
+Clean verified worktrees unconditionally using `references/workflow.md`; keep the report.

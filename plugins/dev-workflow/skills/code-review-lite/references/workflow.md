@@ -1,146 +1,111 @@
 ---
 name: workflow
-description: Scope, classification, local worktree, child-read preflight, and cleanup workflow for code-review-lite
+description: Scope, deterministic gates, compact context, isolated dispatch, and cleanup for code-review-lite
 ---
 
 # Workflow
 
-## Scope and Diff
+## Scope and Requirements
 
-Resolve PR, branch, staged changes, or explicit files. Prefer PR metadata; fall back to git. Record source branch for PR/branch scope.
+Resolve PR, branch, staged, working, or explicit-file scope. Record source/target and write the full diff once to `.CodeReview/.{safe-branch}.diff`; sanitize branch separators, colon, and whitespace to `-`.
 
-When the request is PR-only ("review PR {id}" or explicit PR-only intent), a resolvable PR is required. Gate it with `python <skill>/scripts/ado_work_item.py pr-required --pr {id} --repo "{repo}"`: exit `0` proceeds in `pr` scope; exit `4` (PR not found) or `2` (az/auth unavailable) is a hard error — stop and report, do not fall back to branch/staged/working/files. Default (non-PR-only) reviews keep the existing fallbacks.
+For explicit PR-only intent, run `ado_work_item.py pr-required --pr {id} --repo "{repo}"`. Exit `4` or `2` is a hard stop; never fall back. Review the merge preview and record `server-merge`, `local-merge`, or `source-head`.
 
-Write the full diff once to:
+User requirements take priority. Otherwise run `ado_work_item.py context [--pr {id}] --repo "{repo}"` once. On exit `2/3`, check `.docs/ado-context.md`, then ask at most one skippable question. A matching parent/design excerpt enriches context only; it is never a direct criterion.
 
-```text
-.CodeReview/.{safe-branch}.diff
-```
+## Classification and Escalation
 
-Sanitize branch names by replacing `/`, `\`, `:`, and whitespace with `-`. Count changed lines as added plus deleted lines, excluding diff headers.
+Detect behavior risks before Tiny thresholds. Docs Tiny is documentation text with no runtime effect. Code Tiny is `<=3` files, `<=100` changed lines, and no elevated risk. Non-Tiny maps unchanged Security, Performance, Philosophy, and Standard triggers; more than one family routes directly to `code-review-pro`.
 
-For multi-repo work, keep one scope record per repo:
+## Safe Worktree and Merge Preview
 
-```text
-repo root | source | target | changed files | changed lines | diff path
-```
+For Code Tiny and Lite, use `{repo}/.CodeReview/.worktrees/{safe-branch}`. Resolve its absolute path and prove it remains under the repo-local worktree root before replace/remove. Do not nest a review worktree.
 
-## Requirement Context
+For committed branches, fetch and add `origin/{source}`. For PRs, always fetch first, then choose:
 
-User-provided requirement text has priority. Otherwise run once:
+1. Server merge: successful merge metadata/ref -> detached merge-ref worktree.
+2. Local merge: source worktree plus `git merge --no-ff --no-edit origin/{target}`; abort conflicts.
+3. Source HEAD: fallback when metadata/merge is unavailable.
 
-```text
-python <skill>/scripts/ado_work_item.py context [--pr {pr-id}] --repo "{repo}"
-```
+For staged/working scope, save a binary diff, add a detached `HEAD` worktree, apply it, and copy only explicitly scoped untracked files.
 
-Exit `0`: use returned context. Exit `2` or `3`: check `.docs/ado-context.md`, then ask at most one skippable question. Never block review or retry fetch.
+## JS Dependency Preparation
 
-When a work item resolves, enrich it with design-doc context: read the repo `AGENTS.md` for a declared design-doc root (`Design docs: <path>` or equivalent), use `.docs/ado-context.md` to map the parent Feature to its design-doc file(s), and pass the matching section to the Requirement Validator as elaboration of the AC. Treat it as context only, not new binding criteria; fall back to AC-only when no root is declared or no section matches. Never block on this.
-
-## Classification
-
-Classify from behavior, not filename alone.
-
-1. Detect risk flags before applying Tiny thresholds.
-2. Docs Tiny applies whenever every changed file is documentation text with no runtime effect, independent of size.
-3. Code Tiny requires `<=3` files, `<=100` changed lines, and zero elevated-risk flags.
-4. Remaining non-documentation changes are Lite or escalate.
-5. Non-Tiny changes map to Security, Performance, Philosophy, and Standard reviewers.
-6. More than one reviewer trigger routes to `code-review-pro`.
-
-Examples that are not docs-only: config examples consumed by tooling, generated schemas, package metadata, deployment YAML, executable snippets, and scripts.
-
-## Local Worktree
-
-Agent-backed profiles use one repo-local worktree per repo:
+Before the build gate, run:
 
 ```text
-{repo}/.CodeReview/.worktrees/{safe-branch}
+python <skill>/scripts/prepare_worktree_deps.py --worktree "{worktree}" --repo "{repo}" --diff "{diff-path}" --require-bin {build-tool} --json
 ```
 
-Resolve and verify the absolute path remains under `{repo}/.CodeReview/.worktrees/` before removing or replacing it.
+Allow ten minutes. Repeat `--require-bin` for every exact tool invoked by the approved build. The script may junction usable source dependencies or perform its lockfile-gated frozen install. Preserve `JS-SKIPPED (deps changed | no lockfile | install failed)` when it returns `skip-build`/`install-failed`; do not call `build_gate.py` for that JS row. No semantic child installs dependencies.
 
-For a committed branch:
+## Deterministic Gate Matrix
+
+| Flow | Gate execution | Stop/continue behavior |
+|---|---|---|
+| Docs Tiny | Branch only for PR/branch | FAIL -> report Critical and stop; WARN/PASS/SKIPPED -> main review |
+| Code Tiny | Branch + builds concurrently | Branch FAIL -> report completed gates and stop; otherwise main review |
+| Lite pass | Branch + builds concurrently | Branch allowed and all builds PASS/PASS WITH WARNINGS -> semantic lane |
+| Lite build fail | Branch + builds concurrently | Branch allowed; build FAIL -> Requirement only, report, stop |
+| Lite gap | Branch + builds concurrently | NOT RUN/JS-SKIPPED -> Requirement only; report gap |
+
+Branch command:
 
 ```text
-git fetch origin {source-branch}
-git worktree add "{worktree}" "origin/{source-branch}"
+python <skill>/scripts/branch_work_item_gate.py --scope-type {scopeType} --branch "{source}" --repo "{repo}"
 ```
 
-For PR scope, review the merge preview (source merged into target), not source HEAD. Resolve it with `python <skill>/scripts/ado_work_item.py merge-preview --pr {id} --repo "{repo}" --json`, then pick the first tier that works (always `git fetch` first):
-
-1. **Server merge** — `mergeStatus == succeeded` and `lastMergeCommit` set: fetch `refs/pull/{id}/merge` (or the SHA) and `git worktree add --detach "{worktree}" FETCH_HEAD`.
-2. **Local merge** — else worktree at `origin/{source-branch}`, then `git merge --no-ff --no-edit origin/{target-branch}`; on conflict `git merge --abort` and keep source HEAD.
-3. **Source HEAD** — when `az` is unavailable or the above fail: the committed-branch behavior above.
-
-Record `mergePreviewStrategy` (`server-merge | local-merge | source-head`) in the report. The reviewed commit changes, but the worktree root convention does not.
-
-For staged/working changes:
-
-1. Save a binary diff from `HEAD` to `.CodeReview/.{safe-branch}.working.diff`.
-2. Add a detached worktree at `HEAD`.
-3. Apply the saved diff in the worktree.
-4. Copy only explicitly scoped untracked files, preserving relative paths.
-
-Do not create a nested review worktree when already inside `.CodeReview/.worktrees/`.
-
-For repos with JS projects, after worktree add and before the Build Validator, run `python <skill>/scripts/prepare_worktree_deps.py --worktree "{worktree}" --repo "{repo}" --diff "{diff-path}" --require-bin {build-tool} --json` (allow up to a 10-minute command timeout — installs can take minutes). Pass `--require-bin` with the exact tool the approved build command invokes (e.g. `vite` for `npm run build:dev` → `vite build`, `tsc`, `webpack`, `react-scripts`, `vitest`); repeat the flag for multiple tools. This makes the source-deps health check tool-aware: a **production-only** source `node_modules` (populated `.bin` but missing the build tool, e.g. `vite` as a devDependency) is correctly judged unusable and re-installed, instead of junctioning a broken tree that then fails with "{tool} is not recognized". It junctions usable source `node_modules`, or performs a lockfile-gated frozen install in the worktree when source deps are missing/stale/tool-incomplete, or signals `skip-build` (`deps changed` / `no lockfile`). **Critical:** a project whose deps could not be made usable (`skip-build` or `install-failed`) gets build row `JS-SKIPPED ({reason})`, and the Build Validator must NOT be dispatched with that project's JS build command — an environment gap must never be reported as a build FAIL.
-
-## Child-Read Preflight
-
-Before dispatch, create `{worktree}/.code-review-preflight` containing a random review token. Include its absolute path and token in every child prompt.
-
-Each child must perform this first:
+Build command:
 
 ```text
-Read {absolute-preflight-path}.
-Return "Child Read: PASS {token}" before analysis.
-If missing, unreadable, or mismatched, return "Child Read: FAIL" and stop.
+python <skill>/scripts/build_gate.py --repo "{worktree}" --command "{approved-command}" --timeout-seconds {n} --log "{absolute-log}" --json
 ```
 
-Treat missing PASS as dispatch failure. Do not accept findings from a child that failed preflight.
+The branch gate validates optional-text `US|BUG|ISSUE/{id}` against ADO types User Story, Bug, or Issue. Staged/working/files record `SKIPPED`. Gate exit/status and the build JSON are deterministic evidence, not Agent Usage.
 
-## Dispatch Order
+## Compact Lite Context
 
-Announce each actor with reason and exact runtime profile before dispatch.
+After deterministic gates and before any Lite dispatch or report, write valid UTF-8 JSON to `.CodeReview/.{safe-branch}.context.json`. Docs/Code Tiny do not create it and report `Context Manifest: n/a`.
 
-- PR/branch scope: Branch Work Item Gate runs with `haiku / default` in parallel with first Build Validator:
-  `python <skill>/scripts/branch_work_item_gate.py --scope-type {scopeType} --branch "{sourceBranch}" --repo "{repo}"`
-- Staged, working, and files scope: run Branch Work Item Gate and record `SKIPPED`.
-- Branch Work Item Gate validates `{slug}/{work-item-id}` with optional `-{text}` and calls `az boards work-item show` to verify the ID exists and `System.WorkItemType` is `User Story`, `Bug`, or `Issue`.
-- Gate `WARN`: record the branch convention/type-prefix mismatch and continue review.
-- Gate `FAIL`: write a report with completed build results, record a Critical finding, skip Requirement Validator and specialists, and stop.
-- Docs Tiny: Branch Work Item Gate only when applicable; no other dispatch.
-- Code Tiny: Branch Work Item Gate plus Build Validators in parallel, one per repo.
-- Lite: Branch Work Item Gate plus Build Validators; Requirement Validator always after gate pass; optional single named specialist only after passing builds.
-- Escalation: announce triggered reviewers and invoke `code-review-pro` instead.
-
-Build failure skips specialist, but Requirement Validator still runs before synthesis.
-
-## Build-Fail Report
-
-Use `.CodeReview/{safe-branch}.lite.md` and include normal metadata plus:
-
-```markdown
-## Build Status
-
-| Repo | Status | Errors | Warnings |
-|---|---|---:|---:|
-| `{repo}` | FAIL | {count} | {count} |
-
-## Recommendation
-
-Fix build errors and rerun review. Requirement validation completed; specialist review skipped because build failed.
+```json
+{
+  "schemaVersion": "code-review-lite.context.v1",
+  "repo": "C:/absolute/repo",
+  "worktree": "C:/absolute/worktree",
+  "scope": {"type": "pr", "source": "US/123-x", "target": "main"},
+  "changedFiles": ["src/a.cs"],
+  "diffPath": "C:/repo/.CodeReview/.branch.diff",
+  "requirements": {"mode": "work-item|regression-only", "directSource": "user|PR|ADO|unavailable", "direct": "...", "parentContext": "..."},
+  "standardsPaths": ["C:/repo/AGENTS.md"],
+  "buildResults": [{"repo": "...", "status": "PASS", "command": "...", "exitCode": 0, "commandExitCode": 0, "totalErrorCount": 0, "totalWarningCount": 0, "reason": "...", "logPath": "..."}],
+  "preflight": {"path": "C:/worktree/.code-review-preflight", "token": "random-token"}
+}
 ```
+
+Paths must be absolute. `direct`/`parentContext` may be a compact string or absolute artifact path. Keep full diff out of dispatch prompts. Build records mirror `build_gate.py` status, command, both exit fields, counts, bounded diagnostics, reason, and log; JS-SKIPPED records use null `commandExitCode`, include `reason`, and invent no exit. The manifest is authoritative: report build rows must exactly match repo, status, command, command exit, counts, log, and reason.
+
+## Child Preflight and Isolated Dispatch
+
+Create `{worktree}/.code-review-preflight` with a random token. Each child reads it first and must return `Child Read: PASS {token}`; reject all output after FAIL/missing PASS.
+
+Keep the reusable contract before this exact dynamic tail:
+
+```text
+Read the supplied context manifest and preflight before analysis.
+For a specialist, use named-specialist output mode and only the named focus inside changedFiles/diffPath.
+Run no git commands, edits, nested agents, or general review outside that boundary.
+Return compact material-only records for orchestrator verification.
+```
+
+```text
+Context path: {absolute-context-path}
+Mode/role: {work-item|regression-only|specialist-role}
+Preflight path: {absolute-preflight-path}
+Preflight token: {token}
+```
+
+Use `Task(subagent_type="requirement-validator", prompt="...", description="...")` for the mandatory deep child and `Task(subagent_type="code-reviewer", prompt="...", description="...")` for the optional standard specialist. On passing builds, launch both concurrently; after build failure/gap, launch Requirement only. Semantic children run no git commands.
 
 ## Cleanup
 
-Run after report synthesis and verification, including failure paths:
-
-1. Verify each worktree path is under the expected repo-local worktree root.
-2. Remove `node_modules` junctions from the verified worktree **before** removing it, so `git worktree remove` cannot recurse into a junction and delete the source repo's real `node_modules`: `python <skill>/scripts/prepare_worktree_deps.py --teardown --worktree "{worktree}"`.
-3. Remove worktrees with `git worktree remove --force "{worktree}"`.
-4. Remove only temporary preflight and diff artifacts.
-5. Keep `.CodeReview/{safe-branch}.lite.md`.
-
-Never remove `.CodeReview/` recursively.
+On every exit path: verify worktree containment; run `prepare_worktree_deps.py --teardown --worktree "{worktree}"` before removal; remove worktrees with `git worktree remove --force`; remove only temporary preflight/diff/context artifacts. Keep `.CodeReview/{safe-branch}.lite.md`; never recursively remove `.CodeReview/`.
