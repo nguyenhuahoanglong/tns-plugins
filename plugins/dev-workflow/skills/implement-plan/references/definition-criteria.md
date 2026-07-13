@@ -42,7 +42,7 @@ checklist drives three things:
 
 Tasks with no meaningful unit test (config, infra, pure UI/style) get a **build, manual, or static
 gate** instead. Don't invent low-value tests to satisfy the TDD step. Code review remains controlled
-only by the independent `Code review` preference and is never enabled as a fallback.
+only by independent `Code review: selected|skipped` decision and is never enabled as a fallback.
 
 ## Interview tie-in
 

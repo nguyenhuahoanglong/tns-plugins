@@ -29,15 +29,17 @@ turns out to be built on a stale assumption.
 
 ## Quick assessment (30 seconds)
 
-1. **Can I name specific files for every change?** If no → the design isn't locked; go back to Phase 0.
-2. **Does every task have a "Done when"?** If no → not ready (see `definition-criteria.md`).
-3. **Is the scope manageable?** ≤9 files → dispatch normally; 10+ → dependency-ordered batches.
-4. **Has every task passed the Actionability Gate?** If no → not ready (see below).
-5. **Type-consistency:** does every symbol mentioned in more than one task have the identical name
+1. **Quality decisions resolved?** Apply `quality-assessment.md`; ask only evidence gaps/conflicts.
+2. **Can I name specific files for every change?** If no → return to Phase 0.
+3. **Does every task have a "Done when"?** If no → not ready (see `definition-criteria.md`).
+4. **Is scope manageable?** ≤9 files → normal dispatch; 10+ → dependency-ordered batches.
+5. **Has every task passed the Actionability Gate?** If no → not ready (see below).
+6. **Type-consistency:** does every symbol mentioned in more than one task have the identical name
    and signature everywhere? (`clearLayers()` in Task 3 vs `clearFullLayers()` in Task 7 is a plan
    bug.) If no → fix the mismatched task(s) before writing the plan.
-6. **Placeholder scan:** search the draft for "TBD", "TODO", "appropriate", or "similar to Task N".
+7. **Placeholder scan:** search draft for "TBD", "TODO", "appropriate", or "similar to Task N".
    Any hit fails the check — resolve it before writing the plan.
+8. **Output contract:** run `scripts/verify_output.py` before approval.
 
 ## Per-task Actionability Gate
 
@@ -106,7 +108,7 @@ Record `Depends on` per task. The dispatch in Phase 2 parallelizes within an ind
 A clear model you can write straight into `plan-template.md`:
 1. **Task list** — each with files, description, "Done when", ACs (plus a Definition of Done in TDD depth).
 2. **Dependency graph** — which tasks parallelize, which sequence.
-3. **Agent count** — per the Phase 1.3 auto-scale table.
+3. **Agent count** — per auto-scale contract in `SKILL.md`.
 
 This drives implementation and verification. It lives in the plan file, not just your context — and
 nothing is built until the user approves it at the Approval Gate.

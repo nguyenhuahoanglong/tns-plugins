@@ -18,9 +18,14 @@ Generates best-practice unit and component tests for the team's stacks — C# (.
 - **Scope = unit + component only.** E2E/Playwright stays in `qa-engineer`/`browser-skill` to prevent duplication.
 - **Legacy = characterization (golden master), Feathers' method.** Chosen over pure snapshot testing as the primary path; snapshots offered as a faster variant for complex output.
 - **Stack references grounded against current docs:** FakeXrmEasy v3 (`MiddlewareBuilder`, license required), FluentAssertions v8 licensing caveat, MSW v2 `http` API, userEvent v14, PCF `ComponentFramework-Mock` helper.
-- Integrates with `implement-plan` only when the user selects unit-test writing during its planning interview.
+- Integrates with `implement-plan` when unit tests are selected by explicit user choice or Phase 0
+  project quality assessment. Ambiguous evidence still asks user before plan writing.
 
 ## Changelog
+
+### 2026-07-12 - Implement-plan quality assessment
+- Clarified unit-test generation may be selected automatically from target-project evidence; explicit
+  user choices still override assessment.
 
 ### 2026-07-11 - Explicit implement-plan opt-in
 - Clarified that `implement-plan` invokes unit-test generation only after user selects it during planning.
