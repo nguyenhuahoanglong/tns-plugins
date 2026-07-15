@@ -20,13 +20,14 @@ REQUIRED_SECTIONS = (
     "existing flow",
     "touchpoint matrix",
     "runtime readiness",
-    "test coverage matrix",
+    "testing decision",
 )
 
 TABLE_COLUMNS = {
     "requirements": ("requirement id", "requirement", "required coverage"),
     "touchpoint matrix": ("requirement ids", "path", "symbol", "action", "justification"),
     "runtime readiness": ("concern", "decision", "verification", "evidence path", "evidence symbol"),
+    "testing decision": ("decision", "rationale", "verification"),
     "test coverage matrix": (
         "requirement id",
         "test path",
@@ -316,57 +317,78 @@ def evaluate(project_root: str | Path, design_path: str | Path) -> list[tuple[st
     if readiness and not any(word in production_text for word in ("reject", "disabled", "blocked", "not registered", "cannot")):
         results.append(("FAIL", "runtime readiness: production isolation must explicitly block mock activation"))
 
-    mapped_coverage: dict[str, set[str]] = {requirement_id: set() for requirement_id in requirements}
-    categories: set[str] = set()
-    test_paths: set[Path] = set()
-    for row in tables.get("test coverage matrix", []):
-        requirement_id = row["requirement id"].strip().upper()
-        category = _normal(row["category"])
-        state = _normal(row["initial state"])
-        categories.add(category)
-        resolved, error = _project_file(root, row["test path"])
-        valid_test_evidence = False
-        if error:
-            results.append(("FAIL", f"test coverage: {error}"))
-        elif resolved:
-            if not _is_test_source(resolved):
-                results.append(("FAIL", f"test coverage {requirement_id}: path is not eligible test source: {row['test path']}"))
-            elif not _has_symbol(resolved, row["test name"]):
-                results.append(("FAIL", f"test coverage {requirement_id}: test name not found: {row['test name']}"))
-            else:
-                valid_test_evidence = True
-                test_paths.add(resolved)
-        if _placeholder(row["test name"]) or not _tokens(row["coverage"]):
-            results.append(("FAIL", f"test coverage {requirement_id}: test name and coverage are required"))
-        if category not in {"readiness", "completion"}:
-            results.append(("FAIL", f"test coverage {requirement_id}: invalid category '{row['category']}'"))
-            continue
-        expected_state = "green" if category == "readiness" else "red"
-        if state != expected_state:
-            results.append(("FAIL", f"test coverage {requirement_id}: {category} test must start {expected_state}"))
-        if category == "completion":
-            if requirement_id not in requirements:
-                results.append(("FAIL", f"completion test maps unknown requirement id: {requirement_id}"))
-            elif valid_test_evidence:
-                mapped_coverage[requirement_id].update(_tokens(row["coverage"]))
+    decision_rows = tables.get("testing decision", [])
+    testing_decision = ""
+    if len(decision_rows) != 1:
+        results.append(("FAIL", "testing decision: table must contain exactly one row"))
+    else:
+        decision_row = decision_rows[0]
+        testing_decision = _normal(decision_row["decision"])
+        if testing_decision not in {"selected", "skipped"}:
+            results.append(("FAIL", "testing decision must be 'selected' or 'skipped'"))
+        if _placeholder(decision_row["rationale"]) or _placeholder(decision_row["verification"]):
+            results.append(("FAIL", "testing decision needs rationale and verification"))
 
-    for category in ("readiness", "completion"):
-        if category not in categories:
-            results.append(("FAIL", f"test coverage matrix has no {category} tests"))
+    has_test_matrix = "test coverage matrix" in sections
+    if testing_decision == "selected" and not has_test_matrix:
+        results.append(("FAIL", "selected testing requires ## Test Coverage Matrix"))
+    elif testing_decision == "skipped" and has_test_matrix:
+        results.append(("FAIL", "skipped testing must omit ## Test Coverage Matrix"))
+    elif testing_decision:
+        results.append(("PASS", f"testing explicitly {testing_decision}"))
 
-    for requirement_id, required in requirements.items():
-        missing_coverage = sorted(required - mapped_coverage[requirement_id])
-        if missing_coverage:
-            results.append(("FAIL", f"requirement {requirement_id}: missing completion coverage: {', '.join(missing_coverage)}"))
+    if testing_decision == "selected" and has_test_matrix:
+        mapped_coverage: dict[str, set[str]] = {requirement_id: set() for requirement_id in requirements}
+        categories: set[str] = set()
+        test_paths: set[Path] = set()
+        for row in tables.get("test coverage matrix", []):
+            requirement_id = row["requirement id"].strip().upper()
+            category = _normal(row["category"])
+            state = _normal(row["initial state"])
+            categories.add(category)
+            resolved, error = _project_file(root, row["test path"])
+            valid_test_evidence = False
+            if error:
+                results.append(("FAIL", f"test coverage: {error}"))
+            elif resolved:
+                if not _is_test_source(resolved):
+                    results.append(("FAIL", f"test coverage {requirement_id}: path is not eligible test source: {row['test path']}"))
+                elif not _has_symbol(resolved, row["test name"]):
+                    results.append(("FAIL", f"test coverage {requirement_id}: test name not found: {row['test name']}"))
+                else:
+                    valid_test_evidence = True
+                    test_paths.add(resolved)
+            if _placeholder(row["test name"]) or not _tokens(row["coverage"]):
+                results.append(("FAIL", f"test coverage {requirement_id}: test name and coverage are required"))
+            if category not in {"readiness", "completion"}:
+                results.append(("FAIL", f"test coverage {requirement_id}: invalid category '{row['category']}'"))
+                continue
+            expected_state = "green" if category == "readiness" else "red"
+            if state != expected_state:
+                results.append(("FAIL", f"test coverage {requirement_id}: {category} test must start {expected_state}"))
+            if category == "completion":
+                if requirement_id not in requirements:
+                    results.append(("FAIL", f"completion test maps unknown requirement id: {requirement_id}"))
+                elif valid_test_evidence:
+                    mapped_coverage[requirement_id].update(_tokens(row["coverage"]))
 
-    for path in sorted(test_paths):
-        if _scan(path, SKIP_PATTERNS):
-            results.append(("FAIL", f"test file contains skip/inconclusive marker: {path.relative_to(root)}"))
+        for category in ("readiness", "completion"):
+            if category not in categories:
+                results.append(("FAIL", f"test coverage matrix has no {category} tests"))
 
-    if requirements and not any(level == "FAIL" and ("requirement " in message or "completion test" in message or "test coverage" in message) for level, message in results):
-        results.append(("PASS", "all requirements map to completion-test coverage"))
-    if categories == {"readiness", "completion"}:
-        results.append(("PASS", "readiness and completion tests are classified"))
+        for requirement_id, required in requirements.items():
+            missing_coverage = sorted(required - mapped_coverage[requirement_id])
+            if missing_coverage:
+                results.append(("FAIL", f"requirement {requirement_id}: missing completion coverage: {', '.join(missing_coverage)}"))
+
+        for path in sorted(test_paths):
+            if _scan(path, SKIP_PATTERNS):
+                results.append(("FAIL", f"test file contains skip/inconclusive marker: {path.relative_to(root)}"))
+
+        if requirements and not any(level == "FAIL" and ("requirement " in message or "completion test" in message or "test coverage" in message) for level, message in results):
+            results.append(("PASS", "all requirements map to completion-test coverage"))
+        if categories == {"readiness", "completion"}:
+            results.append(("PASS", "readiness and completion tests are classified"))
 
     return results
 

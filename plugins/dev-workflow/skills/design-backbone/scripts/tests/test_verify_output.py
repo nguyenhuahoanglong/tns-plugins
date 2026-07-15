@@ -43,6 +43,12 @@ DESIGN = """# Order Backbone
 | production isolation | Production startup rejects mock registration | Assert startup rejection | src/Workflow.cs | RejectProductionMock |
 | end-to-end workflow | Run through final order result | Assert final result emitted | src/Workflow.cs | Execute |
 
+## Testing Decision
+
+| Decision | Rationale | Verification |
+|---|---|---|
+| selected | User requested spec-first tests | Run readiness and completion suites |
+
 ## Test Coverage Matrix
 
 | Requirement ID | Test Path | Test Name | Category | Initial State | Coverage |
@@ -50,6 +56,11 @@ DESIGN = """# Order Backbone
 | READINESS | tests/WorkflowTests.cs | LocalWorkflowRuns | readiness | green | happy |
 | REQ-1 | tests/WorkflowTests.cs | CompletesOrder | completion | red | happy |
 """
+
+SKIPPED_DESIGN = DESIGN.replace(
+    "| selected | User requested spec-first tests | Run readiness and completion suites |",
+    "| skipped | User chose build and local workflow verification | Build and run local happy path |",
+).split("\n## Test Coverage Matrix", 1)[0] + "\n"
 
 
 CS_SOURCE = """public sealed class OrderWorkflow {
@@ -122,6 +133,37 @@ def _failures(root: Path, design: Path) -> list[str]:
 def test_valid_backbone_passes(tmp_path: Path) -> None:
     root, design = _project(tmp_path)
     assert _failures(root, design) == []
+
+
+def test_skipped_tests_pass_without_matrix_or_test_files(tmp_path: Path) -> None:
+    root, design = _project(tmp_path)
+    design.write_text(SKIPPED_DESIGN, encoding="utf-8")
+    (root / "tests" / "WorkflowTests.cs").unlink()
+    assert _failures(root, design) == []
+
+
+def test_selected_tests_require_test_matrix(tmp_path: Path) -> None:
+    root, design = _project(tmp_path)
+    design.write_text(DESIGN.split("\n## Test Coverage Matrix", 1)[0] + "\n", encoding="utf-8")
+    assert any("selected testing requires" in failure for failure in _failures(root, design))
+
+
+def test_skipped_tests_reject_test_matrix(tmp_path: Path) -> None:
+    root, design = _project(tmp_path)
+    design.write_text(
+        DESIGN.replace(
+            "| selected | User requested spec-first tests | Run readiness and completion suites |",
+            "| skipped | User chose workflow verification | Build and run local happy path |",
+        ),
+        encoding="utf-8",
+    )
+    assert any("skipped testing must omit" in failure for failure in _failures(root, design))
+
+
+def test_invalid_testing_decision_fails(tmp_path: Path) -> None:
+    root, design = _project(tmp_path)
+    design.write_text(DESIGN.replace("| selected | User requested", "| optional | User requested"), encoding="utf-8")
+    assert any("must be 'selected' or 'skipped'" in failure for failure in _failures(root, design))
 
 
 @pytest.mark.parametrize(

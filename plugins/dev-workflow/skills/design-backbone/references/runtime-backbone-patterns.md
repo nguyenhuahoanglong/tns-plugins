@@ -1,32 +1,40 @@
 # Runtime Backbone Patterns
 
-Backbone must execute complete local workflow without detail business logic. Use existing project composition and test patterns first; examples below show constraints, not required APIs.
+Backbone must execute complete local workflow without junior-owned detail business logic. Use existing project composition patterns first; examples below show constraints, not required APIs.
 
 ## Separate orchestration from missing detail
 
-Implement workflow control, dependency calls, and data handoff needed to reach final step. Put unfinished detail behind narrow existing or approved seams. Local providers return deterministic, contract-valid results so downstream steps execute.
+Implement workflow control, dependency calls, and data handoff needed to reach final step. Put unfinished detail behind narrow existing or approved methods. Those backbone methods may return deterministic, contract-valid hardcoded expected values so downstream steps execute.
+
+Keep junior-action comments concise and outcome-focused:
+
+```text
+TODO(junior): Replace local-backbone value. Expected result: normalized partner code required by invoice routing. Preserve case-insensitive matching decision.
+return "abc"
+```
+
+State expected behavior, business requirement, or key design decision. Do not prescribe algorithm, helper structure, or line-by-line implementation.
 
 Do not use:
 
 - `NotImplementedException`, `NotImplementedError`, or `throw new Error("Not implemented")`;
 - unconditional empty/default returns that make later steps unreachable;
-- skipped tests as placeholders;
 - production code that silently selects mocks from machine name, debugger state, or missing credentials.
 
-## Explicit local-only provider selection
+## Explicit local-only selection
 
-Select mocks through explicit development/backbone configuration. Validate environment during composition.
+Select hardcoded backbone behavior through explicit development/backbone configuration. Validate environment during composition.
 
 ```text
 if mode == LocalBackbone and environment == Development:
-    register deterministic local provider
+    register or enable deterministic backbone methods
 else if mode == LocalBackbone:
     fail startup
 else:
-    register production provider
+    register production behavior
 ```
 
-Match repository conventions: .NET options/DI, Python dependency factories/fixtures, or TypeScript composition/config modules. Keep guard at composition boundary so business code cannot accidentally choose mock behavior.
+Match repository conventions: .NET options/DI, Python dependency factories, or TypeScript composition/config modules. Keep guard at composition boundary so business code cannot accidentally choose hardcoded behavior. A separate mock provider is optional; prefer existing seams and minimal code.
 
 ## Deterministic mock data
 
@@ -38,9 +46,15 @@ Mock outputs must:
 - avoid network, database, clock, random, and machine-state dependencies;
 - make failures diagnosable through named fixtures or scenarios.
 
-Prefer reusable fixture builders already present. Add minimal local provider only when no existing fake/test host can run the workflow.
+Prefer direct, readable hardcoded returns inside approved local-backbone seams. Add a provider only when existing architecture already requires one.
 
-## Readiness versus completion tests
+## Optional testing
+
+Ask user to select or skip tests during design. Do not infer selection from project conventions.
+
+When skipped, require project build plus complete real local happy-path execution. Create no test matrix, registry, or test code.
+
+When selected, invoke `unit-testing` in spec-first mode and follow its review gate. Then apply these states:
 
 **Readiness tests — green at handoff**
 
@@ -58,7 +72,7 @@ Prefer reusable fixture builders already present. Add minimal local provider onl
 - failure comes from missing detail behavior asserted by test;
 - no skip, import, setup, fixture, compilation, or infrastructure failure.
 
-Use `unit-testing` in spec-first mode to create completion tests. Junior developer changes production detail logic, not test expectations, unless senior approves a design change.
+Junior developer changes production detail logic, not test expectations, unless senior approves a design change.
 
 ## Backbone design document contract
 
@@ -68,8 +82,8 @@ Use exact section and table names documented in `SKILL.md`. Keep paths project-r
 - every requirement maps to a known runtime touchpoint;
 - eligible runtime touchpoint path/symbol existence, permitted actions, and justification for `extract`/`new`;
 - required runtime-readiness concerns, mock isolation wording, and eligible runtime/config evidence path/symbol existence;
-- complete requirement-to-completion-test coverage and project-native test path/name existence;
-- readiness `green` and completion `red` classification;
-- obvious skipped-test markers.
+- explicit `selected` or `skipped` testing decision;
+- when selected, complete requirement-to-completion-test coverage, project-native test path/name existence, readiness `green`, completion `red`, and no obvious skip markers;
+- when skipped, absence of contradictory test matrix.
 
-These are static checks. They do not prove build, workflow, or test execution. Run project-native build and test commands separately and record actual output.
+These are static checks. They do not prove build, workflow, or test execution. Run project-native build and local workflow commands separately; run test commands only when selected. Record actual output.

@@ -111,7 +111,7 @@ Re-read code for every resolved Must Fix. Carry untouched findings forward. Remo
 
 Initial reviews use the same schema with `reviewKind: initial` and `iteration: 1`. `reviewProfile` records the profile used for that iteration.
 
-The four fields `prOnlyMode`, `prMergePreview`, `mergePreviewStrategy`, and `jsDepsStrategy` are additive at `recordVersion: 2`; existing follow-up reviews that pre-date v2.1.0 should be treated as missing these fields and a fresh full-scope review should be run. `scopeBase` and `diffFingerprint` semantics are unchanged by merge preview â€” the fingerprint is still computed over the normalized `{scopeBase}..HEAD` diff.
+The four fields `prOnlyMode`, `prMergePreview`, `mergePreviewStrategy`, and `jsDepsStrategy` are additive at `recordVersion: 2`; existing follow-up reviews that pre-date v2.1.0 should be treated as missing these fields and a fresh full-scope review should be run. `scopeBase` and `diffFingerprint` semantics are unchanged by merge preview — the fingerprint is still computed over the normalized `{scopeBase}..HEAD` diff.
 
 ## Finish
 
