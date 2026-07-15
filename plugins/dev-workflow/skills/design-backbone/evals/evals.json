@@ -1,0 +1,65 @@
+{
+  "skill_name": "design-backbone",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Use the approved order-export design to prepare a backbone that a junior can finish. Existing application already exports invoices through a scheduled worker.",
+      "expected_output": "Interviews on unresolved workflow boundaries, traces the scheduled worker and existing export ownership, proposes reuse-first touchpoints and tests, waits for plan approval, then creates a complete locally runnable workflow with deterministic local-only data.",
+      "expectations": [
+        "Reads the design and project instructions before proposing code",
+        "Traces existing worker, callers, services, adapters, DI/config, and tests",
+        "Justifies every extract or new touchpoint against existing ownership",
+        "Presents flow, touchpoint, mock, and test plan and waits for explicit approval",
+        "Runs full local workflow without NotImplemented placeholders",
+        "Creates green readiness tests and executable RED completion tests mapped to design requirements"
+      ],
+      "non_goals": [
+        "Creating a parallel export pipeline because new files are easier",
+        "Implementing final export business rules",
+        "Committing or opening a pull request"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "Create a design backbone for work item 1461. Local developers cannot call the partner API, but every later workflow step must run.",
+      "expected_output": "Fetches the work item, interviews to lock contracts and observable completion, finds existing partner adapter and composition seams, then designs an explicit local-only deterministic provider that cannot load in production.",
+      "expectations": [
+        "Uses azdevops-operations to resolve the work item instead of guessing",
+        "Confirms requirement and approach decisions before repository design",
+        "Reuses the existing adapter contract or provides evidence for changing it",
+        "Includes real entrypoint and dependency wiring in the approved plan",
+        "Rejects local mock registration outside development/backbone mode",
+        "Tests full local execution plus production mock isolation"
+      ],
+      "non_goals": [
+        "Calling the real partner API from local verification",
+        "Selecting mocks implicitly from missing credentials",
+        "Leaving downstream steps unreachable"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "Senior-design a backbone for a pricing workflow. Requirement document describes happy path, rounding, missing-rate, and retry behavior, but repository has multiple pricing services.",
+      "expected_output": "Interviews to disambiguate ownership and runtime boundary, traces all pricing callers and implementations, recommends one responsibility owner, maps every design scenario to executable completion tests, and limits backbone code to orchestration and deterministic local data.",
+      "expectations": [
+        "Does not choose a pricing service from naming alone",
+        "Builds a responsibility-owner map and detects duplicate or wrong-direction proposals",
+        "Maps happy path and every documented edge/error behavior to completion tests",
+        "Keeps readiness tests green and verifies completion-test RED failures come only from missing detail behavior",
+        "Leaves rounding, missing-rate, and retry decision logic for junior implementation"
+      ],
+      "non_goals": [
+        "Adding a new pricing service without rejected reuse alternatives",
+        "Skipping completion tests",
+        "Writing detail pricing behavior"
+      ]
+    }
+  ],
+  "non_goals": [
+    "Replacing requirement interviews with silent assumptions",
+    "Treating backbone as automatic file or method creation",
+    "Writing detail business logic",
+    "Allowing mocks in production runtime",
+    "Committing, reviewing, or publishing changes without separate request"
+  ]
+}

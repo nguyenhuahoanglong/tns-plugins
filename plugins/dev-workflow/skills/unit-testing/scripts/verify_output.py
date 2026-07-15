@@ -14,9 +14,14 @@ Checks (mirror evals/evals.json expectations):
      it may live in the QA report rather than the test file).
   5. (optional, --existing) Generated test names don't duplicate existing tests
      — so the suite is maintained in place instead of accreting duplicates.
+  6. (optional, --test-cases) Traceability against the test-case registry
+     ({design-doc}.test-cases.md): every TC-NNN referenced in tests exists in the
+     registry (FAIL on unknown IDs), every registry case has a referencing test
+     (WARN if pending), and test files cite the registry in a header (WARN).
 
 Usage:
     verify_output.py <test-file-or-dir> [--existing <existing-tests-dir>]
+                     [--test-cases <registry.md>]
 
 Exit codes: 0 = no FAIL, 1 = at least one FAIL.
 """
@@ -40,8 +45,10 @@ _PLACEHOLDER_NAMES = re.compile(
     re.IGNORECASE,
 )
 _MAPPING_HINTS = re.compile(
-    r"(REQ-\d|AC-\d|requirement|characterization|acceptance criteri)", re.IGNORECASE
+    r"(REQ-\d|AC-\d|TC-\d|requirement|characterization|acceptance criteri)", re.IGNORECASE
 )
+_TC_ID = re.compile(r"\bTC-\d{3,}\b")
+_REGISTRY_HEADER_HINT = re.compile(r"test.cases", re.IGNORECASE)
 
 
 def _collect_test_files(path: Path) -> list[Path]:
@@ -81,7 +88,55 @@ def _extract_test_names(text: str) -> set[str]:
     return names
 
 
-def evaluate(output_path, existing_path=None):
+def _registry_tc_ids(registry_text: str) -> set[str]:
+    """TC IDs declared as registry rows: markdown table lines like '| TC-001 | ...'."""
+    ids: set[str] = set()
+    for line in registry_text.splitlines():
+        m = re.match(r"^\|\s*(TC-\d{3,})\s*\|", line.strip())
+        if m:
+            ids.add(m.group(1))
+    return ids
+
+
+def _check_test_cases(files, blob, registry_path) -> list:
+    """Traceability checks against the test-case registry (test-case-management.md)."""
+    results = []
+    rp = Path(registry_path)
+    if not rp.exists():
+        results.append(("FAIL", f"--test-cases registry not found: {rp}"))
+        return results
+
+    registry_ids = _registry_tc_ids(rp.read_text(encoding="utf-8", errors="ignore"))
+    if not registry_ids:
+        results.append(("FAIL", f"no 'TC-NNN' table rows found in registry: {rp}"))
+        return results
+
+    referenced = set(_TC_ID.findall(blob))
+
+    unknown = sorted(referenced - registry_ids)
+    results.append(("FAIL" if unknown else "PASS",
+                    f"tests reference TC id(s) missing from the registry: {', '.join(unknown)}"
+                    if unknown else "all TC ids referenced in tests exist in the registry"))
+
+    uncovered = sorted(registry_ids - referenced)
+    results.append(("WARN" if uncovered else "PASS",
+                    f"{len(uncovered)} registry case(s) not referenced by any test "
+                    f"(pending or a gap): {', '.join(uncovered[:8])}"
+                    f"{' ...' if len(uncovered) > 8 else ''}"
+                    if uncovered else "every registry test case is referenced by a test"))
+
+    missing_header = [f.name for f in files
+                      if not _REGISTRY_HEADER_HINT.search(
+                          f.read_text(encoding="utf-8", errors="ignore")[:500])]
+    results.append(("WARN" if missing_header else "PASS",
+                    "test file(s) missing the registry header comment "
+                    f"('Test cases: ...'): {', '.join(missing_header[:8])}"
+                    if missing_header else "all test files cite the test-case registry"))
+
+    return results
+
+
+def evaluate(output_path, existing_path=None, test_cases_path=None):
     results = []
     p = Path(output_path)
 
@@ -135,6 +190,10 @@ def evaluate(output_path, existing_path=None):
             else:
                 results.append(("PASS", "no test-name collisions with existing tests"))
 
+    # Traceability check (Step 7): tests <-> test-case registry.
+    if test_cases_path:
+        results.extend(_check_test_cases(files, blob, test_cases_path))
+
     return results
 
 
@@ -162,9 +221,12 @@ def main(argv=None):
                         help="Path to the generated test file or directory")
     parser.add_argument("--existing", default=None,
                         help="Path to pre-existing tests; warns on duplicate test names")
+    parser.add_argument("--test-cases", default=None,
+                        help="Path to the {design-doc}.test-cases.md registry; "
+                             "verifies TC-id traceability between tests and registry")
     args = parser.parse_args(argv)
 
-    results = evaluate(args.output_path, args.existing)
+    results = evaluate(args.output_path, args.existing, args.test_cases)
     text, fails = report("unit-testing", results)
     print(text)
     return 1 if fails else 0

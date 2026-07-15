@@ -61,7 +61,9 @@ config edits, or installs. After approval: execute continuously until blocked or
 
 - TDD only: main agent writes compiling signatures/stubs with no logic; dispatch `qa-engineer` via
   `unit-testing` to create tests that fail for expected missing behavior. Compile/import errors are
-  invalid red. `Unit tests: skipped` creates no new test files.
+  invalid red. `Unit tests: skipped` creates no new test files. Plan approval satisfies the
+  `unit-testing` test-case-list gate; tests still carry that skill's QA traceability headers
+  (TC id, summary, steps, plan/design ref).
 - Dispatch `code-implementer` tasks in Agent Assignment dependency order using
   `references/agent-prompts-implementation.md`. Record task base SHA before dispatch.
 - After each return, inspect `git diff <base>..HEAD`, verify Done-when evidence, and confirm file

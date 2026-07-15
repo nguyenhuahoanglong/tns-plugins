@@ -78,7 +78,7 @@ Skipped actors use `{Actor}({reason})`. Branch Work Item Gate is triggered for P
 
 A `JS-SKIPPED` build row means `prepare_worktree_deps.py` could not make that project's dependencies usable. State the reason exactly: `deps changed` | `no lockfile` | `install failed`. A JS-skipped row is not a build failure but must be surfaced, never silently passed, and the Build Validator is never dispatched with that project's JS build command.
 
-A build row for a project reported with `jsDepsStrategy` strategy `install` means `prepare_worktree_deps.py` performed a fresh frozen, lockfile-gated install for that project before the build ran — a PASS there reflects freshly installed dependencies, not a stale/reused `node_modules`.
+A build row for a project reported with `jsDepsStrategy` strategy `install` means `prepare_worktree_deps.py` performed a fresh frozen, lockfile-gated install for that project before the build ran â€” a PASS there reflects freshly installed dependencies, not a stale/reused `node_modules`.
 
 ## Requirement Validation
 

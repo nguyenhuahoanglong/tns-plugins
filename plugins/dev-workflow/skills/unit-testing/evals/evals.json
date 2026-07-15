@@ -31,6 +31,18 @@
         "Uses React Testing Library accessible queries (getByRole/getByText) and userEvent, per react-vitest-jest.md",
         "Acknowledges the tests are expected to fail/not-compile until implementation lands, and does not create or modify the source component"
       ]
+    },
+    {
+      "id": 4,
+      "prompt": "Write unit tests for the credit-limit validation described in .docs/order-validation.md. Our QA team will read the test files, so they must be able to tell which test case each method covers.",
+      "expected_output": "First a {design-doc}.test-cases.md registry next to the design doc (auto-numbered TC-NNN rows, Not covered section), presented for approval BEFORE any test code; then tests where each method has a natural-language header (TC id, one-line summary, numbered steps, design ref) plus [Trait(\"TestCase\",\"TC-NNN\")] or the TC id in the test name; finally the registry's Covered-by column is back-filled.",
+      "expectations": [
+        "Generates .docs/order-validation.test-cases.md and hard-stops for user approval before writing any test code",
+        "Test cases are derived from the design document with explicit 'Not covered / out of scope' entries rather than silent gaps",
+        "Each test method carries a QA-readable header (TC-NNN, summary, numbered steps, design reference) and the TC id in a Trait/test name",
+        "After tests pass, the registry's Covered-by column is updated with test file and method names",
+        "If the registry already exists, IDs stay stable (no renumbering) and an ADD/UPDATE/REMOVED diff is shown before saving"
+      ]
     }
   ],
   "non_goals": [

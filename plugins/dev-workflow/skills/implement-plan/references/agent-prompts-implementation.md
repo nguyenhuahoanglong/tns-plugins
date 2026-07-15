@@ -15,8 +15,13 @@ behavior, not compile/import errors.
 
 Rules:
 - Use unit-testing skill and detected project framework.
+- The approved plan satisfies the unit-testing test-case-list gate; derive cases from task
+  Definition-of-Done items without stopping for approval. If a .docs design document drives the
+  work, maintain its {design-doc}.test-cases.md registry per the skill's test-case-management.md.
 - Modify tests only; do not implement production code or edit plan.
-- Map each test to task and Definition-of-Done item.
+- Map each test to task and Definition-of-Done item, and give every test the skill's QA-readable
+  header (TC/DoD id, one-line summary, numbered steps, plan or design ref) plus xUnit Trait or
+  TC id in the JS test name.
 - For non-unit-testable tasks, write no test; report exact build/manual/static check.
 - Return test files, mapping, command, and expected-red evidence.
 ```

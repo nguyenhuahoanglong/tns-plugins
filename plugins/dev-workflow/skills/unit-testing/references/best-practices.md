@@ -40,7 +40,9 @@ Do not write tests purely to raise a number — a test with no meaningful assert
 
 ## Requirement → test traceability
 
-Maintain a mapping so coverage is auditable and gaps are visible. Put it at the top of the test file (comment) or in the QA report:
+When the work is driven by a design document, the canonical mapping is the **test-case registry** (`{design-doc}.test-cases.md` — see `test-case-management.md`): stable `TC-NNN` IDs, per-test natural-language headers QA can read, and a back-linked *Covered by* column. Use that mechanism whenever a design doc exists.
+
+For ad-hoc work with no design doc (quick coverage of a utility, characterization pins), still keep a lightweight mapping at the top of the test file (comment) or in the QA report:
 
 ```
 | Requirement / Behavior            | Test(s)                          | Strategy     |
