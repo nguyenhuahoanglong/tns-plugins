@@ -2,7 +2,9 @@
 
 ## Purpose
 
-Adaptive, low-cost code review for quick checks and pre-merge validation. Version 3 keeps deterministic work in scripts, isolates semantic children around a compact manifest, and escalates changes whose risk needs multiple specialists.
+Adaptive, low-cost production-code review for quick checks and pre-merge validation. Version 4
+attests the host runtime/session before repository reads, partitions production from evidence-only
+and excluded files, verifies tests deterministically, and escalates multi-specialist risk to Pro.
 
 ## Pain Points
 
@@ -12,21 +14,26 @@ Adaptive, low-cost code review for quick checks and pre-merge validation. Versio
 - Mixed gate/agent reporting obscures what used model tokens and whether cache counters were exposed.
 - Remote sibling worktrees are difficult for child agents to discover reliably.
 - Requirement findings become speculative without reverse behavior and collateral-impact evidence.
+- Displayed model labels can drift from the actual host runtime unless evidence is attested.
+- Tests/docs are valuable evidence but must not become defect targets or inflate production scope.
+- A single overwritten test result hides failures in multi-run or multi-repository reviews.
 
 ## Profiles
 
 | Profile | Pipeline |
 |---|---|
-| Docs Tiny | Deterministic branch gate when applicable; main review; zero semantic children |
-| Code Tiny | Deterministic branch/build gates; main code review; zero semantic children |
+| No Production Code | Retain report, record-v3 sidecar, and runtime/scope/not-applicable test evidence; execute no review work |
+| Code Tiny | Deterministic branch/build/test gates; main code review; zero semantic children |
 | Lite | Deterministic gates; mandatory deep Requirement Validator plus at most one specialist |
-| Escalation | More than one specialist trigger routes to `code-review-pro` |
+| Escalation | More than one specialist trigger routes to `code-review-pro`; write no Lite report or sidecar |
 
 Tiny means at most 3 files and 100 changed lines, with no elevated shared behavior, API, schema, auth, dependency, async/lifecycle, state, or configuration risk.
 
 ## Runtime routing
 
-Branch and build gates are local deterministic scripts and have no model runtime. Semantic agent
+Shared runtime/session preflight runs before repository reads and is re-evaluated against the
+packaged runtime policy during report verification. Branch, build, and test gates are local
+deterministic scripts and have no model runtime. Semantic agent
 metadata owns cross-tool routing: Requirement Validator uses `deep` (Claude Opus; Codex Sol/high),
 and named specialists use `standard` (Claude Sonnet; Codex Terra/medium). Lite launches fresh,
 isolated children from a compact context manifest; reports keep known runtime fields and use
@@ -34,11 +41,24 @@ isolated children from a compact context manifest; reports keep known runtime fi
 
 ## Output
 
-Reports remain at `.CodeReview/{safe-branch}.lite.md`. They separate deterministic gates from Semantic Agents, include behavior-preservation/collateral evidence, and record per-child context mode plus token/cache counters.
+Reports remain at `.CodeReview/{safe-branch}.lite.md`; metadata is
+`.CodeReview/.{safe-branch}.lite.review-meta.json`. They retain hash-bound runtime, scope, and test
+artifacts; separate deterministic gates from semantic agents; include behavior/collateral/scope
+drift evidence; and record per-child context mode plus token/cache counters.
 
-Worktrees remain repo-local at `.CodeReview/.worktrees/{safe-branch}`. Lite context is stored at `.CodeReview/.{safe-branch}.context.json`; every child must pass a read-token preflight before analysis.
+Production findings may target only `productionFiles`; tests/docs may still be cited as evidence.
+Test evidence aggregates every repo/command under `executions[]`. Missing direct tests for changed
+symbols emits exact `use-unit-testing` without suppressing a selected specialist. Blocking build or
+test outcomes route only the Requirement Validator.
 
 ## Changelog
+
+### 2026-07-21 - v4.0.0 attested runtime and production scope
+
+- Added mandatory shared runtime/session clearance before repository reads; blocked runtimes stop and existing sessions require a recorded override.
+- Restricted findings to persistent production allowlists; docs/tests are evidence-only and evidence-only diffs return `No Production Code`.
+- Added deterministic direct/affected test evidence, exact `use-unit-testing` advisory, and Requirement-Validator-only routing for test failures/gaps.
+- Added record-v3 hash-verified Lite sidecars and v4 verifier enforcement while retaining Lite escalation and isolated children.
 
 ### 2026-07-13 - v3.0.0 deterministic gates and isolated semantic review
 

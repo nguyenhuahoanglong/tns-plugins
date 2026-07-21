@@ -13,14 +13,14 @@ Read-only review agent for build validation. Run only the scoped build checks pr
 ## Input Contract
 
 The orchestrator MUST provide:
-- **Project path** — Workspace or worktree root
-- **Build scope** — Project files or directories affected by the change
-- **Project type** — For example .NET, Node, React, or PowerShell
-- **Preflight path and token** — Sentinel file the child must read before any build work
-- **Approved build command** — Exact command to run, including restore/install only when authorized
+- **Project path** â€” Workspace or worktree root
+- **Build scope** â€” Project files or directories affected by the change
+- **Project type** â€” For example .NET, Node, React, or PowerShell
+- **Preflight path and token** â€” Sentinel file the child must read before any build work
+- **Approved build command** â€” Exact command to run, including restore/install only when authorized
 
 Optional:
-- **Standards paths** — Relevant `AGENTS.md` or build instructions
+- **Standards paths** â€” Relevant `AGENTS.md` or build instructions
 
 ## Workflow
 
@@ -70,10 +70,10 @@ Then report:
 
 ## Constraints
 
-- **Read-only review** — Never edit source, tests, configuration, manifests, or lockfiles.
-- **No implementation** — Report failures; do not fix them.
-- **No dependency changes** — Do not install, upgrade, or restore packages unless included in the approved command.
-- **No git operations** — Do not switch branches, commit, reset, clean, or modify worktrees.
-- **Scoped execution** — Build only supplied projects. Do not expand to unrelated solutions or packages.
-- **Build artifacts only** — Files created by the build tool, such as `bin/`, `obj/`, or `dist/`, are allowed only as unavoidable validation output.
-- **Deterministic gate** — Compilation, type-check, approved restore, missing-tool, or preflight failure is `FAIL`. Warnings alone remain `PASS`.
+- **Read-only review** â€” Never edit source, tests, configuration, manifests, or lockfiles.
+- **No implementation** â€” Report failures; do not fix them.
+- **No dependency changes** â€” Do not install, upgrade, or restore packages unless included in the approved command.
+- **No git operations** â€” Do not switch branches, commit, reset, clean, or modify worktrees.
+- **Scoped execution** â€” Build only supplied projects. Do not expand to unrelated solutions or packages.
+- **Build artifacts only** â€” Files created by the build tool, such as `bin/`, `obj/`, or `dist/`, are allowed only as unavoidable validation output.
+- **Deterministic gate** â€” Compilation, type-check, approved restore, missing-tool, or preflight failure is `FAIL`. Warnings alone remain `PASS`.

@@ -1,6 +1,6 @@
 ---
 name: adaptive-classifier
-description: Deterministic Docs-only, Tiny, and Pro classification plus risk-to-specialist trigger mapping
+description: Deterministic No-production-code, Tiny, and Pro classification plus risk-to-specialist trigger mapping
 ---
 
 # Adaptive Classifier
@@ -13,21 +13,21 @@ Record:
 
 - `filesChanged`: number of changed files in scope
 - `changedLines`: added + removed lines from diff shortstat
-- `docsOnly`: whether every changed file is documentation
+- `scopeStatus`: exact manifest status (`no-production-code` or `pass`)
 - `riskTriggers`: every applicable trigger below, with one-sentence evidence
 - `specialistTriggers`: map of reviewer name to triggering labels/evidence
 
-Treat Markdown, reStructuredText, AsciiDoc, and plain text under documentation paths as documentation. A manifest, executable sample, generated contract, configuration file, schema, or code-bearing notebook is not docs-only.
+Compute counts and triggers from `productionFiles` only. Evidence and excluded files never contribute to classification.
 
 ## Profile Decision
 
-1. **Docs-only** when `docsOnly=true`. Spawn zero agents.
+1. **No-production-code** when manifest `productionFiles` is empty. Spawn no semantic agents.
 2. **Tiny** only when all are true:
-   - `docsOnly=false`
+   - `scopeStatus=pass`
    - `filesChanged <= 3`
    - `changedLines <= 100`
    - no risk trigger
-3. **Pro** otherwise. If evidence is ambiguous, select Pro and record `uncertain-impact`.
+3. **Pro** otherwise when `scopeStatus=pass`. If impact is ambiguous, select Pro and record `uncertain-impact`.
 
 Thresholds are inclusive. Renames count as changed files. Added and removed lines both count.
 
@@ -63,4 +63,4 @@ Size alone (`large-change`) triggers no specialist. Requirement Validator covers
 
 ## Announcement Contract
 
-Before dispatch, state profile, counts, every classifier trigger, every specialist trigger, and every skipped agent with reason. Persist specialist triggers as `{"Performance Reviewer": ["async-lifecycle"]}` style data. Use the same labels in report and sidecar. Do not silently add or omit an agent after announcement; if later evidence changes triggers, announce the update before dispatch.
+Before classifier dispatch, persist the shared scope manifest. Count only `productionFiles`; evidence and excluded paths cannot cause a risk trigger. If `productionFiles` is empty, select `No-production-code` and terminally skip build/test/semantic review. Otherwise state profile, counts, every classifier trigger, every specialist trigger, and every skipped agent with reason. Persist specialist triggers as `{"Performance Reviewer": ["async-lifecycle"]}` style data. Use the same labels in report and sidecar. Do not silently add or omit an agent after announcement; if later evidence changes triggers, announce the update before dispatch.

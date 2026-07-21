@@ -4,13 +4,13 @@
     {
       "id": 1,
       "prompt": "Review my current branch. It changes 2 source files with 74 added/deleted lines. No public/shared behavior, API, schema, auth, dependency, async lifecycle, state, or config is touched.",
-      "expected_output": "The review selects Tiny, announces all profile decisions, runs one Build Validator per repo, performs all review lenses in the main agent, and writes verified v2 report/sidecar records.",
+      "expected_output": "After passing runtime/session preflight, the review selects Tiny from production files only, runs deterministic relevant tests, and writes verified v3 report/sidecar artifacts.",
       "expectations": [
-        "The profile is Tiny only because filesChanged <= 3, changedLines <= 100, docsOnly is false, and riskTriggers is empty",
+        "The profile is Tiny only because scopeStatus is pass, production-only filesChanged <= 3, changedLines <= 100, and riskTriggers is empty; the classifier has no docsOnly field",
         "Exactly one dedicated Build Validator runs per repo with the active tool's fast runtime profile",
         "Requirement and specialist agents are skipped while the main agent reviews requirement, regression, security, performance, design, standards, and tests",
-        "Known launch model and effort are copied exactly into Main Runtime and sidecar runtime.main; neither is replaced by not exposed",
-        "The report contains exact Skill, Version, Runtime, Triggered, and Skipped fields and the sidecar contains recordVersion 2",
+        "Trusted preflight records exact modelId and effort; report Main Runtime equals the attestation rather than settings, self-report, or not exposed",
+        "The report contains exact Skill, Version, Runtime, Triggered, and Skipped fields and the sidecar contains recordVersion 3 with hash-bound runtime, scope, and test artifacts",
         "Branch Work Item Gate runs with the Build Validator runtime for branch/PR scope and records PASS/WARN/FAIL/SKIPPED in the report and sidecar"
       ]
     },
@@ -29,16 +29,24 @@
     {
       "id": 3,
       "prompt": "Review Azure DevOps PR 75635 and follow its linked direct work item. Treat the parent only as context. Verify changed symbols, callers/consumers, events/state, tests, and preserved behavior; then prepare a publish-compatible report.",
-      "expected_output": "PR 75635 receives a Pro review with direct-AC mapping, parent-context separation, risk-triggered specialist routing, stable report metadata, ADO guard, and v2 follow-up records.",
+      "expected_output": "PR 75635 receives a Pro review with direct-AC mapping, parent-context separation, risk-triggered specialist routing, stable report metadata, ADO guard, and strict v3 follow-up records.",
       "expectations": [
         "The review announces Pro profile plus every classifier and specialist trigger before dispatch",
         "The direct work item's acceptance criteria are binding and parent context does not create extra Missing or Partial criteria",
         "Build Validator and Requirement Validator always run; only specialists with recorded evidence triggers run after a passing build",
-        "The report passes the ADO autolink guard and scripts/verify_output.py, including an expected-main-runtime check when launch metadata is supplied, and its sidecar includes skillName code-review-pro, skillVersion 2.2.0, and reviewProfile",
-        "A later follow-up reclassifies only the delta with the same Docs-only/Tiny/Pro classifier and writes recordVersion 2",
+        "The report passes the ADO autolink guard and scripts/verify_output.py using its generated runtime attestation, and its sidecar includes skillName code-review-pro, skillVersion 3.0.0, and reviewProfile",
+        "A later follow-up reclassifies only the delta with the same No-production-code/Tiny/Pro classifier and writes recordVersion 3",
         "The PR source branch ID is verified through az boards work-item show, the ADO work item type must be User Story, Bug, or Issue, and branch prefix mismatch is WARN not FAIL"
       ]
     }
+  ],
+  "v3_contract_cases": [
+    "Blocked or confirmation-required runtime stops before repository reads; an existing session proceeds only with a recorded override.",
+    "Tests/docs-only scope becomes No-production-code with no worktree, tests, semantic agents, or findings.",
+    "A production finding may cite test evidence; a test/doc/generated/vendor/binary finding is invalid.",
+    "Missing direct tests produce exactly the use-unit-testing advisory; executions[] supports multiple repositories and routes fail/timeout results to a blocking test gate.",
+    "The verifier rejects pre-v3 records and validates retained branch, actor, child-runtime, PR-only, merge-preview, dependency, and follow-up provenance without an expected-runtime argument.",
+    "The report contains Runtime Evidence, Scope Evidence, Test Evidence, and Semantic Review sections, and report finding targets exactly match production-only sidecar findings."
   ],
   "non_goals": [
     "Do not sync, install, publish, or modify deployed copies of the skill",

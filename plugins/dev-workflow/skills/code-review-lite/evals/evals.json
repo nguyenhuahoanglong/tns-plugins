@@ -4,12 +4,13 @@
     {
       "id": 1,
       "prompt": "Quick-review a one-file, 42-line null-check fix in a private C# helper on branch US/418200-null-guard. The change touches no public API, schema, dependency, async lifecycle, persistent state, runtime configuration, authentication, or trust boundary. The approved repository build command is dotnet test src/Widget.Tests/Widget.Tests.csproj --no-restore.",
-      "expected_output": "Select Code Tiny, run branch and build checks as deterministic gates, use zero semantic children, review inline, and emit a valid v3 Lite report.",
+      "expected_output": "Attest runtime/session first, select Code Tiny from production scope, run branch/build/direct-and-affected tests deterministically, use zero semantic children, and emit a valid v4 report plus record-v3 sidecar.",
       "expectations": [
+        "Runtime and session clearance completes before repository reads, and the report/sidecar runtime equals the persisted attestation.",
         "The report selects Code Tiny only after recording one changed file, no more than 100 changed lines, Documentation Only false, and no risk or specialist trigger.",
-        "The branch check and the exact approved dotnet command run as deterministic processes; the build table contains one complete row for the repository and neither gate appears under Semantic Agents or Agent Usage.",
+        "The branch check, exact approved dotnet command, and discovered direct/affected tests run as deterministic processes; each repo/run remains in test executions evidence.",
         "Triggered and Agent Usage are both None because Code Tiny dispatches zero Requirement Validator or specialist children.",
-        "The report identifies code-review-lite v3.0.0 and passes scripts/verify_output.py with expected profile Code Tiny."
+        "The report identifies code-review-lite v4.0.0, references the recordVersion 3 sidecar and hashed artifacts, and passes scripts/verify_output.py with expected profile Code Tiny."
       ]
     },
     {
@@ -17,6 +18,7 @@
       "prompt": "Lite-review six changed Python files implementing cancellation and cleanup for a background import worker. The branch and approved pytest build pass. The only specialist family is Performance. Requirements say cancellation must stop queued imports without losing the final progress event.",
       "expected_output": "Select Lite and, after deterministic gates pass, launch the deep Requirement Validator and Performance Reviewer concurrently in isolated manifest context.",
       "expectations": [
+        "Shared runtime/session preflight and production-scope classification finish before any worktree, gate, or semantic dispatch.",
         "The report selects Lite, records Performance Reviewer as the only specialist trigger, and contains one complete deterministic build row without listing a Build Validator agent.",
         "Requirement Validator and Performance Reviewer are the only triggered semantic children and both have Agent Usage rows whose context mode is isolated manifest.",
         "The workflow dispatches the two semantic lanes concurrently only after the branch and all build gates allow continuation.",
@@ -32,7 +34,8 @@
         "The deterministic Build Gates table records FAIL, the exact approved command, numeric exit/errors/warnings, and bounded log/reason evidence; it is not represented as an agent.",
         "Requirement Validator is the only triggered semantic child even though a Performance specialist was classified, and Agent Usage has exactly the matching Requirement Validator row.",
         "The report records the build failure as Critical while still producing Requirement Evidence and Behavior Preservation and Collateral Impact from the requirement lane.",
-        "The specialist skip reason names build failure, and the report does not claim parallel specialist execution or build success."
+        "The specialist skip reason names blocking build/test evidence, and the report does not claim parallel specialist execution or build success.",
+        "Test status, blocking flag, command exit, and counts are structurally consistent and every execution remains in the hashed test artifact."
       ]
     },
     {
@@ -40,9 +43,10 @@
       "prompt": "Review a three-file OAuth endpoint change that also modifies a public response schema and package lockfile. The diff is only 70 lines.",
       "expected_output": "Reject Tiny eligibility, identify multiple specialist families, and route directly to code-review-pro without starting the Lite pipeline or writing a Lite report.",
       "expectations": [
+        "Only shared runtime/session and production-scope evidence are created before the escalation decision.",
         "Authentication or trust-boundary changes identify Security, public schema changes identify Philosophy, and the manifest or lockfile change identifies Standard regardless of the Tiny file and line thresholds.",
         "Because more than one specialist family is present, the skill announces escalation and invokes code-review-pro.",
-        "No Lite deterministic gates, semantic children, context manifest, Agent Usage table, or .lite.md report are produced before escalation."
+        "No Lite deterministic gates, tests, semantic children, context manifest, Agent Usage table, .lite.md report, or Lite sidecar are produced before escalation."
       ]
     },
     {
@@ -50,6 +54,7 @@
       "prompt": "For the same passing Lite cancellation review, show the exact semantic-child dispatch plan for both Claude Code and Codex. Do not execute the review. Include only the stable contract and dynamic tail fields needed to prove context isolation and runtime routing.",
       "expected_output": "Describe host-specific isolated dispatch with equivalent semantic roles: Claude named custom agents and Codex custom agent_type calls with fork_turns none.",
       "expectations": [
+        "The dispatch plan requires a passing attestation, recorded session clearance, and a production finding allowlist before either host dispatches a child.",
         "Claude uses the isolated Requirement Validator and code-reviewer named-agent mappings without preloading code-review-lite into the reviewer child.",
         "Codex uses the custom requirement-validator and code-reviewer agent_type contract with fork_turns set to none; it does not silently fall back to inherited history or main-model routing.",
         "Requirement Validator retains deep routing and the named specialist retains standard routing for each host.",
@@ -61,12 +66,20 @@
       "prompt": "Given a Lite review context manifest for a shared cache invalidation change, provide the compact Requirement Validator result. The direct requirement is to invalidate on dealer reassignment; callers also rely on unchanged expiry behavior. A regression test covers reassignment, but no evidence covers expiry. Return only material child records for orchestrator verification.",
       "expected_output": "Return compact preflight, requirement, behavior-preservation, and material finding records without a general review narrative or invented collateral criteria.",
       "expectations": [
+        "Any finding target is in the supplied production allowlist; test and document paths appear only as evidence citations.",
         "The child starts with Child Read PASS and the supplied preflight token, then returns only compact requirement coverage, behavior preservation, and material finding records.",
         "Dealer-reassignment invalidation is evaluated as a Direct requirement with changed implementation evidence; expiry is classified as Necessary collateral rather than promoted into a new acceptance criterion.",
         "Missing expiry proof is Unproven rather than automatically a defect, while any Regressed status requires a concrete caller, consumer, event, state, or config exposure path.",
         "The output contains no git command, code edit, nested agent request, full-diff reproduction, or unrelated general-review commentary."
       ]
     }
+  ],
+  "v4_contract_evals": [
+    {"scenario":"blocked runtime","expects":["run shared preflight before repository reads","hard-stop with no Lite gates or report"]},
+    {"scenario":"existing session override","expects":["pause for explicit confirmation","record override in recordVersion 3 sidecar"]},
+    {"scenario":"docs and tests only","expects":["No Production Code","no build/test/semantic findings"]},
+    {"scenario":"missing direct tests","expects":["run affected tests","exact use-unit-testing advisory","no defect"]},
+    {"scenario":"multiple specialists","expects":["escalate to code-review-pro after shared preflight and scope","no Lite gates/context/report/sidecar"]}
   ],
   "non_goals": [
     "Replace code-review-pro for changes requiring multiple specialist families.",

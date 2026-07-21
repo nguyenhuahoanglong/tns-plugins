@@ -7,7 +7,7 @@ description: How to discover project-specific coding standards and conventions b
 
 Before reviewing code, discover what standards apply to this project. This ensures findings align with actual project conventions, not just generic best practices.
 
-> **Token rule**: the orchestrator collects **file paths** here (standards docs + exemplar files) and passes them to the Standard Reviewer in the dispatch prompt. The agent reads the content itself — never paste standards or exemplar content into the dispatch.
+> **Token rule**: the orchestrator collects **file paths** here (standards docs + exemplar files) and passes them to the Standard Reviewer in the dispatch prompt. The agent reads the content itself â€” never paste standards or exemplar content into the dispatch.
 
 ## Discovery Steps
 
@@ -38,16 +38,16 @@ Look for structured documentation:
 
 ```
 Priority directories:
-- .docs/domain/      — Domain terminology, business rules
-- .docs/spec/        — Feature specifications, acceptance criteria
-- .docs/convention/  — Coding standards, architecture decisions
-- .github/           — PR templates, workflows
-- docs/              — General project documentation
+- .docs/domain/      â€” Domain terminology, business rules
+- .docs/spec/        â€” Feature specifications, acceptance criteria
+- .docs/convention/  â€” Coding standards, architecture decisions
+- .github/           â€” PR templates, workflows
+- docs/              â€” General project documentation
 ```
 
 ### 3. Examine Existing Code Patterns (Mandatory)
 
-**Always run this step** — even when explicit standards exist. Use Glob/Grep to find 2–3 exemplar files per repo/stack (same suffix/feature folder, representative of the repo's dominant convention — not one set per changed file) and read them for dominant patterns. This is the exemplar discovery step that feeds the Standard Reviewer.
+**Always run this step** â€” even when explicit standards exist. Use Glob/Grep to find 2â€“3 exemplar files per repo/stack (same suffix/feature folder, representative of the repo's dominant convention â€” not one set per changed file) and read them for dominant patterns. This is the exemplar discovery step that feeds the Standard Reviewer.
 
 Identify dominant patterns across these categories:
 - Naming conventions (camelCase, PascalCase, snake_case)
@@ -66,12 +66,12 @@ Identify dominant patterns across these categories:
 
 Apply standards in this order (highest priority first):
 
-1. `.docs/domain/` — Domain-specific rules always take precedence
-2. `.docs/spec/` — Feature specifications for requirement validation
-3. `AGENTS.md` / `CLAUDE.md` / `.codex/AGENTS.md` / `.github/copilot-instructions.md` — Project-level AI instructions
-4. `*.instructions.md` — Language/technology-specific standards
-5. `.editorconfig` / linter configs — Formatting rules
-6. Language community conventions — Fallback defaults
+1. `.docs/domain/` â€” Domain-specific rules always take precedence
+2. `.docs/spec/` â€” Feature specifications for requirement validation
+3. `AGENTS.md` / `CLAUDE.md` / `.codex/AGENTS.md` / `.github/copilot-instructions.md` â€” Project-level AI instructions
+4. `*.instructions.md` â€” Language/technology-specific standards
+5. `.editorconfig` / linter configs â€” Formatting rules
+6. Language community conventions â€” Fallback defaults
 
 ## What to Extract
 

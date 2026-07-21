@@ -64,7 +64,7 @@ Report no fabricated AC table. Use a Behavior Preservation table instead.
 
 - **CRITICAL**: proven existing behavior break, crash/data loss, auth bypass, or contract break with exposed consumer evidence.
 - **HIGH**: direct AC missing/partial; demonstrated user-visible regression; public/API/schema/event contract mismatch.
-- **MEDIUM**: plausible preservation risk with incomplete exposure evidence; missing tests for changed behavior; benign unrelated scope.
+- **MEDIUM**: plausible preservation risk with incomplete exposure evidence; benign unrelated scope.
 - **LOW**: clarification/documentation gap without runtime impact.
 
-Downgrade unsupported CRITICAL/HIGH claims. Put uncertainty in Notes, not fabricated evidence.
+Missing direct tests use the exact `use-unit-testing` advisory outside findings. Downgrade unsupported CRITICAL/HIGH claims. Put uncertainty in Notes, not fabricated evidence.

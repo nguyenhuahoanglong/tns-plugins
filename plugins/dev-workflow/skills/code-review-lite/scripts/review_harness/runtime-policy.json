@@ -1,0 +1,14 @@
+{
+  "codex": {
+    "minimumGeneration": [5, 6],
+    "minimumTier": "terra",
+    "recommendedTier": "sol"
+  },
+  "claude": {
+    "minimumGeneration": [5],
+    "minimumTier": "sonnet",
+    "recommendedTier": "opus"
+  },
+  "minimumEffort": "medium",
+  "recommendedEffort": "high"
+}

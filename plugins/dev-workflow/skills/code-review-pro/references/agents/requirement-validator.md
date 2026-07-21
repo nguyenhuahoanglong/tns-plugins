@@ -5,7 +5,7 @@ description: Dedicated Pro validator for direct requirements or regression-only 
 
 # Requirement Validator
 
-Validate direct requirements and preserve unrelated behavior. Read `references/requirement-validation.md`, the supplied diff, changed files, worktree code, tests, and requirement context. The requirement context is a bundle: the direct work-item AC plus any supplied design-doc excerpt (the orchestrator harvests the relevant design-doc section via the repo `AGENTS.md` design-doc root — see `references/requirement-validation.md`). Treat the design-doc excerpt as elaboration of the direct AC, not a source of new binding criteria.
+Validate direct requirements and preserve unrelated behavior. Read `references/requirement-validation.md`, the supplied diff, production allowlist, scope/test artifacts, allowlisted worktree code, evidence paths, and requirement context. The requirement context is a bundle: the direct work-item AC plus any supplied design-doc excerpt (the orchestrator harvests the relevant design-doc section via the repo `AGENTS.md` design-doc root — see `references/requirement-validation.md`). Treat the design-doc excerpt as elaboration of the direct AC, not a source of new binding criteria.
 
 ## Preflight
 
@@ -34,9 +34,10 @@ Follow `_shared-contract.md`.
 - Regression requires base/new difference plus exposed caller/consumer/event/state/test.
 - CRITICAL: proven crash/data loss/auth bypass/contract break with exposure.
 - HIGH: direct AC gaps, user-visible regression, or public/API/schema/event mismatch.
-- MEDIUM: plausible risk without full exposure, missing tests, or benign unrelated scope.
+- MEDIUM: plausible risk without full exposure or benign unrelated scope.
 - Scope drift in shared/public/API/schema/state logic is HIGH ("justify or revert"); isolated/local drift is MEDIUM. Scope-drift findings flag the change for author judgment — they never block the review (unlike build/branch gates).
 - Downgrade unsupported claims and state uncertainty via **Confidence**.
+- Missing direct tests are not findings; leave them to the orchestrator's exact `use-unit-testing` advisory unless separate execution/semantic evidence proves a production defect.
 
 ## Output
 

@@ -1,69 +1,75 @@
 ---
 name: followup-review
-description: v2 follow-up records, delta reclassification, stable finding carry-forward, and sidecar schema
+description: Strict v3 follow-up detection, delta reclassification, finding carry-forward, and sidecar schema
 ---
 
 # Follow-up Review
 
-Follow-up uses the same classifier and runtime contract as an initial review.
+Follow-ups use the same runtime, scope, test, classifier, actor, and verifier contract as initial reviews.
 
 ## Detection
 
-Require both:
+Require the report and sidecar. Accept only a parsed `recordVersion: 3`, `skillName: code-review-pro`, `skillVersion: 3.0.0` record with all retained provenance and three contained, hash-bound artifact references. A missing/invalid/pre-v3 record requires fresh full-scope classification; never upgrade a legacy record in place.
 
-- `.CodeReview/{safe-branch}.md`
-- `.CodeReview/.{safe-branch}.review-meta.json`
-
-The sidecar must parse and contain `recordVersion: 2`, `skillName: code-review-pro`, `skillVersion: 2.2.0`, `scopeType`, `scopeBase`, and `diffFingerprint`. If missing, invalid, or v1, run a fresh full-scope review and write v2 records.
-
-Recompute SHA-256 over the same normalized scoped diff:
+Recompute the normalized scoped-diff SHA-256:
 
 - PR/branch: `{scopeBase}..HEAD`
 - staged: `git diff --cached --binary`
 - working: `git diff HEAD --binary` plus sorted untracked path/content hashes
-- explicit files: same original base and sorted file scope
+- files: the original base and sorted explicit paths
 
-Stop without agents/worktree only when the recomputed fingerprint equals `diffFingerprint`. `HEAD == reviewedCommit` alone is insufficient because staged/working changes may exist.
+Stop without new review work only when the recomputed fingerprint equals `diffFingerprint`. `HEAD == reviewedCommit` is insufficient for staged/working content.
 
 ## Delta
 
-Diff `{reviewedCommit}..HEAD`, collect file/line counts, and classify that delta through `adaptive-classifier.md`. Announce the new profile and every trigger/skip before execution.
+After a passing fresh runtime/session preflight, diff `{reviewedCommit}..HEAD`, create new scope/test artifacts, and classify only the delta:
 
-- Docs-only delta: zero agents; review documentation inline.
-- Tiny delta: one Build Validator per repo; main agent verifies prior findings and reviews all lenses.
-- Pro delta: Build Validator(s), Requirement Validator always, then only triggered specialists.
+- No-production-code: branch gate when applicable, no worktree/build/test/semantic actor/finding.
+- Tiny: one Build Validator per repository, then Tiny main all-lens review.
+- Pro: one Build Validator per repository, Requirement Validator, then only classified specialists.
 
-Use the prior report as context. Re-evaluate work-item context if direct requirements changed or prior mode was regression-only and a work item is now available.
+Re-evaluate requirement context if it changed or regression-only mode can now resolve a direct item. For each prior finding, re-read its production path and mark Resolved, Partial, Unresolved, or Regressed. Remove resolved findings, carry unresolved/partial findings with stable slugs, and allocate new slugs only for new causes.
 
-## Resolution
+## Record v3
 
-For each prior open finding:
-
-- **Resolved**: fixed code proves issue gone.
-- **Partial**: improvement does not remove core issue.
-- **Unresolved**: delta does not address it.
-- **Regressed**: attempted fix introduces or exposes another defect.
-
-Re-read code for every resolved Must Fix. Carry untouched findings forward. Remove resolved findings. Preserve slugs for unresolved/partial findings; allocate new slugs only for genuinely new issues.
-
-## v2 Sidecar
+This abridged shape lists every required field. Artifact `path` values are contained relative paths beside the sidecar; `sha256` is the digest of the referenced bytes.
 
 ```json
 {
-  "recordVersion": 2,
+  "recordVersion": 3,
   "skillName": "code-review-pro",
-  "skillVersion": "2.2.0",
+  "skillVersion": "3.0.0",
   "reviewProfile": "Pro",
   "reviewKind": "follow-up",
+  "iteration": 2,
+  "reviewedAt": "ISO-8601",
+  "runtimeAttestation": {"path": ".feature.runtime.json", "sha256": "..."},
+  "scopeManifest": {"path": ".feature.scope.json", "sha256": "..."},
+  "testEvidence": {"path": ".feature.tests.json", "sha256": "..."},
+  "session": {"status": "fresh", "overrideRecorded": false},
+  "runtime": {
+    "main": "gpt-5.6-terra / medium",
+    "build": "haiku / default",
+    "requirement": "opus / default",
+    "specialists": "sonnet / default"
+  },
   "classifier": {
     "filesChanged": 4,
     "changedLines": 140,
-    "docsOnly": false,
+    "scopeStatus": "pass",
     "riskTriggers": ["api-contract"],
-    "specialistTriggers": {
-      "Philosophy Reviewer": ["api-contract"]
-    }
+    "specialistTriggers": {"Philosophy Reviewer": ["api-contract"]}
   },
+  "productionFiles": ["src/file.cs"],
+  "evidenceFiles": ["tests/file-tests.cs"],
+  "excludedFiles": ["dist/bundle.js"],
+  "reviewedFiles": ["src/file.cs"],
+  "reposReviewed": ["repo"],
+  "testGate": {"status": "PASS", "blocking": false},
+  "blockingValidations": [],
+  "findings": [
+    {"action": "Must Fix", "file": "src/file.cs", "line": 42, "evidence": ["tests/file-tests.cs"]}
+  ],
   "branchWorkItemGate": {
     "status": "PASS",
     "branch": "US/1234-short-slug",
@@ -73,14 +79,8 @@ Re-read code for every resolved Must Fix. Carry untouched findings forward. Remo
     "actualType": "User Story",
     "title": "Example story",
     "state": "Active",
-    "source": "branch",
+    "source": "pr",
     "reason": "Branch prefix and ADO work item type match"
-  },
-  "runtime": {
-    "main": "gpt-5.6-sol / xhigh",
-    "build": "haiku / default",
-    "requirement": "opus / default",
-    "specialists": "sonnet / default"
   },
   "triggered": [
     "Branch Work Item Gate(haiku / default; branch work item convention)",
@@ -88,31 +88,31 @@ Re-read code for every resolved Must Fix. Carry untouched findings forward. Remo
     "Requirement Validator(opus / default; work-item)",
     "Philosophy Reviewer(sonnet / default; api-contract)"
   ],
-  "skipped": ["Security Reviewer(no security trigger)"],
-  "reposReviewed": ["repo"],
+  "skipped": [
+    "Security Reviewer(no security trigger)",
+    "Performance Reviewer(no performance trigger)",
+    "Standard Reviewer(no standards trigger)"
+  ],
   "requirementMode": "work-item",
-  "scopeType": "pr",
-  "scopeBase": "origin/develop",
-  "diffFingerprint": "sha256:...",
   "reviewedCommit": "sha",
   "targetBranch": "develop",
   "workItemId": 1234,
+  "scopeType": "pr",
+  "scopeBase": "origin/develop",
+  "diffFingerprint": "sha256:...",
   "prOnlyMode": false,
-  "prMergePreview": false,
+  "prMergePreview": true,
   "mergePreviewStrategy": "server-merge",
   "jsDepsStrategy": "install",
   "standardsPaths": ["AGENTS.md"],
-  "exemplarMap": {},
-  "reviewedFiles": ["src/file.cs"],
-  "iteration": 2,
-  "reviewedAt": "ISO-8601"
+  "exemplarMap": {}
 }
 ```
 
-Initial reviews use the same schema with `reviewKind: initial` and `iteration: 1`. `reviewProfile` records the profile used for that iteration.
+The scope arrays must exactly equal the scope artifact projections, with no duplicates or overlap. The test artifact contains `discovery` plus non-empty, unique-repository `executions[]`; fail/timeout runs require blocked report/test-gate routing. Triggered/skipped actors must match the report and use recorded child runtimes. PR-only implies `scopeType: pr`; PR scope retains the merge-preview strategy; `skip | mixed` dependencies require a `JS-SKIPPED` build row.
 
-The four fields `prOnlyMode`, `prMergePreview`, `mergePreviewStrategy`, and `jsDepsStrategy` are additive at `recordVersion: 2`; existing follow-up reviews that pre-date v2.1.0 should be treated as missing these fields and a fresh full-scope review should be run. `scopeBase` and `diffFingerprint` semantics are unchanged by merge preview — the fingerprint is still computed over the normalized `{scopeBase}..HEAD` diff.
+Initial reviews use the same schema with `reviewKind: initial` and `iteration: 1`. Follow-ups require `iteration >= 2`.
 
 ## Finish
 
-Regenerate the complete report, update header/profile/trigger fields, run ADO guard, run `scripts/verify_output.py`, update sidecar, then clean the repo-local worktrees and delta file.
+Regenerate the full report and sidecar, run the ADO guard and `scripts/verify_output.py`, then remove only verified temporary worktrees/diffs. Preserve report, sidecar, and all referenced evidence artifacts.

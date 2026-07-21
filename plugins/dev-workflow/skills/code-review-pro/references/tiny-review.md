@@ -23,7 +23,7 @@ Review every changed line and enough surrounding code to prove impact. Tiny mean
 - Cite `file:line`, symbol, and concrete execution path.
 - Changed code is not proof of requirement fulfillment; show how behavior reaches an observable result.
 - A regression claim needs a base/new behavior difference plus an affected caller, consumer, event, or state path.
-- Missing tests alone is MEDIUM unless requirements explicitly demand tests; elevate only with a demonstrated uncovered failure.
+- Missing direct tests alone produce the exact `use-unit-testing` advisory, never a finding; report a defect only when execution or semantic evidence proves one.
 - Do not invent acceptance criteria. Parent context explains intent but cannot broaden direct scope.
 
 Use severity rules from `analysis-framework.md`. Record the main review as triggered and Requirement/specialists as skipped because profile is Tiny.

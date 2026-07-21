@@ -5,7 +5,7 @@ description: Lite adapter for isolated requirement-validator dispatch and compac
 
 # Requirement Validator Adapter
 
-The central `requirement-validator` agent owns the review methodology. This reference only adapts Lite's context manifest, isolated dispatch tail, and compact output into the v3 report. Do not copy or override the central behavior-classification rules here.
+The central `requirement-validator` agent owns the review methodology. This reference only adapts Lite's context manifest, isolated dispatch tail, and compact output into the v4 report. Do not copy or override the central behavior-classification rules here.
 
 ## Stable Dispatch Contract
 
@@ -15,10 +15,14 @@ Provide these instructions before all variable values:
 Run a read-only Lite requirement review from the supplied context manifest.
 Treat requirements.direct as binding only when its source is available.
 Treat requirements.parentContext as context, never acceptance criteria.
-Use the manifest changedFiles and diffPath as the review boundary.
+Use productionAllowlist as the only valid finding-target set; changedFiles and diffPath only locate evidence within that boundary.
+Tests and documents may support a conclusion but are evidence-only and never valid finding locations.
+Excluded paths cannot be reviewed or cited as implementation evidence.
 Read unchanged code only for affected caller/consumer/event/state/config traces.
 Run no git commands and make no edits.
 Return compact, material-only requirement, behavior-preservation, collateral-impact, and finding records.
+For each finding, return one production Target path:line separately from test/document evidence citations.
+If no allowlisted production target exists, return an evidence gap instead of a finding.
 ```
 
 Append only this dynamic tail, in this order:
@@ -50,5 +54,5 @@ The four behavior classes remain exact: `Direct requirement`, `Necessary collate
 
 - Preflight failure: record semantic dispatch failure; use no findings from the child.
 - Invalid/missing manifest field: record `Not verifiable`; do not fetch more work-item context.
-- Build failure/gap: still run this Requirement Validator after the branch gate allows review.
+- Build/test failure or gap: still run this Requirement Validator after the branch gate allows review; specialist is skipped.
 - Token/cache counters: copy exposed non-negative integers; otherwise write exact `not exposed`.

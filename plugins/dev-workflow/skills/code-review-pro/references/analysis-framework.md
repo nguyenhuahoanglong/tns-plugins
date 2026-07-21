@@ -23,10 +23,12 @@ Code presence is not proof of fulfillment. Speculation without an exposed path b
 |---|---|
 | CRITICAL | proven crash/data loss/security exploit or existing contract/behavior break with exposed consumer |
 | HIGH | direct requirement missing/partial, user-visible bug, public/API/schema/event mismatch |
-| MEDIUM | maintainability or plausible risk, missing tests, benign unrelated scope, incomplete exposure evidence |
+| MEDIUM | maintainability or plausible runtime risk, benign unrelated scope, incomplete exposure evidence |
 | LOW | style/documentation/hardening with no demonstrated runtime effect |
 
 Security is not automatically CRITICAL; exploitability and impact must be shown. Build compilation/restore failures are CRITICAL.
+
+Missing direct tests alone are never a finding. Record exactly `use-unit-testing` in Test Evidence; promote only a separately demonstrated behavior failure.
 
 ## Requirement Priority
 

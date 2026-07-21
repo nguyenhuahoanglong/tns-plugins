@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Adaptive evidence-driven code review for PRs, branches, staged changes, and follow-up iterations. Version 2.2.0 classifies each diff as Docs-only, Tiny, or Pro, then runs the minimum valid review topology without weakening requirement or regression coverage.
+Adaptive evidence-driven production-code review for PRs, branches, staged changes, and follow-up iterations. Version 3.0.0 hard-gates runtime/session evidence, classifies No-production-code, Tiny, or Pro scope, and binds reports to deterministic artifacts.
 
 ## Pain Points
 
@@ -17,7 +17,7 @@ Adaptive evidence-driven code review for PRs, branches, staged changes, and foll
 
 ### Adaptive profiles
 
-- Docs-only: main-agent documentation review, zero agents.
+- No-production-code: terminal evidence-only outcome; no worktree, build/test, semantic agents, or findings.
 - Tiny: at most 3 files and 100 changed lines with no risk triggers; one Build Validator per repo, then main-agent all-lens review.
 - Pro: Build Validator per repo, Requirement Validator always, and only risk-triggered specialists.
 
@@ -27,7 +27,7 @@ Direct task/acceptance criteria are binding. Parent items supply context but do 
 
 ### Isolation and provenance
 
-Worktrees live under each repo at `.CodeReview/.worktrees/{safe-branch}`. Build children perform a read preflight before other children run. Reports carry combined skill/version provenance plus Review Profile, Main Runtime, Agents Triggered, and Agents Skipped fields. Sidecars use record version 2 and include `skillName`, `skillVersion`, and `reviewProfile`.
+Worktrees live under each repo at `.CodeReview/.worktrees/{safe-branch}`. Build children perform a read preflight before other children run. Reports carry exact skill/runtime/profile/actor provenance. Only record version 3 is valid: the sidecar hash-binds runtime, scope, and test artifacts and retains branch, PR, dependency, repository, and follow-up provenance.
 
 ### Runtime routing
 
@@ -37,6 +37,14 @@ specialists use `standard` (Claude Sonnet; Codex Terra/medium). Reports and side
 actual launch runtime for the main agent instead of assuming one.
 
 ## Changelog
+
+### 2026-07-21 - v3 runtime, scope, and test evidence
+
+- Require shared runtime/session preflight before repository reads; existing sessions need an explicit recorded override.
+- Restrict semantic review and findings to manifest `productionFiles`; tests/docs are evidence-only and generated/vendor/binary paths are excluded.
+- Persist deterministic test discovery/execution and the exact `use-unit-testing` advisory for missing direct tests.
+- Require `executions[]` for multi-repo runs; failed/timeout runs remain valid blocking evidence only when their status, exit code, counts, report, and `testGate` agree.
+- Upgrade reports/sidecars and verifier to strict v3-only hash-bound artifacts while retaining branch, classifier, actor, PR, dependency, and follow-up guards.
 
 ### 2026-07-11 - GPT-5.6 intent routing
 

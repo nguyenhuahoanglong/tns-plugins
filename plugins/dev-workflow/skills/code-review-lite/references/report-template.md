@@ -1,13 +1,11 @@
 ---
 name: report-template
-description: Exact v3 gate, semantic-agent, evidence, and finding structure for code-review-lite reports
+description: Exact v4 Lite report and record-v3 evidence contract
 ---
 
 # Report Template
 
-Write `.CodeReview/{safe-branch}.lite.md`; never use the full-review filename. Escalation produces no Lite report because `code-review-pro` owns that flow.
-
-## Header
+Use `.CodeReview/{safe-branch}.lite.md`; escalation produces no Lite report. Use v4 fields exactly.
 
 ```markdown
 # Code Review (Lite): {title}
@@ -16,119 +14,86 @@ Write `.CodeReview/{safe-branch}.lite.md`; never use the full-review filename. E
 **Source**: {source}
 **Target**: {target}
 **Files Reviewed**: {count}
-**Skill**: code-review-lite v3.0.0
-**Review Profile**: Docs Tiny | Code Tiny | Lite
-**Main Runtime**: {model or not exposed} / {effort or not exposed}
-**PR-Only**: true | false
-**Merge Preview**: server-merge | local-merge | source-head | n/a
-**Context Manifest**: {absolute Lite context path | n/a}
+**Skill**: code-review-lite v4.0.0
+**Review Profile**: No Production Code | Code Tiny | Lite
+**Main Runtime**: {exact attested modelId} / {exact attested effort}
+**Context Manifest**: {absolute ephemeral path | n/a}
+
+## Runtime, Scope, and Test Evidence
+- **Runtime Attestation**: {absolute path} / sha256:{hash}
+- **Scope Manifest**: {absolute path} / sha256:{hash}
+- **Test Evidence**: {absolute path} / sha256:{hash}
+- **Lite Metadata**: {absolute .{safe-branch}.lite.review-meta.json path}
 ```
 
-Use `PR-Only: true` only for enforced PR-only mode. Use merge preview `n/a` outside PR scope. Lite requires its absolute context-manifest path; Docs/Code Tiny use `n/a`. Resolve main runtime from explicit launch metadata, then session metadata; never replace a known field.
-
-## Classification
+The sidecar contains `recordVersion: 3`, `skillName: code-review-lite`, `skillVersion: 4.0.0`,
+`reviewProfile`, the complete runtime attestation, its exact `{status, sessionStatus,
+overrideRecorded}` session projection, `productionAllowlist`, deterministic build/semantic-agent
+evidence, and artifact `path`/`sha256`. The report runtime must equal the attestation and sidecar.
+Existing sessions require `overrideRecorded: true`; fresh sessions require `false`.
 
 ```markdown
 ## Classification
-
-- **Files Changed**: {files}
-- **Changed Lines**: {lines}
+- **Files Changed**: {n}
+- **Changed Lines**: {n}
 - **Documentation Only**: true | false
 - **Risk Triggers**: {labels or None}
 - **Specialist Triggers**: {Reviewer=label or None}
-- **Decision**: {profile reason}
-```
 
 ## Deterministic Gates
-
-```markdown
-## Deterministic Gates
-
 ### Branch Work Item Gate
 - **Status**: PASS | WARN | FAIL | SKIPPED
-- **Branch**: {source or None}
-- **Work Item**: {prefix/id, expected and actual type, title/state, or None}
-- **Source**: pr | branch | staged | working | files
+- **Branch**: {value}
+- **Work Item**: {value}
+- **Source**: {value}
 - **Reason**: {bounded evidence}
 
 ### Build Gates
 | Repo | Status | Command | Exit | Errors | Warnings | Log / Reason |
-|---|---|---|---:|---:|---:|---|
-| `{repo}` | PASS / PASS WITH WARNINGS / FAIL / NOT RUN (environment) / NOT RUN (timeout) / JS-SKIPPED | `{approved command}` | {n or n/a} | {n} | {n} | `{log}` / {reason} |
+|---|---|---:|---:|---:|---:|---|
+| `{repo}` | {status} | `{command}` | {n or n/a} | {n} | {n} | `{log}` / {reason} |
+
+- **Test Gate**: PASS | ADVISORY (use-unit-testing) | BLOCKED (fail|timeout|gap) | NOT APPLICABLE (no-production-code)
 ```
 
-Docs Tiny writes `Build Gates: Not applicable`. For JS-SKIPPED, include `deps changed`, `no lockfile`, or `install failed`; never invent an exit code. Note freshly installed dependencies. Branch FAIL is Critical, skips semantic children, and preserves already-completed build evidence. Build FAIL is Critical; environment/timeout/JS gaps are explicit unverified gaps.
-Each Lite row must exactly mirror its context `buildResults` record: repo, status, command, `commandExitCode` (`n/a` for null), error/warning counts, log path, and reason.
+Test evidence uses `executions[]` and retains every run across repositories. Each execution records
+repo, command, status, exit code, and passed/failed/skipped counts. No Production Code retains its
+report, sidecar, runtime/scope/test artifacts, and a `not-applicable` test artifact, but has no
+worktree, context, build/test execution, semantic agents, or findings. Code Tiny uses zero semantic
+children. Lite runs Requirement Validator and at most one specialist only after gates; test/build
+failure, timeout, or gap leaves Requirement Validator only. Missing direct tests for changed
+symbols adds exactly:
 
-## Semantic Agents
+```markdown
+- **Unit-Test Advisory**: use-unit-testing
+```
 
 ```markdown
 ## Semantic Agents
-
 ### Triggered
-- Requirement Validator (`opus / default`) - {reason}
-- {Specialist} Reviewer (`sonnet / default`) - {trigger}
-- None
-
-### Skipped
-- Requirement Validator - {Docs/Code Tiny, branch failure, or None}
-- {Specialist} Reviewer - {profile, no trigger, branch/build failure, validation gap, or None}
-
+- {agent/runtime/reason, or None}
 ### Agent Usage
 | Agent | Runtime | Context Mode | Input Tokens | Cache Read | Cache Write | Output Tokens |
 |---|---|---|---:|---:|---:|---:|
-| Requirement Validator | `opus / default` | isolated manifest | {number or `not exposed`} | {number or `not exposed`} | {number or `not exposed`} | {number or `not exposed`} |
-| {Specialist} Reviewer | `sonnet / default` | isolated manifest | {number or `not exposed`} | {number or `not exposed`} | {number or `not exposed`} | {number or `not exposed`} |
-```
+| {agent} | `{runtime}` | isolated manifest | {n or not exposed} | {n or not exposed} | {n or not exposed} | {n or not exposed} |
 
-List only triggered children in Agent Usage. Gates never appear there. Docs/Code Tiny and branch-fail reports use `Triggered: None` and `Agent Usage: None`. Lite always triggers Requirement after branch pass/warn/skip, including build failure; a specialist runs only when selected and builds pass/pass-with-warnings. Token/cache cells accept non-negative integers or exact `not exposed`, never estimates.
-
-## Requirement and Behavior Evidence
-
-```markdown
 ## Requirement Evidence
-
 | Requirement | Status | Evidence |
 |---|---|---|
-| {criterion} | Addressed / Partial / Missing / Not verifiable | `{file}:{line}` + behavior, or searched scope |
+| {criterion} | Addressed / Partial / Missing / Not verifiable | `{production-file}:{line}` |
 
 ## Behavior Preservation and Collateral Impact
-
 | Behavior | Classification | Base -> New | Impact Trace | Preservation Evidence | Status |
 |---|---|---|---|---|---|
-| {behavior} | Direct requirement / Necessary collateral / Unrelated / Unclear | {before} -> {after} | {caller/consumer/event/state/config} | `{tests/paths}` or None | Preserved / Regressed / Unproven |
+| {behavior} | Direct requirement / Necessary collateral / Unrelated / Unclear | {delta} | {trace} | `{test-or-doc}:{line}` | Preserved / Regressed / Unproven |
 
-- **Collateral Impact**: None
-- **Scope Drift**: None
-```
-
-Use the sentinels only when clean. Work-item Lite lists every direct criterion, including `Addressed`, and every material behavior delta, including `Preserved`; omit only redundant prose. Collateral is evidence, not a new criterion. `Addressed` requires changed implementation. `Regressed` requires exposed-path evidence; absent proof is `Unproven`. Docs/Code Tiny evidence may come from the main agent; Lite evidence comes from the Requirement Validator plus main verification.
-
-## Findings and Recommendation
-
-```markdown
-## Must Fix Before Merge
-{Critical/High findings, or None.}
+- **Collateral Impact**: {bounded result or None}
+- **Scope Drift**: {bounded result or None}
 
 ## Detailed Findings
-### `{file}`
-1. **[CRITICAL|HIGH|MEDIUM|LOW] [Actor/Family]** `{line}` - {title}
-   - **Evidence**: {specific code/caller/path evidence}
-   - **Impact**: {observable consequence}
-   - **Suggestion**: {bounded correction}
-
-## Recommendation
-{merge decision, build/validation gaps, and concise next action}
+None.
 ```
 
-Verify each finding against the diff/worktree, deduplicate identical locations at highest severity, and organize by file. Build warnings are Medium. Branch/build code failures are Critical. Scope drift is advisory HIGH/MEDIUM and never blocks by itself. State unavailable evidence; do not infer success.
-
-## ADO Autolink and Verification
-
-Escape non-ADO number references such as `PR \#4` and `AC \#2`, then run:
-
-```text
-python <code-review-publish-skill>/scripts/ado_autolink_guard.py fix ".CodeReview/{safe-branch}.lite.md"
-python <code-review-publish-skill>/scripts/ado_autolink_guard.py check ".CodeReview/{safe-branch}.lite.md"
-python <skill>/scripts/verify_output.py ".CodeReview/{safe-branch}.lite.md"
-```
+Each finding uses a `Target` bullet whose value is an allowlisted `{production-file}:{line}`. Tests/docs are citable evidence, not
+finding targets. Escalation writes no Lite report or sidecar. Run the verifier after the existing
+ADO autolink guard; use `--sidecar` only when the report cannot carry its metadata path.

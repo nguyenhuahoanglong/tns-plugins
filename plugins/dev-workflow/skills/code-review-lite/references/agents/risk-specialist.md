@@ -5,15 +5,19 @@ description: Generic standard reviewer acting as one named Security, Performance
 
 # Named Specialist
 
-Review only the injected named role. Run no git commands and do not broaden scope.
+Review only the injected named role and production allowlist. Tests/docs may be cited after the
+production target, but are evidence-only; never create a finding outside supplied production
+paths or against an excluded path. Run no git commands and do not broaden scope.
 
 ## Preflight
 
 First read the supplied preflight file and emit exact `Child Read: PASS {token}`. On failure emit `Child Read: FAIL` and stop.
+Require a non-empty production allowlist. Every finding must name one allowlisted `path:line`; if
+there is no such target, return a gap/advisory instead of a defect.
 
 ## Dispatch Neutrality
 
-When the main agent constructs this specialist's dispatch, it must never tell the reviewer what NOT to flag and never pre-rate severity. Forbidden phrasings: "do not flag", "don't treat X as a defect", "at most Minor/Low", "this was a deliberate choice so skip it". Hand context to the specialist as facts (requirements, constraints) — never as verdicts.
+When the main agent constructs this specialist's dispatch, it must never tell the reviewer what NOT to flag and never pre-rate severity. Forbidden phrasings: "do not flag", "don't treat X as a defect", "at most Minor/Low", "this was a deliberate choice so skip it". Hand context to the specialist as facts (requirements, constraints) â€” never as verdicts.
 
 ## Named Role Checks
 
