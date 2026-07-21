@@ -128,13 +128,13 @@ No-production-code states that semantic/build/test work was not run. Tiny uses `
 {gate, build, test, requirement, specialist outcome summary}
 
 ## Detailed Findings
-- Must Fix: {production/path}:{line} â€” [{stable id}] {summary}
-- Should Fix: {production/path}:{line} â€” [{stable id}] {summary}
-- Consider: {production/path}:{line} â€” [{stable id}] {summary}
+- Must Fix: {production/path}:{line} — [{stable id}] {summary}
+- Should Fix: {production/path}:{line} — [{stable id}] {summary}
+- Consider: {production/path}:{line} — [{stable id}] {summary}
 
 None.
 ```
 
-Use exactly one index row per sidecar `findings[]` item, in identical order. The target must be in `productionFiles`; an optional sidecar `action` and `line` must match the row. Cite tests/docs only as `evidence[]`. Gate/build/test blockers without a production target go in `blockingValidations[]` and may use `- Must Fix: {gate} â€” {reason}` without a `file:line`; they are not semantic findings.
+Use exactly one index row per sidecar `findings[]` item, in identical order. The target must be in `productionFiles`; an optional sidecar `action` and `line` must match the row. Cite tests/docs only as `evidence[]`. Gate/build/test blockers without a production target go in `blockingValidations[]` and may use `- Must Fix: {gate} — {reason}` without a `file:line`; they are not semantic findings.
 
 After the index, optional detailed prose may group by production file with evidence, impact, suggestion, and confidence. Run the ADO autolink guard; raw `#number` is only for intentional work-item links.

@@ -1,83 +1,60 @@
 # Project Quality Assessment
 
-Run after Phase 0 exploration against nearest target project/module, not whole workspace. Read its
-applicable `AGENTS.md`, manifest/build config, source type, test config, deployment surface, and
-ownership signals. Use balanced threshold below.
+Assess the nearest target module after exploration: read applicable `AGENTS.md`, build/test setup,
+deployment surface, and ownership rules. Recommendations are evidence; only explicit user `Yes` selects
+a risky workflow.
 
-## Precedence
+## Context contract
 
-1. Explicit current user instruction wins: source `user`; reason cites instruction.
-2. Existing modern Context fields resolve decision when valid.
-3. Existing legacy flag maps as described below.
-4. Otherwise use repository evidence: source `auto-assessment`; reason cites concrete files/rules.
-5. Missing or conflicting evidence means unresolved. Ask only affected multiple-choice question;
-   answer becomes source `user`.
-
-Never silently override explicit choice. If user selects tests despite missing harness, plan includes
-minimum test setup needed within scope. If user skips project-mandated quality gate, surface conflict
-and ask for resolution rather than silently violating project rule.
-
-## Unit-test decision
-
-Select when either condition holds:
-
-- Project rules require new/updated unit tests for this change.
-- Target is executable production code with meaningful unit-test seams **and** project has an
-  established runnable unit-test framework/harness.
-
-Skip when any clear condition holds and no rule requires tests:
-
-- Documentation, config-only, generated-only, or metadata-only change.
-- Target has no meaningful unit-test seam (for example deployment wiring verified by validation).
-- Executable production project has no established runnable unit-test harness. Existing build/test
-  verification still remains mandatory; do not create framework setup automatically.
-
-Conflicting evidence example: runnable harness exists but applicable rules prohibit touching tests.
-Missing evidence example: unclear whether nearest module's test project is runnable. Ask user only
-for unit-test choice.
-
-## Code-review decision
-
-Select when any clear condition holds:
-
-- Project rules require review.
-- Change touches shared production code or public contracts.
-- Change affects deployment/infra, security, persistent data, migrations, or destructive behavior.
-
-Skip when low-risk scope is clear and no rule requires review:
-
-- Documentation-only or generated-only change.
-- Prototype/spike explicitly not intended for production.
-- Clearly low-risk personal project change with no shared/deployment/data impact.
-
-Conflicting/missing ownership or risk evidence leaves only code-review choice unresolved.
-
-## Required Context fields
-
-Write exactly:
+Write these exact Context fields on every new or rewritten plan:
 
 ```text
+Plan path origin: existing-input|backlog-requirement|generated-project-root
+Plan path evidence: <non-empty>
+TDD recommendation: recommended|not-recommended
+TDD recommendation reason: <non-empty>
+TDD decision: selected|skipped
 Unit tests: selected|skipped
 Unit tests source: user|auto-assessment
-Unit tests reason: <non-empty evidence or explicit instruction>
+Unit tests reason: <non-empty>
+Code review recommendation: recommended|not-recommended
+Code review recommendation reason: <non-empty>
+Code review decision: selected|skipped
 Code review: selected|skipped
 Code review source: user|auto-assessment
-Code review reason: <non-empty evidence or explicit instruction>
+Code review reason: <non-empty>
 Depth: TDD|simplify
 ```
 
-Depth must be `TDD` for selected unit tests and `simplify` for skipped unit tests.
+`TDD decision` equals `Unit tests`; `Code review decision` equals `Code review`. Top-level `Depth` is
+`TDD` when TDD is selected, otherwise `simplify`. `Plan path evidence` names the supplied input or
+resolved project-root basis.
 
-## Legacy plan mapping
+## Path matrix
 
-Accept existing exact flags without duplicate plan or new question:
+| Input | Origin | Exact destination |
+|---|---|---|
+| Existing plan | `existing-input` | its exact supplied path |
+| Explicit requirement file/folder under `.backlog/<feature>/` | `backlog-requirement` | `.backlog/<feature>/plan.md` |
+| Inline, no-argument, or non-backlog input | `generated-project-root` | nearest project-root `.plans/<feature>.md` |
 
-| Legacy flag | Modern decision | Source | Reason |
-|---|---|---|---|
-| `Unit tests: requested` | `selected` | `user` | `Mapped from legacy Context flag: requested` |
-| `Unit tests: not requested` | `skipped` | `user` | `Mapped from legacy Context flag: not requested` |
-| `Code review: requested` | `selected` | `user` | `Mapped from legacy Context flag: requested` |
-| `Code review: not requested` | `skipped` | `user` | `Mapped from legacy Context flag: not requested` |
+Discovered backlog context never redirects a plan.
 
-Normalize fields next time main agent writes existing plan. Until then, downstream flow treats
-legacy `requested` as selected and `not requested` as skipped.
+## Recommendation and consent
+
+Routine documentation, config, generated, or metadata records are `not-recommended` and `skipped` for
+both workflows without a question. Their reasons state the routine scope and available build/static
+verification. For risky work, recommendation reasons state the concrete trigger/evidence, affected
+workflow or regression risk, and effort before asking only the relevant question.
+
+Only explicit user `Yes` selects TDD or review. A recommendation, missing answer, or modern
+`selected` with source `auto-assessment` is evidence only: ask before execution. A modern decision
+with source `user` preserves its explicit choice. Legacy `requested` maps to selected and `not requested`
+to skipped, both with `source: user`; preserve meaning and normalize all fields on rewrite. Surface a
+project-mandated gate conflict for user resolution rather than silently overriding a decline.
+
+## Per-task depth
+
+Every task uses the exact fields in `definition-criteria.md`. Only risky, user-approved tasks use
+`Depth: TDD`; routine and unapproved risky tasks use `simplify`. Mixed plans may therefore have routine
+tasks at `simplify` while the top-level Depth is `TDD`.

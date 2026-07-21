@@ -1,12 +1,12 @@
 {
-    "name":  "rd-team",
-    "owner":  {
-                  "name":  "Yana Team"
-              },
-    "plugins":  [
-                    {
-                        "name":  "dev-workflow",
-                        "source":  "./plugins/dev-workflow"
-                    }
-                ]
+  "name": "rd-team",
+  "owner": {
+    "name": "Yana Team"
+  },
+  "plugins": [
+    {
+      "name": "dev-workflow",
+      "source": "./plugins/dev-workflow"
+    }
+  ]
 }

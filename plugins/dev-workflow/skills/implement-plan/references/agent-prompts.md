@@ -1,17 +1,13 @@
 # Agent Prompt Index
 
-Use focused references; both are directly linked from `SKILL.md`.
-
-- Phase 0 exploration, Phase 1 architecture, plan quick-check:
-  `agent-prompts-planning.md`
-- TDD tests, implementation, blockers, verification rework, review rework, docs sync:
-  `agent-prompts-implementation.md`
+Use `agent-prompts-planning.md` for read-only discovery/design and
+`agent-prompts-implementation.md` only after approval.
 
 Shared rules:
 
-- Pass plan path, never inline full plan or source files.
-- Point agents to applicable `AGENTS.md`.
-- Main agent owns plan status writes.
-- Dispatch ordering follows `Depends on`; parallelism never replaces dependency correctness.
-- Reviewer and quick-check prompts receive Global Constraints verbatim. Never pre-rate findings or
-  tell reviewer what not to flag.
+- Pass plan path, never inline the full plan or source files; point agents to applicable `AGENTS.md`.
+- Main agent alone edits plan status; dependency order determines waves and parallelism never bypasses it.
+- Before writable dispatch, record working-tree-aware status and scoped diff/file hashes; compare afterward.
+- Every writable dispatch includes its exact task-file allowlist and mandatory stop/report footer.
+- Quick-check/review receive Global Constraints verbatim. Selected review alone uses
+  `Escalation Policy: ask`; never pre-rate findings or tell a reviewer what not to flag.

@@ -8,7 +8,7 @@ import sys
 from pathlib import Path
 
 LEGACY_SKILL = "code-review-lite v3.0.0"
-SKILL = "code-review-lite v4.0.0"
+SKILL = "code-review-lite v4.1.0"
 PROFILES = {"Docs Tiny", "Code Tiny", "Lite", "No Production Code"}
 SEMANTIC_AGENTS = {
     "Requirement Validator",
@@ -18,6 +18,12 @@ SEMANTIC_AGENTS = {
     "Standard Reviewer",
 }
 SPECIALISTS = SEMANTIC_AGENTS - {"Requirement Validator"}
+SPECIALIST_PRIORITY = (
+    "Security Reviewer",
+    "Philosophy Reviewer",
+    "Performance Reviewer",
+    "Standard Reviewer",
+)
 BUILD_STATUSES = {
     "PASS",
     "PASS WITH WARNINGS",
@@ -173,6 +179,76 @@ def expected_specialists(text):
     if not value or value == "None":
         return []
     return [part.split("=", 1)[0].strip() for part in value.split(" | ") if "=" in part]
+
+
+def specialist_trigger_entries(text):
+    """Return ordered ``Reviewer=trigger`` entries, or ``None`` when malformed."""
+    value = bullet(text, "Specialist Triggers")
+    if value == "None":
+        return []
+    if not value:
+        return None
+    entries = value.split(" | ")
+    if any(not re.fullmatch(r"(?:Security|Philosophy|Performance|Standard) Reviewer=.+", entry) for entry in entries):
+        return None
+    reviewers = [entry.split("=", 1)[0] for entry in entries]
+    return entries if len(reviewers) == len(set(reviewers)) else None
+
+
+def validate_escalation_contract(text, sidecar, tests, profile):
+    """Validate the v4.1 Lite escalation fields and bounded dispatch outcome."""
+    results = []
+    entries = specialist_trigger_entries(text)
+    policy = bullet(text, "Escalation Policy")
+    decision = bullet(text, "Escalation Decision")
+    selected = bullet(text, "Selected Specialist")
+    unreviewed = bullet(text, "Unreviewed Risk Families")
+    add(results, entries is not None, "Specialist Triggers uses exact ordered Reviewer=trigger entries or None")
+    add(results, policy in {"auto", "ask"}, "Escalation Policy is auto or ask")
+    add(results, decision in {"not-needed", "pro-declined"}, "Escalation Decision is not-needed or pro-declined")
+    add(results, selected in {*SPECIALIST_PRIORITY, "None"}, "Selected Specialist is an exact supported value")
+    add(results, unreviewed is not None, "Unreviewed Risk Families is reported")
+    mirrors = {
+        "escalationPolicy": policy,
+        "escalationDecision": decision,
+        "selectedSpecialist": selected,
+        "unreviewedRiskFamilies": unreviewed,
+    }
+    add(results, all(sidecar.get(key) == value for key, value in mirrors.items()), "Lite metadata mirrors escalation fields exactly")
+    if entries is None:
+        return results
+
+    branch = section_bullets(text, "Branch Work Item Gate")
+    _, builds, _ = parse_build_rows(text)
+    _, triggered = parse_agent_list(text, "Triggered")
+    blocked = (
+        any(row["status"] == "FAIL" or row["status"].startswith("NOT RUN") or row["status"] == "JS-SKIPPED" for row in builds)
+        or tests.get("status") in {"fail", "timeout", "gap"}
+    )
+    branch_failed = branch.get("Status") == "FAIL"
+    count = len(entries)
+    expected_decision = "pro-declined" if count >= 2 else "not-needed"
+    add(results, decision == expected_decision, "Escalation Decision matches triggered-family count")
+    if count >= 2:
+        add(results, policy == "ask", "Multi-family Lite is only allowed after ask is declined")
+
+    if not entries:
+        expected_selected = "None"
+        expected_unreviewed = "None"
+        expected_agents = ["Requirement Validator"] if profile == "Lite" and not branch_failed else []
+    elif branch_failed or blocked:
+        expected_selected = "None"
+        expected_unreviewed = " | ".join(entries)
+        expected_agents = [] if branch_failed else ["Requirement Validator"]
+    else:
+        expected_selected = next(reviewer for reviewer in SPECIALIST_PRIORITY if any(entry.startswith(f"{reviewer}=") for entry in entries))
+        expected_unreviewed = " | ".join(entry for entry in entries if not entry.startswith(f"{expected_selected}=")) or "None"
+        expected_agents = ["Requirement Validator", expected_selected]
+
+    add(results, selected == expected_selected, "Selected Specialist follows gate outcome and priority")
+    add(results, unreviewed == expected_unreviewed, "Unreviewed Risk Families preserves the required ordered residual list")
+    add(results, triggered == expected_agents, "Semantic agents match the bounded escalation route")
+    return results
 
 
 def artifact_reference(text, name):
@@ -383,19 +459,6 @@ def validate_preserved_gates(text, profile, tests):
             ),
             "Lite is non-docs and fails Code Tiny eligibility",
         )
-        classified = expected_specialists(text)
-        specialists = [actor for actor in triggered if actor in SPECIALISTS]
-        build_blocking = any(row["status"] == "FAIL" or row["status"].startswith("NOT RUN") or row["status"] == "JS-SKIPPED" for row in builds)
-        test_blocking = tests.get("status") in {"fail", "timeout", "gap"}
-        add(results, len(classified) <= 1, "Lite classifies at most one specialist")
-        if branch_status == "FAIL":
-            add(results, not triggered, "Branch FAIL triggers zero semantic agents")
-        elif build_blocking or test_blocking:
-            add(results, triggered == ["Requirement Validator"], "Blocking build or test outcome routes Requirement Validator only")
-        else:
-            expected = ["Requirement Validator", *classified]
-            add(results, sorted(triggered) == sorted(expected) and len(triggered) == len(expected), "Lite passing gates trigger every selected semantic agent")
-        add(results, len(specialists) <= 1 and all(agent in classified for agent in specialists), "Lite triggers only the classified specialist")
         requirements = section(text, "Requirement Evidence")
         req_rows, req_complete = data_rows(requirements, 3)
         add(
@@ -501,7 +564,7 @@ def evaluate_v4(path, text, expected_profile=None, sidecar_override=None):
         "Runtime attestation identifies a current cross-checked host session",
     )
     add(results, sidecar.get("skillName") == "code-review-lite", "Lite metadata skillName is code-review-lite")
-    add(results, sidecar.get("skillVersion") == "4.0.0", "Lite metadata skillVersion is 4.0.0")
+    add(results, sidecar.get("skillVersion") == "4.1.0", "Lite metadata skillVersion is 4.1.0")
     add(results, sidecar.get("reviewProfile") == profile, "Lite metadata reviewProfile matches report")
     add(results, side_runtime == runtime, "Lite metadata runtime matches attestation")
     add(results, field(text, "Main Runtime") == exact_runtime, "Report runtime matches attested runtime")
@@ -638,6 +701,7 @@ def evaluate_v4(path, text, expected_profile=None, sidecar_override=None):
             "No Production Code keeps not-applicable test evidence without execution",
         )
     results.extend(validate_preserved_gates(text, profile, tests))
+    results.extend(validate_escalation_contract(text, sidecar, tests, profile))
     return results
 
 

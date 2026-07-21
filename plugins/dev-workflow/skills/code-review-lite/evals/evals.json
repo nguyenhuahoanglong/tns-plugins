@@ -10,7 +10,7 @@
         "The report selects Code Tiny only after recording one changed file, no more than 100 changed lines, Documentation Only false, and no risk or specialist trigger.",
         "The branch check, exact approved dotnet command, and discovered direct/affected tests run as deterministic processes; each repo/run remains in test executions evidence.",
         "Triggered and Agent Usage are both None because Code Tiny dispatches zero Requirement Validator or specialist children.",
-        "The report identifies code-review-lite v4.0.0, references the recordVersion 3 sidecar and hashed artifacts, and passes scripts/verify_output.py with expected profile Code Tiny."
+        "The report identifies code-review-lite v4.1.0, mirrors Escalation Policy auto, Escalation Decision not-needed, Selected Specialist None, and Unreviewed Risk Families None in its recordVersion 3 sidecar, and passes scripts/verify_output.py with expected profile Code Tiny."
       ]
     },
     {
@@ -50,6 +50,26 @@
       ]
     },
     {
+      "id": 7,
+      "prompt": "Lite-review a passing change with Security=auth, Performance=async, and Standard=lockfile specialist triggers. Escalation Policy: ask. I decline Pro escalation.",
+      "expected_output": "Continue as bounded Lite after the declined ask, select Security Reviewer by priority, and preserve the other exact trigger entries as ordered unreviewed risk families.",
+      "expectations": [
+        "The Lite report and record-v3 sidecar use code-review-lite v4.1.0 and mirror policy ask, decision pro-declined, selected Security Reviewer, and the exact ordered residual trigger list.",
+        "Requirement Validator and Security Reviewer are the only semantic agents after passing gates; Performance and Standard are not silently reviewed.",
+        "Changing the policy to auto or accepting the ask invokes Pro and produces no Lite artifact."
+      ]
+    },
+    {
+      "id": 8,
+      "prompt": "Lite-review a declined multi-family ask where Security=auth and Performance=async are triggered, but the branch gate fails.",
+      "expected_output": "Emit bounded Lite evidence with no semantic children, selected None, and both exact ordered trigger entries unreviewed.",
+      "expectations": [
+        "The policy is ask and decision is pro-declined in both report and sidecar.",
+        "Branch FAIL starts no Requirement Validator or specialist, and all triggered families remain unreviewed in original order.",
+        "A build/test failure, timeout, or gap instead runs Requirement Validator only while retaining selected None and all trigger entries unreviewed."
+      ]
+    },
+    {
       "id": 5,
       "prompt": "For the same passing Lite cancellation review, show the exact semantic-child dispatch plan for both Claude Code and Codex. Do not execute the review. Include only the stable contract and dynamic tail fields needed to prove context isolation and runtime routing.",
       "expected_output": "Describe host-specific isolated dispatch with equivalent semantic roles: Claude named custom agents and Codex custom agent_type calls with fork_turns none.",
@@ -79,10 +99,12 @@
     {"scenario":"existing session override","expects":["pause for explicit confirmation","record override in recordVersion 3 sidecar"]},
     {"scenario":"docs and tests only","expects":["No Production Code","no build/test/semantic findings"]},
     {"scenario":"missing direct tests","expects":["run affected tests","exact use-unit-testing advisory","no defect"]},
-    {"scenario":"multiple specialists","expects":["escalate to code-review-pro after shared preflight and scope","no Lite gates/context/report/sidecar"]}
+    {"scenario":"multiple specialists with omitted policy","expects":["default auto escalates to code-review-pro after shared preflight and scope","no Lite gates/context/report/sidecar"]},
+    {"scenario":"multi-family ask accepted","expects":["invoke code-review-pro","no Lite artifact"]},
+    {"scenario":"multi-family ask declined","expects":["bounded Lite uses pro-declined","priority selection and exact ordered residual risk families"]}
   ],
   "non_goals": [
-    "Replace code-review-pro for changes requiring multiple specialist families.",
+    "Replace code-review-pro when a multiple-specialist escalation is auto or accepted; declined ask remains bounded Lite only.",
     "Publish review comments, update pull requests, or modify Azure DevOps work items.",
     "Fix reviewed code automatically.",
     "Create a prompt cache, result cache, replay engine, or nested-agent workflow.",

@@ -1,52 +1,42 @@
 # Definition Criteria
 
-The verification contract for the workflow. The interview's main job (Phase 0) is to lock these so
-every task is verifiable *by construction*. "Make it work" / "handle errors properly" are not
-criteria — they are gaps to resolve before planning.
+The interview locks observable ACs and deterministic completion before planning. “Make it work” and
+“handle errors properly” are gaps, not criteria.
 
-There are **two levels**.
+## Acceptance Criteria
 
-## Level 1 — Acceptance Criteria (plan-level)
+Each plan AC states observable behavior and maps to one or more tasks. Good: `AC-1: Exporting an empty
+report yields a CSV with only the header row.` Weak: `AC-1: Export works.`
 
-What the **whole feature** must satisfy, confirmed by the user in Phase 0. Each AC is a testable
-statement of observable behavior, and maps to at least one task.
+## Per-task contract
 
-- ✅ "AC-1: Exporting an empty report yields a CSV with only the header row."
-- ✅ "AC-2: A non-admin user calling the export endpoint receives 403."
-- ❌ "AC: Export works." (not observable / not testable)
+Every task has a mechanical Done when and exactly these fields:
 
-## Level 2 — "Done when" per task (default)
+```text
+Risk: routine|risky
+Risk reason: <non-empty trigger or routine justification>
+Depth: simplify|TDD
+Mode: existing-method|simple-new|complex-backbone
+Existing-method baseline: <exact existing suite command/result, or not applicable>
+Scaffold: <named signatures/control-flow wiring, or not applicable>
+```
 
-Every task carries a **"Done when"** line: a concrete, mechanically checkable condition for that task
-to count as complete — something a quick deterministic check can confirm, not a judgement call.
+Valid evidence is a named build/test command, deterministic assertion, or exact endpoint I/O. Only a
+risky task with explicit user TDD approval uses `Depth: TDD`; all others simplify. Top-level Depth still
+follows the Context TDD decision, so mixed plans can retain routine simplify tasks.
 
-Good "Done when" items:
-- A **build/lint** result: `dotnet build` succeeds with no new warnings.
-- A **concrete behavior**: `GET /api/users` returns `200` with a `UserDto[]` body.
-- A **value assertion**: `CsvExporter.Export([])` returns `"Id,Name\n"`.
-- A **named test passes** (when the task already has tests): `GetUsers_EmptyDb_ReturnsEmptyList` is green.
+## Depth and mode
 
-Weak items (sharpen in the interview):
-- "Endpoint is implemented correctly" → *correct how? what input → what output?*
-- "Good error handling" → *which errors? what response/behavior for each?*
+- `existing-method`: record exact existing-suite GREEN baseline; reuse/add characterization tests GREEN;
+  RED assertions cover only changed/new behavior; implementation ends GREEN.
+- `simple-new`: when Depth is TDD, after approval create compile-ready named signatures and control-flow
+  wiring without business logic, record Scaffold, make assertion-level tests RED, then implement GREEN.
+  When simplify, implement directly and use `Scaffold: not applicable`.
+- `complex-backbone`: complex workflow, wiring, DI, external integration, or deterministic-local-mock
+  work follows unchanged `design-backbone`: independent decision/approval locks, verified handoff,
+  resume same task, and no duplicate tests.
 
-## TDD depth — Definition of Done checklist
-
-When **TDD depth** is chosen for a logic-heavy, unit-testable change, expand the task's single
-"Done when" line into a **Definition of Done** checklist of named, testable items. In TDD depth this
-checklist drives three things:
-1. **Failing tests** — the qa-engineer turns each testable item into a red unit test (the test *is*
-   the executable form of the item).
-2. **Implementer done-signal** — a task is not complete until its scoped tests are green.
-3. **Verification** — the main agent checks each task against its DoD before marking it complete.
-
-Tasks with no meaningful unit test (config, infra, pure UI/style) get a **build, manual, or static
-gate** instead. Don't invent low-value tests to satisfy the TDD step. Code review remains controlled
-only by independent `Code review: selected|skipped` decision and is never enabled as a fallback.
-
-## Interview tie-in
-
-A task is only allowed into the plan once it has a "Done when" (or, in TDD depth, a Definition of
-Done). If, during Phase 0, the user cannot say how a piece would be verified, that is the signal to
-ask one more targeted question — *not* to write a vague task and hope. Criteria are cheaper to get
-right before any code or test exists.
+Routine doc/config/generated/metadata work is TDD/review `not-recommended` and `skipped` without asking.
+Risky recommendation reasons state evidence, risk, and effort before a question. Only user Yes selects;
+modern `selected`/`auto-assessment` requires consent before execution. Preserve `user` decisions and map
+legacy `requested`/`not requested` to user selected/skipped when rewriting.

@@ -1,6 +1,6 @@
 ---
 name: risk-specialist
-description: Generic standard reviewer acting as one named Security, Performance, Philosophy, or Standard specialist
+description: v4.1.0 generic standard reviewer acting as one named Security, Performance, Philosophy, or Standard specialist
 ---
 
 # Named Specialist
@@ -17,7 +17,24 @@ there is no such target, return a gap/advisory instead of a defect.
 
 ## Dispatch Neutrality
 
-When the main agent constructs this specialist's dispatch, it must never tell the reviewer what NOT to flag and never pre-rate severity. Forbidden phrasings: "do not flag", "don't treat X as a defect", "at most Minor/Low", "this was a deliberate choice so skip it". Hand context to the specialist as facts (requirements, constraints) â€” never as verdicts.
+When the main agent constructs this specialist's dispatch, it must never tell the reviewer what NOT to flag and never pre-rate severity. Forbidden phrasings: "do not flag", "don't treat X as a defect", "at most Minor/Low", "this was a deliberate choice so skip it". Hand context to the specialist as facts (requirements, constraints) — never as verdicts.
+
+## Escalation boundary
+
+This v4.1.0 role receives only the selected family. The main workflow owns `Escalation Policy`,
+`Escalation Decision`, `Selected Specialist`, and `Unreviewed Risk Families` (sidecar:
+`escalationPolicy`, `escalationDecision`, `selectedSpecialist`, `unreviewedRiskFamilies`). Never
+review, mention as covered, or broaden into unreviewed families. For a declined multi-family ask,
+selection priority is Security Reviewer > Philosophy Reviewer > Performance Reviewer > Standard
+Reviewer; this role receives only that selection.
+
+| Triggered families | Policy / response | Outcome | Lite fields |
+|---|---|---|---|
+| 0 or 1 | `auto` or `ask` | Lite | `not-needed`; selected `{Family} Reviewer` or `None`; unreviewed `None` |
+| 2+ | `auto`, or `ask` accepted | Pro | no Lite artifact |
+| 2+ | `ask` declined; gates pass | Bounded Lite | `pro-declined`; select Security Reviewer > Philosophy Reviewer > Performance Reviewer > Standard Reviewer; other families unreviewed |
+| 2+ | `ask` declined; branch FAIL | Bounded Lite | `pro-declined`; selected `None`; all families unreviewed |
+| 2+ | `ask` declined; build/test fail, timeout, or gap | Bounded Lite | `pro-declined`; selected `None`; all families unreviewed |
 
 ## Named Role Checks
 

@@ -49,6 +49,10 @@ def _write_report_body(
     triggered=(),
     usage_rows=None,
     specialist_triggers=None,
+    escalation_policy="auto",
+    escalation_decision="not-needed",
+    selected_specialist=None,
+    unreviewed_risk_families=None,
     include_behavior=True,
     include_collateral=True,
     include_scope_drift=True,
@@ -67,6 +71,23 @@ def _write_report_body(
         )
     if build_rows is None:
         build_rows = [] if profile == "Docs Tiny" else [DEFAULT_BUILD_ROW]
+    trigger_entries = [] if specialist_triggers == "None" else specialist_triggers.split(" | ")
+    build_blocked = any(
+        row[1] == "FAIL" or row[1].startswith("NOT RUN") or row[1] == "JS-SKIPPED"
+        for row in build_rows
+    )
+    if selected_specialist is None:
+        selected_specialist = (
+            "None"
+            if branch_status == "FAIL" or build_blocked or not trigger_entries
+            else trigger_entries[0].split("=", 1)[0]
+        )
+    if unreviewed_risk_families is None:
+        unreviewed_risk_families = (
+            " | ".join(trigger_entries)
+            if branch_status == "FAIL" or build_blocked
+            else " | ".join(entry for entry in trigger_entries if not entry.startswith(f"{selected_specialist}=")) or "None"
+        )
     triggered = list(triggered)
     if usage_rows is None:
         usage_rows = [
@@ -223,7 +244,10 @@ def _write_report_body(
                 f"- **Documentation Only**: {classification[2]}",
                 f"- **Risk Triggers**: {classification[3]}",
                 f"- **Specialist Triggers**: {specialist_triggers}",
-                "- **Decision**: fixture",
+                f"- **Escalation Policy**: {escalation_policy}",
+                f"- **Escalation Decision**: {escalation_decision}",
+                f"- **Selected Specialist**: {selected_specialist}",
+                f"- **Unreviewed Risk Families**: {unreviewed_risk_families}",
                 "",
                 "## Deterministic Gates",
                 "",
@@ -367,14 +391,14 @@ class VerifyOutputV4GateTests(unittest.TestCase):
             self.assert_contract_failure(
                 path,
                 "Lite",
-                "Lite passing gates trigger every selected semantic agent",
+                "Semantic agents match the bounded escalation route",
             )
 
     def test_lite_rejects_missing_requirement_validator(self):
         with tempfile.TemporaryDirectory() as root:
             path = write_report(root, "Lite", triggered=["Performance Reviewer"])
             self.assert_contract_failure(
-                path, "Lite", "Lite passing gates trigger every selected semantic agent"
+                path, "Lite", "Semantic agents match the bounded escalation route"
             )
 
     def test_lite_rejects_more_than_one_specialist(self):
@@ -392,7 +416,7 @@ class VerifyOutputV4GateTests(unittest.TestCase):
                 ),
             )
             self.assert_contract_failure(
-                path, "Lite", "Lite classifies at most one specialist"
+                path, "Lite", "Semantic agents match the bounded escalation route"
             )
 
     def test_lite_rejects_unclassified_specialist(self):
@@ -403,7 +427,7 @@ class VerifyOutputV4GateTests(unittest.TestCase):
                 triggered=["Requirement Validator", "Security Reviewer"],
             )
             self.assert_contract_failure(
-                path, "Lite", "Lite triggers only the classified specialist"
+                path, "Lite", "Semantic agents match the bounded escalation route"
             )
 
     def test_branch_fail_accepts_zero_semantic_agents(self):
@@ -420,7 +444,7 @@ class VerifyOutputV4GateTests(unittest.TestCase):
                 triggered=["Requirement Validator"],
             )
             self.assert_contract_failure(
-                path, "Lite", "Branch FAIL triggers zero semantic agents"
+                path, "Lite", "Semantic agents match the bounded escalation route"
             )
 
     def test_lite_build_fail_accepts_requirement_only(self):
@@ -450,7 +474,7 @@ class VerifyOutputV4GateTests(unittest.TestCase):
                 triggered=["Requirement Validator", "Performance Reviewer"],
             )
             self.assert_contract_failure(
-                path, "Lite", "Blocking build or test outcome routes Requirement Validator only"
+                path, "Lite", "Semantic agents match the bounded escalation route"
             )
 
     def test_lite_build_gaps_accept_requirement_only(self):
@@ -483,7 +507,7 @@ class VerifyOutputV4GateTests(unittest.TestCase):
                 triggered=["Requirement Validator", "Performance Reviewer"],
             )
             self.assert_contract_failure(
-                path, "Lite", "Blocking build or test outcome routes Requirement Validator only"
+                path, "Lite", "Semantic agents match the bounded escalation route"
             )
 
     # AC-5: gate/agent separation and complete deterministic records.
@@ -693,11 +717,11 @@ class VerifyOutputV4GateTests(unittest.TestCase):
                 triggered=["Requirement Validator", "Performance Reviewer"],
             )
             path.write_text(
-                path.read_text(encoding="utf-8").replace("4.0.0", "3.0.0"),
+                path.read_text(encoding="utf-8").replace("4.1.0", "3.0.0", 1),
                 encoding="utf-8",
             )
             self.assert_contract_failure(
-                path, "Lite", "Only code-review-lite v4.0.0 reports are accepted"
+                path, "Lite", "Only code-review-lite v4.1.0 reports are accepted"
             )
 
 
@@ -790,6 +814,19 @@ def _write_v4_contract(
             ],
         },
     )
+    tests_payload = json.loads(tests_path.read_text(encoding="utf-8"))
+    triggers = report_options.get("specialist_triggers", "Performance Reviewer=async-lifecycle" if profile == "Lite" else "None")
+    entries = [] if triggers == "None" else triggers.split(" | ")
+    blocking = tests_payload.get("status") in {"fail", "timeout", "gap"}
+    branch_failed = report_options.get("branch_status") == "FAIL"
+    build_rows = report_options.get("build_rows") or ([] if profile == "Docs Tiny" else [DEFAULT_BUILD_ROW])
+    build_blocked = any(row[1] == "FAIL" or row[1].startswith("NOT RUN") or row[1] == "JS-SKIPPED" for row in build_rows)
+    selected = "None" if branch_failed or blocking or build_blocked or not entries else entries[0].split("=", 1)[0]
+    unreviewed = " | ".join(entries) if branch_failed or blocking or build_blocked else " | ".join(entry for entry in entries if not entry.startswith(f"{selected}=")) or "None"
+    report_options.setdefault("escalation_policy", "ask" if len(entries) >= 2 else "auto")
+    report_options.setdefault("escalation_decision", "pro-declined" if len(entries) >= 2 else "not-needed")
+    report_options.setdefault("selected_specialist", selected)
+    report_options.setdefault("unreviewed_risk_families", unreviewed)
     if "triggered" not in report_options:
         report_options["triggered"] = (
             ["Requirement Validator", "Performance Reviewer"]
@@ -810,13 +847,17 @@ def _write_v4_contract(
             {
                 "recordVersion": 3,
                 "skillName": "code-review-lite",
-                "skillVersion": "4.0.0",
+                "skillVersion": "4.1.0",
                 "reviewProfile": profile,
                 "runtime": runtime_payload,
                 "session": session,
                 "productionAllowlist": (scope or {"productionFiles": ["src/retry.py"]}).get("productionFiles"),
                 "requirements": context.get("requirements", {}),
                 "buildResults": context.get("buildResults", []),
+                "escalationPolicy": report_options["escalation_policy"],
+                "escalationDecision": report_options["escalation_decision"],
+                "selectedSpecialist": report_options["selected_specialist"],
+                "unreviewedRiskFamilies": report_options["unreviewed_risk_families"],
                 "artifacts": {
                     "runtime": {"path": str(runtime_path), "sha256": runtime_hash},
                     "scope": {"path": str(scope_path), "sha256": scope_hash},
@@ -829,7 +870,7 @@ def _write_v4_contract(
     )
     report.write_text(
         report.read_text(encoding="utf-8")
-        .replace("code-review-lite v3.0.0", "code-review-lite v4.0.0")
+        .replace("code-review-lite v3.0.0", "code-review-lite v4.1.0")
         .replace("**Main Runtime**: gpt-5.6-sol / xhigh", "**Main Runtime**: gpt-5.6-terra / medium")
         .replace(f"**Context Manifest**: {context_path}", "**Context Manifest**: n/a")
         + "\n## Runtime, Scope, and Test Evidence\n"
@@ -933,7 +974,18 @@ def _write_no_production_contract(tmp_path):
     metadata = json.loads(sidecar.read_text(encoding="utf-8"))
     metadata["reviewProfile"] = "No Production Code"
     metadata["buildResults"] = []
+    metadata.update(
+        {
+            "escalationPolicy": "auto",
+            "escalationDecision": "not-needed",
+            "selectedSpecialist": "None",
+            "unreviewedRiskFamilies": "None",
+        }
+    )
+    text = text.replace("- **Specialist Triggers**: Performance Reviewer=async-lifecycle", "- **Specialist Triggers**: None")
+    text = text.replace("- **Selected Specialist**: Performance Reviewer", "- **Selected Specialist**: None")
     sidecar.write_text(json.dumps(metadata, sort_keys=True), encoding="utf-8")
+    report.write_text(text, encoding="utf-8")
     return report, sidecar
 
 
@@ -1118,7 +1170,7 @@ def test_tc_030_rejects_lite_artifacts_for_multi_specialist_escalation(tmp_path)
 
 
 def test_tc_031_rejects_legacy_v3_reports_even_when_the_old_contract_is_valid(tmp_path):
-    """TC-031 / DoD-3.4: public verification accepts v4.0.0/recordVersion 3 only.
+    """TC-031 / DoD-3.4: public verification accepts v4.1.0/recordVersion 3 only.
 
     Steps:
       1. Create an otherwise-valid legacy v3 Lite report.
@@ -1133,7 +1185,7 @@ def test_tc_031_rejects_legacy_v3_reports_even_when_the_old_contract_is_valid(tm
 
     failures = [message for level, message in evaluate(report, "Lite") if level == "FAIL"]
 
-    assert "Only code-review-lite v4.0.0 reports are accepted" in failures
+    assert "Only code-review-lite v4.1.0 reports are accepted" in failures
 
 
 def test_tc_032_rechecks_pass_attestation_against_shared_runtime_policy(tmp_path):
@@ -1513,3 +1565,76 @@ def test_tc_040_cli_uses_only_inferred_or_explicit_sidecar_authority(tmp_path):
     assert "--expected-main-runtime" not in help_result.stdout
     assert "--context-manifest" not in help_result.stdout
     assert explicit_result.returncode == 0, explicit_result.stdout + explicit_result.stderr
+
+
+def test_v41_accepts_declined_multi_family_with_priority_and_ordered_residual(tmp_path):
+    triggers = "Performance Reviewer=async | Security Reviewer=auth | Standard Reviewer=lockfile"
+    report, *_ = _write_v4_contract(
+        tmp_path,
+        specialist_triggers=triggers,
+        escalation_policy="ask",
+        escalation_decision="pro-declined",
+        selected_specialist="Security Reviewer",
+        unreviewed_risk_families="Performance Reviewer=async | Standard Reviewer=lockfile",
+        triggered=["Requirement Validator", "Security Reviewer"],
+    )
+
+    assert _v4_failures(report) == []
+
+
+def test_v41_rejects_multi_auto_wrong_selection_and_reordered_residual(tmp_path):
+    triggers = "Performance Reviewer=async | Security Reviewer=auth | Standard Reviewer=lockfile"
+    report, *_ = _write_v4_contract(
+        tmp_path,
+        specialist_triggers=triggers,
+        escalation_policy="auto",
+        escalation_decision="not-needed",
+        selected_specialist="Performance Reviewer",
+        unreviewed_risk_families="Standard Reviewer=lockfile | Security Reviewer=auth",
+        triggered=["Requirement Validator", "Performance Reviewer"],
+    )
+
+    failures = _v4_failures(report)
+    assert "Multi-family Lite is only allowed after ask is declined" in failures
+    assert "Escalation Decision matches triggered-family count" in failures
+    assert "Selected Specialist follows gate outcome and priority" in failures
+    assert "Unreviewed Risk Families preserves the required ordered residual list" in failures
+
+
+def test_v41_rejects_report_sidecar_escalation_mismatch_and_malformed_trigger(tmp_path):
+    report, sidecar, *_ = _write_v4_contract(tmp_path)
+    metadata = json.loads(sidecar.read_text(encoding="utf-8"))
+    metadata["selectedSpecialist"] = "Security Reviewer"
+    sidecar.write_text(json.dumps(metadata, sort_keys=True), encoding="utf-8")
+    report.write_text(
+        report.read_text(encoding="utf-8").replace(
+            "Performance Reviewer=async-lifecycle", "Performance=async-lifecycle"
+        ),
+        encoding="utf-8",
+    )
+
+    failures = _v4_failures(report)
+    assert "Specialist Triggers uses exact ordered Reviewer=trigger entries or None" in failures
+    assert "Lite metadata mirrors escalation fields exactly" in failures
+
+
+def test_v41_multi_family_blocked_gate_requires_all_unreviewed_and_requirement_only(tmp_path):
+    tests = {
+        "status": "gap", "blocking": True, "reasonCode": "test-gap", "advisory": None,
+        "changedSymbols": ["RetryPolicy.execute"], "directTests": ["tests/test_retry.py"],
+        "affectedTests": [], "runs": [],
+    }
+    triggers = "Security Reviewer=auth | Performance Reviewer=async"
+    report, *_ = _write_v4_contract(
+        tmp_path,
+        tests=tests,
+        specialist_triggers=triggers,
+        escalation_policy="ask",
+        escalation_decision="pro-declined",
+        selected_specialist="None",
+        unreviewed_risk_families=triggers,
+        triggered=["Requirement Validator"],
+    )
+    report.write_text(report.read_text(encoding="utf-8") + "- **Test Gate**: BLOCKED (gap)\n", encoding="utf-8")
+
+    assert _v4_failures(report) == []

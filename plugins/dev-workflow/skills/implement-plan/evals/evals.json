@@ -1,78 +1,13 @@
 {
   "skill_name": "implement-plan",
   "evals": [
-    {
-      "id": 1,
-      "prompt": "$implement-plan add CSV export in a shared production web app that has a runnable Vitest suite",
-      "expected_output": "Phase 0 auto-selects unit tests and code review without preference questions.",
-      "expectations": [
-        "Records Unit tests: selected, Unit tests source: auto-assessment, and a reason citing executable code plus runnable Vitest.",
-        "Records Code review: selected, Code review source: auto-assessment, and a reason citing shared production code.",
-        "Records Depth: TDD and uses qa-engineer test-first flow after approval.",
-        "Asks neither quality preference question."
-      ]
-    },
-    {
-      "id": 2,
-      "prompt": "$implement-plan update wording in a documentation-only project",
-      "expected_output": "Phase 0 auto-skips unit tests and code review without preference questions.",
-      "expectations": [
-        "Records both decisions as skipped with source auto-assessment and evidence-based reasons.",
-        "Records Depth: simplify.",
-        "Does not assign qa-engineer or invoke code-review-lite.",
-        "Still records applicable validation/build/test verification."
-      ]
-    },
-    {
-      "id": 3,
-      "prompt": "$implement-plan change shared production service code in a project with no runnable unit-test harness",
-      "expected_output": "Phase 0 skips new unit tests but selects code review without asking.",
-      "expectations": [
-        "Records Unit tests: skipped because no established runnable harness exists.",
-        "Records Code review: selected because shared production code changes.",
-        "Uses simplify depth and code-review-lite after mandatory build/existing-test verification.",
-        "Does not create a test framework automatically."
-      ]
-    },
-    {
-      "id": 4,
-      "prompt": "$implement-plan target module has conflicting test rules but clearly changes shared production code",
-      "expected_output": "Phase 0 asks only unresolved unit-test choice.",
-      "expectations": [
-        "Asks unit-test multiple-choice question because evidence conflicts.",
-        "Does not ask code-review question because project evidence selects it.",
-        "User answer becomes Unit tests source: user.",
-        "Plan writing waits until unresolved unit-test choice is answered."
-      ]
-    },
-    {
-      "id": 5,
-      "prompt": "$implement-plan add service behavior; do not write unit tests and do not run code review",
-      "expected_output": "Explicit choices override automatic project assessment.",
-      "expectations": [
-        "Records both decisions as skipped with source user and reasons citing explicit instructions.",
-        "Asks neither quality question.",
-        "Creates no new tests and runs no review flow.",
-        "Still runs project build and existing test suite."
-      ]
-    },
-    {
-      "id": 6,
-      "prompt": "$implement-plan .plans/existing.md with Unit tests: requested and Code review: not requested",
-      "expected_output": "Complete legacy flags map and resume without duplicate plan or questions.",
-      "expectations": [
-        "Keeps existing plan path.",
-        "Maps requested to selected and not requested to skipped with source user.",
-        "Does not ask either preference question.",
-        "Normalizes legacy fields when main agent next writes plan."
-      ]
-    }
+    {"id": 1, "prompt": "$implement-plan add CSV export in a shared production web app with Vitest", "expected_output": "Recommend TDD and review with evidence, then ask only those opt-ins.", "expectations": ["Uses recommended|not-recommended and explains evidence, regression risk, and effort.", "Only user Yes selects workflows; selected sources are user.", "Selected review invokes code-review-lite with Escalation Policy: ask."]},
+    {"id": 2, "prompt": "$implement-plan update wording in documentation", "expected_output": "Skip both workflows without a question.", "expectations": ["Records not-recommended and skipped decisions.", "Uses simplify, no qa-engineer, no review verdict.", "Still records applicable build/static and existing-test checks."]},
+    {"id": 3, "prompt": "$implement-plan change shared service without a runnable harness", "expected_output": "Explain recommendations and ask only unresolved opt-ins.", "expectations": ["Does not create a test framework.", "A user-selected review uses ask policy."]},
+    {"id": 4, "prompt": "$implement-plan add a mixed routine/risky service change", "expected_output": "Use task Risk/Mode/Depth and TDD only for risky user-approved task.", "expectations": ["Existing-method and simple-new flows are distinct.", "Complex-backbone pauses for unchanged design-backbone and resumes."]},
+    {"id": 5, "prompt": "$implement-plan .plans/existing.md with old selected auto-assessment quality fields", "expected_output": "Accept input but confirm or normalize before execution.", "expectations": ["Keeps exact path.", "Does not execute auto-selected old-modern workflows without consent."]},
+    {"id": 6, "prompt": "$implement-plan .plans/existing.md with Unit tests: requested and Code review: not requested", "expected_output": "Accept legacy input and normalize on rewrite.", "expectations": ["Keeps path and does not duplicate plan.", "Maps legacy flags to explicit user decisions."]},
+    {"id": 7, "prompt": "$implement-plan risky task with external boundary", "expected_output": "Use allowlisted delegation and scoped evidence.", "expectations": ["Prompts ban destructive/git/publish/install operations.", "Main agent compares working-tree-aware scope and retries a blocker once."]}
   ],
-  "non_goals": [
-    "Do not infer quality needs from entire multi-project workspace instead of nearest target module.",
-    "Do not override explicit user quality choices.",
-    "Do not create a test framework automatically when auto-assessment skips tests for missing harness.",
-    "Do not weaken mandatory build and existing-suite verification.",
-    "Do not inline full plan contents into subagent prompts or let subagents edit plan status."
-  ]
+  "non_goals": ["Do not redirect output from discovered backlog context.", "Do not auto-select risky quality work.", "Do not weaken build/existing-suite verification.", "Do not let agents edit plan status or outside their allowlist."]
 }

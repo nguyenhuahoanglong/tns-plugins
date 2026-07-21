@@ -2,9 +2,10 @@
 
 ## Purpose
 
-Adaptive, low-cost production-code review for quick checks and pre-merge validation. Version 4
+Adaptive, low-cost production-code review for quick checks and pre-merge validation. Version 4.1.0
 attests the host runtime/session before repository reads, partitions production from evidence-only
-and excluded files, verifies tests deterministically, and escalates multi-specialist risk to Pro.
+and excluded files, verifies tests deterministically, and supports controlled multi-specialist
+escalation to Pro.
 
 ## Pain Points
 
@@ -25,9 +26,36 @@ and excluded files, verifies tests deterministically, and escalates multi-specia
 | No Production Code | Retain report, record-v3 sidecar, and runtime/scope/not-applicable test evidence; execute no review work |
 | Code Tiny | Deterministic branch/build/test gates; main code review; zero semantic children |
 | Lite | Deterministic gates; mandatory deep Requirement Validator plus at most one specialist |
-| Escalation | More than one specialist trigger routes to `code-review-pro`; write no Lite report or sidecar |
+| Pro escalation | More than one family with `auto`, or an accepted `ask`, routes to `code-review-pro`; write no Lite report or sidecar |
+| Bounded Lite | A declined `ask` runs gates, Requirement Validator, and at most one priority specialist when gates pass |
 
 Tiny means at most 3 files and 100 changed lines, with no elevated shared behavior, API, schema, auth, dependency, async/lifecycle, state, or configuration risk.
+
+## Escalation policy and decision table
+
+Invocation accepts `Escalation Policy: auto|ask`; omission defaults to `auto`, preserving the
+previous immediate-Pro behavior. With `ask`, explain each triggered family and why Pro is
+recommended before asking. Acceptance follows Pro-only routing; decline continues bounded Lite.
+
+| Triggered families | Policy / response | Outcome | Lite fields |
+|---|---|---|---|
+| 0 or 1 | `auto` or `ask` | Lite | `not-needed`; selected `{Family} Reviewer` or `None`; unreviewed `None` |
+| 2+ | `auto`, or `ask` accepted | Pro | no Lite artifact |
+| 2+ | `ask` declined; gates pass | Bounded Lite | `pro-declined`; select Security Reviewer > Philosophy Reviewer > Performance Reviewer > Standard Reviewer; other families unreviewed |
+| 2+ | `ask` declined; branch FAIL | Bounded Lite | `pro-declined`; selected `None`; all families unreviewed |
+| 2+ | `ask` declined; build/test fail, timeout, or gap | Bounded Lite | `pro-declined`; selected `None`; all families unreviewed |
+
+Lite reports use `Escalation Policy`, `Escalation Decision`, `Selected Specialist`, and
+`Unreviewed Risk Families`; the record-v3 sidecar mirrors them as `escalationPolicy`,
+`escalationDecision`, `selectedSpecialist`, and `unreviewedRiskFamilies`. A passing bounded Lite
+selects exactly one persisted specialist value by Security Reviewer > Philosophy Reviewer >
+Performance Reviewer > Standard Reviewer. For every Lite route, branch FAIL selects `None` and
+starts no semantic agents; build/test failures, timeouts, and gaps select `None`, run Requirement
+Validator only, and leave every triggered family unreviewed. Residual families are reported by the
+main workflow as unreviewed, never injected into the selected role.
+
+`Selected Specialist` and sidecar `selectedSpecialist` accept only `Security Reviewer`,
+`Philosophy Reviewer`, `Performance Reviewer`, `Standard Reviewer`, or `None`.
 
 ## Runtime routing
 
@@ -48,10 +76,20 @@ drift evidence; and record per-child context mode plus token/cache counters.
 
 Production findings may target only `productionFiles`; tests/docs may still be cited as evidence.
 Test evidence aggregates every repo/command under `executions[]`. Missing direct tests for changed
-symbols emits exact `use-unit-testing` without suppressing a selected specialist. Blocking build or
-test outcomes route only the Requirement Validator.
+symbols emits exact `use-unit-testing` without suppressing a selected specialist. Blocking branch
+outcomes route no semantic agents; blocking build or test outcomes route only the Requirement
+Validator. In either case, `Selected Specialist` is `None` and every triggered family is unreviewed.
 
 ## Changelog
+
+### 2026-07-21 - v4.1.0 explicit multi-family escalation policy
+
+- Added `Escalation Policy: auto|ask`, defaulting to `auto` for unchanged immediate-Pro behavior.
+- Added ask/accept Pro-only routing and ask/decline bounded Lite routing with deterministic
+  Security Reviewer > Philosophy Reviewer > Performance Reviewer > Standard Reviewer selection
+  and residual-family reporting.
+- Added report and record-v3 sidecar fields for the policy, decision, selected specialist, and
+  unreviewed risk families; Pro paths continue to write no Lite artifacts.
 
 ### 2026-07-21 - v4.0.0 attested runtime and production scope
 

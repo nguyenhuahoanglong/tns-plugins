@@ -2,59 +2,59 @@
 
 ## Purpose
 
-Self-contained planning and implementation workflow. It explores nearest target project, assesses
-unit-test and review needs, writes plan, stops for approval, delegates work, then verifies evidence.
+Self-contained planning and implementation workflow. It explores the nearest target project, assesses
+quality needs, writes an approved plan, delegates allowlisted work, and verifies evidence.
 
 ## Pain Points
 
-- Repetitive preference questions even when project evidence is decisive.
-- Quality choices inferred from whole workspace instead of target module.
-- Plans with missing reasons, inconsistent TDD/review flows, or unresolved placeholders.
-- Implementation accepted from agent claims without scoped diff and Done-when evidence.
+- Repetitive preference questions when routine/risky evidence is decisive.
+- Quality choices inferred from a whole workspace instead of the target module.
+- Plans missing reasons, modes, executable tasks, or resolved placeholders.
+- Implementation accepted from claims rather than scoped diffs and Done-when evidence.
 
 ## Workflow
 
 ```text
-Phase 0  explore -> quality assessment -> unresolved-only interview
-Phase 1  design -> actionable tasks -> write/verify plan
-Gate     explicit user approval
-Phase 2  optional TDD -> delegated implementation -> verify before accept
-Phase 3  mandatory build/existing tests -> selected review -> AC evidence
+Phase 0  explore -> advisory assessment -> unresolved-only consent
+Phase 1  design -> dependency waves -> verifier -> approval
+Phase 2  TDD/simplify -> delegated implementation -> scoped evidence
+Phase 3  build/existing tests -> selected ask-policy review -> AC evidence
 Phase 4  report -> optional structural docs sync
 ```
 
-## Quality assessment
+## Quality and task contract
 
-Explicit user choice wins. Otherwise Phase 0 evaluates nearest target project/module:
+New/re-written plans record path origin/evidence; separate recommendations from decisions, sources, and
+reasons; and use only `recommended|not-recommended`. Routine work skips both practices without asking.
+Risky recommendations state evidence, workflow/regression risk, and effort; only user `Yes` selects TDD
+or review. Old-modern auto selections are accepted as input but confirmed/normalized before execution;
+legacy requested/not-requested maps to explicit user decisions.
 
-- Unit tests selected for executable production code with meaningful seams and established runnable
-  harness, or when project rules require them.
-- Unit tests skipped for docs/config/generated-only work, missing meaningful seams, or no established
-  harness. Existing suite and build still run.
-- Code review selected for shared production code, public contracts, deployment/infra/data/security
-  risk, or project mandate.
-- Code review skipped for docs/generated-only work, prototypes, or clearly low-risk personal work.
-- Missing/conflicting evidence asks only unresolved choice.
+Each new task records Risk, Risk reason, Depth, Mode, Existing-method baseline, and Scaffold. Existing
+method TDD proves baseline/characterization GREEN then changed RED/GREEN. Simple-new starts only with a
+compile-ready no-logic scaffold. Complex backbones pause for unchanged `design-backbone`, retain its own
+approval locks, verify handoff, and resume without duplicate tests.
 
-Plans record selected/skipped, user/auto-assessment source, reason, and TDD/simplify depth. Legacy
-requested/not requested flags map without duplicate questions and normalize on next write.
+## Delegation, verification, and design
 
-## Verification contract
+Planning is read-only except the plan. The main agent does not write production logic except an approved
+compile-ready TDD scaffold or trivial verification fix. Explorers/architects scale with complexity; 3+
+tasks receive a fresh-eyes executability gate; implementers scale by files in dependency waves. Every
+writable dispatch has an exact allowlist and destructive-operation bans; the main agent compares a
+working-tree-aware scoped baseline and alone updates status.
 
-`scripts/verify_output.py` checks exact quality fields, non-empty reasons, depth consistency,
-TDD/qa-engineer consistency, review flow consistency, placeholders, and legacy compatibility.
-Project build and existing tests remain mandatory regardless of new-test decision.
-
-## Design notes
-
-- Planning stays read-only except plan file until approval.
-- Main agent reads critical source files and reconciles one design.
-- Tasks are feature slices with isolated files, explicit dependencies, and mechanical Done-when.
-- Agent count scales by files; dependencies determine waves.
-- Main agent compares task diff to base SHA before recording completion.
-- Review uses `code-review-lite` only when selected; rework capped at two loops.
+`qa-engineer` follows `unit-testing` traceability/test-registry rules. Implementers return `DONE`,
+`DONE_WITH_CONCERNS`, `NEEDS_CONTEXT`, or `BLOCKED`; blockers get one fresh retry, then become blocked.
+Build and existing tests are mandatory. Selected review uses `code-review-lite` with `Escalation Policy:
+ask`, receives Global Constraints verbatim, and has at most two rework/re-review loops. The verifier checks
+new, old-modern, and legacy shapes; Phase 4 reports evidence and only selected-review verdicts.
 
 ## Changelog
+
+### 2026-07-21 - v3.5.0 - Consent-first paths and task modes
+
+- Added deterministic path origins, consent-first recommendations, task modes, backbone handoff, safety,
+  and selected-review `ask` integration while retaining input compatibility.
 
 ### 2026-07-12 - v3.4.0 - Project quality assessment
 

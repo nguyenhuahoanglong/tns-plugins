@@ -1,61 +1,50 @@
 # Interview Guide
 
-Phase 0 interview stays lean: 1-2 rounds, about five criteria questions. Skip anything input,
-existing plan, or repository evidence already resolves. Output feeds plan; implementation waits for
-approval.
+Keep Phase 0 to one or two rounds. Explore first; do not ask facts already resolved by input, an
+existing plan, or repository evidence. Implementation waits for written-plan approval.
 
-## Quality decisions first
+## Record resolved facts
 
-Run `quality-assessment.md` after exploration. Do not ask unit-test/review questions by default.
+Use the exact Context contract in `quality-assessment.md`. Apply its path matrix: existing plan retains
+its supplied path; an explicit requirement file/folder under `.backlog/<feature>/` writes that feature's
+`plan.md`; inline, no-argument, and non-backlog input write nearest project-root `.plans/<feature>.md`.
+Discovered backlog context never redirects.
 
-- Explicit request or decline resolves choice with source `user`.
-- Conclusive project evidence resolves choice with source `auto-assessment`.
-- Missing or conflicting evidence leaves only that choice unresolved.
-- Ask unresolved choices through multiple-choice UI, together when both remain:
-  - **Write unit tests?** `No (Recommended)` or `Yes - use TDD flow`.
-  - **Run code review?** `No (Recommended)` or `Yes - use code-review-lite`.
+## Quality questions
 
-User answer overrides prior automatic result. Existing modern fields resolve choices. Legacy flags
-map per `quality-assessment.md`; do not ask again after successful mapping.
+Record recommendation and decision fields separately. Routine doc/config/generated/metadata work is
+`not-recommended` and `skipped` for TDD and review without questions. For risky work, first state
+trigger/evidence, workflow or regression risk, and effort, then ask only the affected choice:
 
-## Required interview outcome
+- **Use TDD?** `No (Recommended)` or `Yes`.
+- **Run code review?** `No (Recommended)` or `Yes`.
 
-Before planning, state:
+Only explicit `Yes` selects. Recommendation, silence, or existing modern `selected` with
+`source: auto-assessment` is not consent; ask before execution. Preserve modern source `user` and legacy
+`requested`/`not requested` explicit choices, normalizing legacy fields on rewrite.
 
-1. Scope in and explicit non-goals.
-2. Design location, contracts, and verified patterns.
-3. Observable Acceptance Criteria.
-4. Mechanically checkable Done-when for every task.
-5. Unit-test and code-review decisions, sources, and non-empty reasons.
+## Required outcome
 
-If one item remains unknown, ask one targeted question. If more than about five criteria questions
-across two rounds are needed, narrow scope or state explicit user-approved assumptions.
+Before planning state scope/non-goals, design location and verified contracts, observable ACs, and a
+mechanical Done when for every task. Each task includes exactly:
+
+```text
+Risk: routine|risky
+Risk reason: <non-empty>
+Depth: simplify|TDD
+Mode: existing-method|simple-new|complex-backbone
+Existing-method baseline: <existing suite command/result, or not applicable>
+Scaffold: <named signatures/control-flow wiring, or not applicable>
+```
+
+Only user-approved risky tasks use TDD. Ask one targeted question for any remaining required fact; if
+more than five criteria questions are needed across two rounds, narrow scope or obtain assumptions.
 
 ## Question bank
 
-Choose only questions that change plan.
+- What smallest change solves the problem, and what remains untouched?
+- Which contract, library, or compatibility rule constrains it?
+- Which input/output/error result proves it?
+- For risky work, is the stated risk and effort worth selecting TDD or review?
 
-### Scope
-
-- What smallest change solves problem?
-- What must remain untouched?
-
-### Design and contracts
-
-- Extend existing module or add new module?
-- What inputs, outputs, and compatibility constraints apply?
-- Which libraries/services must be used or avoided?
-
-### Criteria
-
-- What concrete input produces what expected output?
-- Which error/edge scenarios matter, and what result should each produce?
-- Which build, test, static, or manual check proves completion?
-
-## Technique
-
-- Round 1: ask 3-5 highest-value unresolved questions, weighted toward criteria.
-- Round 2: fill exposed gaps and confirm task Done-when statements.
-- Convert subjective prose into observable criteria. Example: "fast" becomes a stated response-time
-  threshold for a named workload.
-- Approval comes after plan writing, not during interview.
+Approval follows the written plan, not the interview.

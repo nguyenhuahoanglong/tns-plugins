@@ -1,55 +1,39 @@
 # Planning Agent Prompts
 
-All dispatches here are read-only and occur before approval.
+All dispatches are read-only and occur before approval.
 
-## Phase 0 explorer
+## Explorer
 
-Dispatch 1-3 tool-native explorers per `plan-analysis.md`:
-
-```text
-Map codebase context for: {feature/change summary}
-Project: {project-root}. Read applicable AGENTS.md and relevant docs.
-Focus: {one specific area/question}
-
-Rules:
-- Read-only. No edits, installs, formatting, builds, or long tests.
-- Return relevant files, patterns to reuse, quality-assessment evidence, risks/questions, and task boundaries.
-- Cite file paths and useful line anchors. Keep output concise.
-```
-
-When parallel, give distinct focuses: implementation patterns, dependency surface, or quality/test
-conventions. Main agent reads critical files after reports.
-
-## Phase 1 architect
-
-Use zero for trivial one-file change, one for standard change, up to three distinct perspectives for
-complex/multi-area change. Claude Code uses Plan agent; Codex uses explorer with design brief.
+Dispatch 1–3 distinct focuses after reading applicable `AGENTS.md`:
 
 ```text
-Design implementation approach for: {feature/change summary}
-Project: {project-root}. Read applicable AGENTS.md and relevant docs.
-Phase 0 findings: {files, patterns, constraints, risks}
-Requirements and Acceptance Criteria: {locked criteria}
-
-Name concrete files, feature-slice task boundaries, dependency order, interfaces, verification, and
-trade-offs.
-
-Rules:
-- Read-only. No edits, installs, formatting, builds, or tests.
-- Return concise proposal. Do not leave unresolved implementation options.
+Map context for: {feature summary}; project: {project-root}; focus: {specific question}.
+Read applicable AGENTS.md and relevant docs.
+Rules: read-only; do not edit, install, format, build, or run long tests. Return concise file/line
+evidence, reusable patterns, quality/test assessment evidence, risks, and task boundaries.
 ```
 
-Main agent reconciles proposals into one approach matching locked scope and ACs.
+Main agent personally reads critical files identified by reports.
+
+## Architect
+
+Use zero for trivial one-file changes, one for normal work, up to three distinct perspectives for
+complex/multi-area work.
+
+```text
+Design implementation for: {feature summary}; project: {project-root}.
+Read applicable AGENTS.md and cited Phase 0 files. Requirements/ACs: {locked criteria}; findings:
+{evidence}. Name files, feature-slice boundaries, dependencies, interfaces, verification, trade-offs.
+Rules: read-only; no edits, installs, builds, or tests; return one executable proposal.
+```
 
 ## Plan quick-check
 
-Run one cheap fresh-eyes agent only for plans with 3+ tasks:
+For 3+ tasks, send one fresh-eyes agent:
 
 ```text
-Read ONLY plan file at {plan-path}. For each task, decide whether you could execute it from plan text
-without asking a question. Return at most short list of "Task N: not executable because X", or
-"All tasks executable." Keep response under 15 lines. Do not read other files or suggest changes
-beyond executability gaps.
+Read ONLY plan file {plan-path}. For each task return at most "Task N: not executable because X", or
+"All tasks executable." Do not read other files, edit, or suggest anything beyond executability.
 ```
 
-Main agent fixes every gap before Approval Gate.
+Main agent fixes every gap before approval.

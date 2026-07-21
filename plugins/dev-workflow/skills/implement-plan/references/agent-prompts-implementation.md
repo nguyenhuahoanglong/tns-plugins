@@ -1,116 +1,53 @@
 # Implementation Agent Prompts
 
-Use only after Approval Gate. Main agent owns plan status and verification.
+Use only after approval. Main agent owns plan status and working-tree-aware scope verification.
 
-## TDD qa-engineer
+## Mandatory writable-dispatch footer
 
-Skip when `Unit tests: skipped`.
-
-```text
-Generate failing unit tests in spec-first mode.
-Project: {project-root}. Read applicable AGENTS.md and test conventions.
-Plan: {plan-path}. Read each task Definition of Done.
-Scaffold signatures/stubs already exist. Bind tests to real surfaces. Tests must fail for missing
-behavior, not compile/import errors.
-
-Rules:
-- Use unit-testing skill and detected project framework.
-- The approved plan satisfies the unit-testing test-case-list gate; derive cases from task
-  Definition-of-Done items without stopping for approval. If a .docs design document drives the
-  work, maintain its {design-doc}.test-cases.md registry per the skill's test-case-management.md.
-- Modify tests only; do not implement production code or edit plan.
-- Map each test to task and Definition-of-Done item, and give every test the skill's QA-readable
-  header (TC/DoD id, one-line summary, numbered steps, plan or design ref) plus xUnit Trait or
-  TC id in the JS test name.
-- For non-unit-testable tasks, write no test; report exact build/manual/static check.
-- Return test files, mapping, command, and expected-red evidence.
-```
-
-## Code implementer
-
-Dispatch independent tasks together; sequence dependencies.
+Append this verbatim to every writable dispatch:
 
 ```text
-Implement task: {task-name}
-Project: {project-root}. Read applicable AGENTS.md.
-Plan: {plan-path}
-Task heading: ### Task {N}: {task-name}
-Read Goal, Global Constraints, ACs, and your task only.
-Pattern: {verified Phase 0 pattern}
-Done when: {task Done-when or TDD checklist}
-
-Workflow:
-1. Read plan and scoped tests when TDD.
-2. Modify only task-listed files; replace scaffolds when present.
-3. Run scoped verification until Done-when is met.
-4. Do not edit plan. End with one status plus files changed and evidence.
-
-Statuses:
-- DONE: all criteria met.
-- DONE_WITH_CONCERNS: criteria met; list risks/assumptions.
-- NEEDS_CONTEXT: ask specific questions and report changes.
-- BLOCKED: report reason and attempts.
+You are not alone in the working tree. Write allowlist: {exact task-listed files only}.
+Do not write outside that allowlist; do not delete or move files; do not git reset, restore, or checkout;
+do not stash, stage, commit, push, publish, install, or broadly clean/revert other changes. If required
+work exceeds the allowlist or any prohibited operation seems needed, stop and report the exact blocker.
+Do not edit plan status. Return changed files, commands/results, and Done-when evidence.
 ```
 
-Main agent handles DONE only after diff, Done-when, and file-scope evidence pass. Resolve concerns
-before completion. NEEDS_CONTEXT and BLOCKED use fresh agent after fixing input.
-
-## Blocker retry
+## QA engineer (TDD only)
 
 ```text
-Continue task: {task-name} after prior blocker.
-Project: {project-root}; plan: {plan-path}; task: ### Task {N}.
-Blocker and decision: {question} -> {decision}
-Prior progress: {summary}
-
-Finish task under decision; meet Done-when; do not edit plan. Return status, files, and evidence.
+Create assertion-level tests for Task {N} at {plan-path}; use project framework and unit-testing
+traceability/test-registry rules. Existing-method: baseline GREEN, characterization GREEN, changed RED.
+Simple-new: verify compile-ready named signatures/control-flow scaffold without business logic, then RED.
+Do not implement production logic or edit the plan.
+{mandatory writable-dispatch footer}
 ```
 
-One retry. Second blocker becomes plan Status `blocked`.
-
-## Verification rework
-
-Use fresh implementer for red tests, unmet Done-when, scope violation, or evidence mismatch:
+## Implementer
 
 ```text
-Rework task: {task-name}
-Project: {project-root}; plan: {plan-path}; task: ### Task {N}.
-Failed evidence: {complete failures}
-Required correction: {main-agent decision}
-
-Fix only task-listed files. Re-run Done-when verification. Do not edit plan. Return status, files,
-and new evidence.
+Implement Task {N}: {task-name}; project: {project-root}; plan: {plan-path}. Read Goal, Global
+Constraints, your task, and scoped tests. Follow its Depth/Mode/Done-when. Complex-backbone pauses this
+same task for unchanged design-backbone, honors independent locks, verifies handoff, resumes, and avoids
+duplicate tests. Run scoped verification.
+Statuses: DONE; DONE_WITH_CONCERNS (criteria met, list risks); NEEDS_CONTEXT (question and changes);
+BLOCKED (reason and attempts).
+{mandatory writable-dispatch footer}
 ```
 
-## Review rework
+Main agent accepts DONE only after diff, scope, and Done-when evidence. One fresh blocker retry carries
+the decision and prior progress; a second blocker becomes `blocked`.
 
-Use only when `Code review: selected`. Send complete must-fix list for affected tasks to one fresh
-implementer, not one agent per finding. Initial `code-review-lite` dispatch and every re-review must
-receive plan's **Global Constraints block verbatim**; do not summarize, interpret, or pre-rate it.
+## Verification and review rework
 
-```text
-Run code-review-lite over changed files for {plan-path}.
-Global Constraints (verbatim from plan):
-{exact Global Constraints block}
-
-Review changed files against plan criteria and constraints. Return must-fix findings with file and
-line evidence. Do not edit files and do not pre-rate findings from orchestrator hints.
-```
-
-For must-fix findings, dispatch:
-
-```text
-Fix review issues for task(s): {task names}
-Project: {project-root}; plan: {plan-path}
-Findings: {complete must-fix findings from code-review-lite}
-
-Address every finding in listed task files, re-confirm Done-when, and return status/evidence. Do not
-edit plan or make unrelated changes.
-```
-
-Re-verify then re-review; cap two iterations.
+Use a fresh implementer for red tests, unmet Done-when, scope violation, evidence mismatch, or all
+must-fix findings for affected tasks. Require exact correction, re-run Done-when verification, then append
+the mandatory writable-dispatch footer. Selected review dispatches say `Run code-review-lite ... Escalation
+Policy: ask` and include `Global Constraints (verbatim from plan): {exact block}`. Re-verify/re-review at
+most twice. Skipped review has no dispatch, offer, or verdict.
 
 ## Docs sync
 
-For structural changes only, dispatch one cheap agent per docs file using final diff-stat. Request
-surgical index/path updates only; no unrelated rewrite.
+For structural changes only, offer one cheap agent per documentation file using final diff-stat; request
+surgical index/path updates only, then append the mandatory writable-dispatch footer.

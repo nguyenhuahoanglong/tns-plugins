@@ -1,6 +1,6 @@
 ---
 name: workflow
-description: v4 runtime, scope, test, escalation, and isolated-agent workflow
+description: v4.1.0 runtime, scope, test, escalation, and isolated-agent workflow
 ---
 
 # Workflow
@@ -22,9 +22,21 @@ No Production Code outcome plus its record-v3 sidecar. Retain runtime/scope/test
 test status `not-applicable` and reason `no-production-code`; skip worktree, build/test execution,
 semantic children, context, and findings. Branch validation is optional.
 
-Classify specialist families from production hunks. If more than one is present, announce
-escalation and invoke Pro now. Only preflight and scope artifacts may be reused; Lite must not run
-branch/build/test gates, create context/sidecar/report, or spawn children.
+Classify specialist families from production hunks. Invocation accepts `Escalation Policy: auto|ask`;
+omission defaults to `auto`. Apply the following decision table before Lite work. In `ask`, explain
+every triggered family and why Pro is recommended, then request the user's choice.
+
+| Triggered families | Policy / response | Outcome | Lite fields |
+|---|---|---|---|
+| 0 or 1 | `auto` or `ask` | Lite | `not-needed`; selected `{Family} Reviewer` or `None`; unreviewed `None` |
+| 2+ | `auto`, or `ask` accepted | Pro | no Lite artifact |
+| 2+ | `ask` declined; gates pass | Bounded Lite | `pro-declined`; select Security Reviewer > Philosophy Reviewer > Performance Reviewer > Standard Reviewer; other families unreviewed |
+| 2+ | `ask` declined; branch FAIL | Bounded Lite | `pro-declined`; selected `None`; all families unreviewed |
+| 2+ | `ask` declined; build/test fail, timeout, or gap | Bounded Lite | `pro-declined`; selected `None`; all families unreviewed |
+
+For a Pro outcome, only preflight and scope artifacts may be reused; Lite must not run branch/build/test
+gates, create context/sidecar/report, or spawn children. For bounded Lite, preserve the residual-family
+list in the main workflow; do not inject it into the selected specialist.
 
 ## 3. Code Tiny and Lite gates
 
@@ -38,8 +50,12 @@ commands, counts, exit, duration, bounded logs, and repo identity in `executions
 run across every repository instead of overwriting the prior result. A pass has exit 0 and zero
 failed tests; a failure has nonzero exit and positive failed count; a timeout has nonzero exit and
 zero counts. Empty direct tests for changed symbols require the exact advisory `use-unit-testing`,
-not a defect. The advisory never suppresses a selected specialist. Build/test failure, timeout, or
-gap is blocking and dispatches Requirement Validator only; the specialist is skipped.
+not a defect. The advisory never suppresses a selected specialist. For every Lite route, branch
+`FAIL` starts no semantic agents, selects `None`, and leaves every triggered family unreviewed;
+build/test failure, timeout, or gap dispatches Requirement Validator only, selects `None`, and
+leaves every triggered family unreviewed. Otherwise dispatch Requirement Validator plus exactly
+one priority specialist: Security Reviewer > Philosophy Reviewer > Performance Reviewer > Standard
+Reviewer. Single/zero-family Lite has decision `not-needed`.
 
 ## 4. Isolated context, report, and sidecar
 
@@ -57,12 +73,17 @@ Use `Task(subagent_type="requirement-validator", prompt="...", description="..."
 `Task(subagent_type="code-reviewer", prompt="...", description="...")`; children must not use git, edit, nest agents, or create
 findings outside the allowlist. Keep prompt cache/context ephemeral.
 
-Write `.CodeReview/.{safe-branch}.lite.review-meta.json` with `recordVersion: 3`, exact attested
-runtime, session override, production allowlist, build and semantic-agent evidence, and absolute
-runtime/scope/test artifact references with SHA-256 hashes. `skillName`, `skillVersion`,
+Write `.CodeReview/.{safe-branch}.lite.review-meta.json` with `recordVersion: 3`,
+`skillVersion: 4.1.0`, exact attested runtime, session override, production allowlist, build and semantic-agent
+evidence, and absolute runtime/scope/test artifact references with SHA-256 hashes. Add
+`escalationPolicy`, `escalationDecision`, `selectedSpecialist`, and `unreviewedRiskFamilies`, mirrored
+by report fields `Escalation Policy`, `Escalation Decision`, `Selected Specialist`, and `Unreviewed
+Risk Families`. `skillName`, `skillVersion`,
 `reviewProfile`, the complete runtime object, and the session projection must exactly match the
-report and attestation. The report repeats the artifact references. No Production Code also writes
-this report/sidecar pair; escalation writes neither.
+report and attestation. `selectedSpecialist` must be exactly `Security Reviewer`, `Philosophy
+Reviewer`, `Performance Reviewer`, `Standard Reviewer`, or `None`. The report repeats the artifact
+references. No Production Code also writes
+this report/sidecar pair; Pro escalation writes neither. Bounded Lite writes both.
 
 ## 5. Cleanup
 
