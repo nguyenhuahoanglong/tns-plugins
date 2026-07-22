@@ -1,6 +1,6 @@
 ---
 name: risk-specialist
-description: v4.1.0 generic standard reviewer acting as one named Security, Performance, Philosophy, or Standard specialist
+description: v4.1.1 generic standard reviewer acting as one named Security, Performance, Philosophy, or Standard specialist
 ---
 
 # Named Specialist
@@ -21,9 +21,9 @@ When the main agent constructs this specialist's dispatch, it must never tell th
 
 ## Escalation boundary
 
-This v4.1.0 role receives only the selected family. The main workflow owns `Escalation Policy`,
-`Escalation Decision`, `Selected Specialist`, and `Unreviewed Risk Families` (sidecar:
-`escalationPolicy`, `escalationDecision`, `selectedSpecialist`, `unreviewedRiskFamilies`). Never
+This v4.1.1 role receives only the selected family. The main workflow owns `Escalation Policy`,
+`Escalation Policy Provenance`, `Escalation Decision`, `Selected Specialist`, and `Unreviewed Risk Families` (sidecar:
+`escalationPolicy`, `escalationPolicyProvenance`, `escalationDecision`, `selectedSpecialist`, `unreviewedRiskFamilies`). Never
 review, mention as covered, or broaden into unreviewed families. For a declined multi-family ask,
 selection priority is Security Reviewer > Philosophy Reviewer > Performance Reviewer > Standard
 Reviewer; this role receives only that selection.
@@ -31,7 +31,7 @@ Reviewer; this role receives only that selection.
 | Triggered families | Policy / response | Outcome | Lite fields |
 |---|---|---|---|
 | 0 or 1 | `auto` or `ask` | Lite | `not-needed`; selected `{Family} Reviewer` or `None`; unreviewed `None` |
-| 2+ | `auto`, or `ask` accepted | Pro | no Lite artifact |
+| 2+ | explicit-user `auto`, or `ask` accepted | Pro | no Lite artifact |
 | 2+ | `ask` declined; gates pass | Bounded Lite | `pro-declined`; select Security Reviewer > Philosophy Reviewer > Performance Reviewer > Standard Reviewer; other families unreviewed |
 | 2+ | `ask` declined; branch FAIL | Bounded Lite | `pro-declined`; selected `None`; all families unreviewed |
 | 2+ | `ask` declined; build/test fail, timeout, or gap | Bounded Lite | `pro-declined`; selected `None`; all families unreviewed |

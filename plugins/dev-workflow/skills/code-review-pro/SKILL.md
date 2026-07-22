@@ -1,12 +1,12 @@
 ---
 name: code-review-pro
 description: Adaptive production-code review for PRs, branches, staged changes, and follow-ups. Use when runtime-attested Tiny or Pro validation and a verified report are required.
-version: 3.0.0
+version: 3.0.1
 ---
 
 # Code Review Pro
 
-Review only production code. Tests and documents are evidence; generated, vendor, and binary files are excluded. Route explicit quick/lite reviews to `code-review-lite`.
+Review only production code. Tests and documents are evidence; generated, vendor, and binary files are excluded. Route explicit quick/lite reviews to `code-review-lite`. Direct user requests use `Invocation Source: direct-user` and `Lite Escalation Consent: n/a`. Lite-originated Pro requires `user-confirmed` or `explicit-auto` consent; missing consent is a hard stop before Pro execution.
 
 ## Mandatory preflight
 
@@ -44,7 +44,7 @@ Every semantic dispatch receives: persistent diff path, production allowlist, ev
 
 ### 3. Synthesize
 
-Read `references/report-template.md` and `references/analysis-framework.md`. Write `.CodeReview/{safe-branch}.md` and v3 `.CodeReview/.{safe-branch}.review-meta.json`. The sidecar contains `recordVersion: 3`, retained provenance, exact `runtimeAttestation`, `scopeManifest`, and `testEvidence` references (`path`, `sha256`), scope lists, reviewed production files, test routing, validation blockers, and finding objects.
+Read `references/report-template.md` and `references/analysis-framework.md`. Write `.CodeReview/{safe-branch}.md` and v3 `.CodeReview/.{safe-branch}.review-meta.json`. The sidecar contains `recordVersion: 3`, `invocation: {source, liteConsent}`, retained provenance, exact `runtimeAttestation`, `scopeManifest`, and `testEvidence` references (`path`, `sha256`), scope lists, reviewed production files, test routing, validation blockers, and finding objects.
 
 ## Verify Output
 

@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Adaptive evidence-driven production-code review for PRs, branches, staged changes, and follow-up iterations. Version 3.0.0 hard-gates runtime/session evidence, classifies No-production-code, Tiny, or Pro scope, and binds reports to deterministic artifacts.
+Adaptive evidence-driven production-code review for PRs, branches, staged changes, and follow-up iterations. Version 3.0.1 hard-gates runtime/session evidence, classifies No-production-code, Tiny, or Pro scope, and binds reports to deterministic artifacts.
 
 ## Pain Points
 
@@ -11,6 +11,7 @@ Adaptive evidence-driven production-code review for PRs, branches, staged change
 - Requirement review disappears when no work item exists, leaving regressions and unrelated behavior unchecked.
 - External worktrees and unreadable child paths cause brittle agent runs.
 - Reports lack machine-verifiable skill, runtime, trigger, skip, and profile provenance.
+- Lite escalation must never become a Pro run without recorded user consent.
 - Follow-ups can use different review rules from initial reviews and lose reproducibility.
 
 ## Design Notes
@@ -37,6 +38,11 @@ specialists use `standard` (Claude Sonnet; Codex Terra/medium). Reports and side
 actual launch runtime for the main agent instead of assuming one.
 
 ## Changelog
+
+### 2026-07-22 - v3.0.1 Lite escalation provenance
+
+- Added direct-user versus Lite-escalation invocation provenance to reports and record-v3 sidecars.
+- Reject Lite-originated Pro artifacts without `user-confirmed` or explicit-user `auto` consent.
 
 ### 2026-07-21 - v3 runtime, scope, and test evidence
 

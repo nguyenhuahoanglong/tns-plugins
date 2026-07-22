@@ -433,11 +433,13 @@ def write_v3_case(tmp_path, *, profile="Tiny", findings=None, agents=None,
         "\n".join([
             "# Code Review: v3 contract",
             "",
-            "**Skill**: code-review-pro v3.0.0",
+            "**Skill**: code-review-pro v3.0.1",
             f"**Review Profile**: {profile}",
             f"**Main Runtime**: {main_runtime}",
             f"**Agents Triggered**: {' | '.join(agents) if agents else 'None'}",
             "**Agents Skipped**: None",
+            "**Invocation Source**: direct-user",
+            "**Lite Escalation Consent**: n/a",
             "",
             "## Review Classification",
             "- **Files Changed**: 1",
@@ -475,7 +477,8 @@ def write_v3_case(tmp_path, *, profile="Tiny", findings=None, agents=None,
     sidecar.write_text(json.dumps({
         "recordVersion": 3,
         "skillName": "code-review-pro",
-        "skillVersion": "3.0.0",
+        "skillVersion": "3.0.1",
+        "invocation": {"source": "direct-user", "liteConsent": "n/a"},
         "reviewProfile": profile,
         "runtimeAttestation": references["runtimeAttestation"],
         "scopeManifest": references["scopeManifest"],
@@ -534,6 +537,19 @@ def test_tc_201_dod_23_accepts_hash_bound_v3_runtime_scope_and_test_evidence(tmp
     """
     report, sidecar = write_strict_v3_case(tmp_path)
     assert not _v3_failures(report, sidecar)
+
+
+def test_tc_201a_rejects_lite_escalation_without_consent(tmp_path):
+    report, sidecar = write_strict_v3_case(tmp_path)
+    report.write_text(report.read_text(encoding="utf-8").replace(
+        "**Invocation Source**: direct-user\n**Lite Escalation Consent**: n/a",
+        "**Invocation Source**: lite-escalation\n**Lite Escalation Consent**: n/a",
+    ), encoding="utf-8")
+    data = json.loads(sidecar.read_text(encoding="utf-8"))
+    data["invocation"] = {"source": "lite-escalation", "liteConsent": "n/a"}
+    sidecar.write_text(json.dumps(data), encoding="utf-8")
+    assert any("Lite escalation has user-confirmed or explicit-auto consent" in item
+               for item in _v3_failures(report, sidecar))
 
 
 @pytest.mark.parametrize("artifact_key, mutation", [
@@ -785,6 +801,8 @@ def write_strict_v3_case(tmp_path, *, profile="Tiny", run_statuses=("pass",),
 
     data = json.loads(sidecar.read_text(encoding="utf-8"))
     data.update({
+        "skillVersion": "3.0.1",
+        "invocation": {"source": "direct-user", "liteConsent": "n/a"},
         "classifier": {
             "filesChanged": len(scope_files),
             "changedLines": 20,
@@ -822,11 +840,13 @@ def write_strict_v3_case(tmp_path, *, profile="Tiny", run_statuses=("pass",),
     report.write_text("\n".join([
         "# Code Review: strict v3 contract",
         "",
-        "**Skill**: code-review-pro v3.0.0",
+        "**Skill**: code-review-pro v3.0.1",
         f"**Review Profile**: {profile}",
         "**Main Runtime**: gpt-5.6-terra / medium",
         f"**Agents Triggered**: {' | '.join(agents) if agents else 'None'}",
         f"**Agents Skipped**: {' | '.join(skipped) if skipped else 'None'}",
+        "**Invocation Source**: direct-user",
+        "**Lite Escalation Consent**: n/a",
         "",
         "## Runtime Evidence",
         "- **Status**: PASS",
@@ -1186,7 +1206,7 @@ def _update_sidecar(sidecar, **updates):
 
 @pytest.mark.parametrize("record_version, skill_version", [(1, "1.0.0"), (2, "2.2.0")])
 def test_tc_211_dod_24_rejects_every_pre_v3_report_and_sidecar(tmp_path, record_version, skill_version):
-    """TC-211: only code-review-pro v3.0.0 with recordVersion 3 is accepted.
+    """TC-211: only code-review-pro v3.0.1 with recordVersion 3 is accepted.
 
     Steps: 1. Create a legacy report and sidecar. 2. Verify the verifier rejects the legacy contract.
     Design: Task 2 DoD-2.4.

@@ -1,6 +1,6 @@
 ---
 name: workflow
-description: v4.1.0 runtime, scope, test, escalation, and isolated-agent workflow
+description: v4.1.1 runtime, scope, test, escalation, and isolated-agent workflow
 ---
 
 # Workflow
@@ -23,13 +23,14 @@ test status `not-applicable` and reason `no-production-code`; skip worktree, bui
 semantic children, context, and findings. Branch validation is optional.
 
 Classify specialist families from production hunks. Invocation accepts `Escalation Policy: auto|ask`;
-omission defaults to `auto`. Apply the following decision table before Lite work. In `ask`, explain
+omission defaults to `ask` and records `omitted-default`; a supplied value records `user-authored`.
+Apply the following decision table before Lite work. In `ask`, explain
 every triggered family and why Pro is recommended, then request the user's choice.
 
 | Triggered families | Policy / response | Outcome | Lite fields |
 |---|---|---|---|
 | 0 or 1 | `auto` or `ask` | Lite | `not-needed`; selected `{Family} Reviewer` or `None`; unreviewed `None` |
-| 2+ | `auto`, or `ask` accepted | Pro | no Lite artifact |
+| 2+ | explicit-user `auto`, or `ask` accepted | Pro | no Lite artifact |
 | 2+ | `ask` declined; gates pass | Bounded Lite | `pro-declined`; select Security Reviewer > Philosophy Reviewer > Performance Reviewer > Standard Reviewer; other families unreviewed |
 | 2+ | `ask` declined; branch FAIL | Bounded Lite | `pro-declined`; selected `None`; all families unreviewed |
 | 2+ | `ask` declined; build/test fail, timeout, or gap | Bounded Lite | `pro-declined`; selected `None`; all families unreviewed |
@@ -74,10 +75,10 @@ Use `Task(subagent_type="requirement-validator", prompt="...", description="..."
 findings outside the allowlist. Keep prompt cache/context ephemeral.
 
 Write `.CodeReview/.{safe-branch}.lite.review-meta.json` with `recordVersion: 3`,
-`skillVersion: 4.1.0`, exact attested runtime, session override, production allowlist, build and semantic-agent
+`skillVersion: 4.1.1`, exact attested runtime, session override, production allowlist, build and semantic-agent
 evidence, and absolute runtime/scope/test artifact references with SHA-256 hashes. Add
-`escalationPolicy`, `escalationDecision`, `selectedSpecialist`, and `unreviewedRiskFamilies`, mirrored
-by report fields `Escalation Policy`, `Escalation Decision`, `Selected Specialist`, and `Unreviewed
+`escalationPolicy`, `escalationPolicyProvenance`, `escalationDecision`, `selectedSpecialist`, and `unreviewedRiskFamilies`, mirrored
+by report fields `Escalation Policy`, `Escalation Policy Provenance`, `Escalation Decision`, `Selected Specialist`, and `Unreviewed
 Risk Families`. `skillName`, `skillVersion`,
 `reviewProfile`, the complete runtime object, and the session projection must exactly match the
 report and attestation. `selectedSpecialist` must be exactly `Security Reviewer`, `Philosophy

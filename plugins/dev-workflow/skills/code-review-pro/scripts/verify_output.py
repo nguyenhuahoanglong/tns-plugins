@@ -9,7 +9,7 @@ import sys
 from pathlib import Path
 
 
-SKILL = "code-review-pro v3.0.0"
+SKILL = "code-review-pro v3.0.1"
 PROFILES = {"No-production-code", "Tiny", "Pro"}
 BRANCH_GATE_FIELDS = {
     "Status", "Branch", "Prefix", "Work Item ID", "Expected Type",
@@ -765,6 +765,25 @@ def _validate_branch_gate_blocker(data, results):
         "Branch Work Item Gate failure records blocking validation")
 
 
+def _validate_invocation(text, data, results):
+    source, error = field(text, "Invocation Source")
+    consent, consent_error = field(text, "Lite Escalation Consent")
+    add(results, error is None, error or "Invocation Source field appears exactly once")
+    add(results, consent_error is None, consent_error or "Lite Escalation Consent field appears exactly once")
+    add(results, source in {"direct-user", "lite-escalation"}, "Invocation Source is valid")
+    add(results, consent in {"n/a", "user-confirmed", "explicit-auto"}, "Lite Escalation Consent is valid")
+    invocation = data.get("invocation")
+    add(results, isinstance(invocation, dict), "invocation provenance record exists")
+    if not isinstance(invocation, dict): return
+    add(results, invocation.get("source") == source and invocation.get("liteConsent") == consent,
+        "invocation provenance mirrors report")
+    if source == "direct-user":
+        add(results, consent == "n/a", "direct-user invocation has no Lite consent")
+    if source == "lite-escalation":
+        add(results, consent in {"user-confirmed", "explicit-auto"},
+            "Lite escalation has user-confirmed or explicit-auto consent")
+
+
 def evaluate(report_path, sidecar_path=None):
     results = []
     report = Path(report_path)
@@ -806,7 +825,7 @@ def evaluate(report_path, sidecar_path=None):
 
     add(results, data.get("recordVersion") == 3, "recordVersion is 3")
     add(results, data.get("skillName") == "code-review-pro", "skillName is code-review-pro")
-    add(results, data.get("skillVersion") == "3.0.0", "skillVersion is 3.0.0")
+    add(results, data.get("skillVersion") == "3.0.1", "skillVersion is 3.0.1")
     add(results, data.get("reviewProfile") == values.get("Review Profile"),
         "reviewProfile matches report")
     _validate_retained(text, values, data, results)
@@ -830,6 +849,7 @@ def evaluate(report_path, sidecar_path=None):
     _validate_branch_gate(text, data, runtime_roles, triggered, skipped, results)
     _validate_findings(text, data, production, evidence, results)
     _validate_branch_gate_blocker(data, results)
+    _validate_invocation(text, data, results)
 
     gate = data.get("branchWorkItemGate")
     if isinstance(gate, dict) and gate.get("status") == "FAIL":

@@ -34,7 +34,7 @@
         "The review announces Pro profile plus every classifier and specialist trigger before dispatch",
         "The direct work item's acceptance criteria are binding and parent context does not create extra Missing or Partial criteria",
         "Build Validator and Requirement Validator always run; only specialists with recorded evidence triggers run after a passing build",
-        "The report passes the ADO autolink guard and scripts/verify_output.py using its generated runtime attestation, and its sidecar includes skillName code-review-pro, skillVersion 3.0.0, and reviewProfile",
+        "The report passes the ADO autolink guard and scripts/verify_output.py using its generated runtime attestation, and its sidecar includes skillName code-review-pro, skillVersion 3.0.1, reviewProfile, and invocation provenance",
         "A later follow-up reclassifies only the delta with the same No-production-code/Tiny/Pro classifier and writes recordVersion 3",
         "The PR source branch ID is verified through az boards work-item show, the ADO work item type must be User Story, Bug, or Issue, and branch prefix mismatch is WARN not FAIL"
       ]
@@ -46,6 +46,7 @@
     "A production finding may cite test evidence; a test/doc/generated/vendor/binary finding is invalid.",
     "Missing direct tests produce exactly the use-unit-testing advisory; executions[] supports multiple repositories and routes fail/timeout results to a blocking test gate.",
     "The verifier rejects pre-v3 records and validates retained branch, actor, child-runtime, PR-only, merge-preview, dependency, and follow-up provenance without an expected-runtime argument.",
+    "A Lite-originated Pro run records user-confirmed or explicit-auto consent; missing Lite consent stops before Pro execution.",
     "The report contains Runtime Evidence, Scope Evidence, Test Evidence, and Semantic Review sections, and report finding targets exactly match production-only sidecar findings."
   ],
   "non_goals": [

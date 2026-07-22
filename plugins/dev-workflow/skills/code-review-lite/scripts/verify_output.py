@@ -8,7 +8,7 @@ import sys
 from pathlib import Path
 
 LEGACY_SKILL = "code-review-lite v3.0.0"
-SKILL = "code-review-lite v4.1.0"
+SKILL = "code-review-lite v4.1.1"
 PROFILES = {"Docs Tiny", "Code Tiny", "Lite", "No Production Code"}
 SEMANTIC_AGENTS = {
     "Requirement Validator",
@@ -196,15 +196,17 @@ def specialist_trigger_entries(text):
 
 
 def validate_escalation_contract(text, sidecar, tests, profile):
-    """Validate the v4.1 Lite escalation fields and bounded dispatch outcome."""
+    """Validate consent-first escalation fields and bounded dispatch outcome."""
     results = []
     entries = specialist_trigger_entries(text)
     policy = bullet(text, "Escalation Policy")
     decision = bullet(text, "Escalation Decision")
     selected = bullet(text, "Selected Specialist")
     unreviewed = bullet(text, "Unreviewed Risk Families")
+    provenance = bullet(text, "Escalation Policy Provenance")
     add(results, entries is not None, "Specialist Triggers uses exact ordered Reviewer=trigger entries or None")
-    add(results, policy in {"auto", "ask"}, "Escalation Policy is auto or ask")
+    add(results, policy == "ask", "Lite artifact uses ask policy")
+    add(results, provenance in {"omitted-default", "user-authored"}, "Escalation Policy Provenance is valid")
     add(results, decision in {"not-needed", "pro-declined"}, "Escalation Decision is not-needed or pro-declined")
     add(results, selected in {*SPECIALIST_PRIORITY, "None"}, "Selected Specialist is an exact supported value")
     add(results, unreviewed is not None, "Unreviewed Risk Families is reported")
@@ -213,6 +215,7 @@ def validate_escalation_contract(text, sidecar, tests, profile):
         "escalationDecision": decision,
         "selectedSpecialist": selected,
         "unreviewedRiskFamilies": unreviewed,
+        "escalationPolicyProvenance": provenance,
     }
     add(results, all(sidecar.get(key) == value for key, value in mirrors.items()), "Lite metadata mirrors escalation fields exactly")
     if entries is None:
@@ -231,6 +234,8 @@ def validate_escalation_contract(text, sidecar, tests, profile):
     add(results, decision == expected_decision, "Escalation Decision matches triggered-family count")
     if count >= 2:
         add(results, policy == "ask", "Multi-family Lite is only allowed after ask is declined")
+    add(results, not (policy == "auto" and provenance != "user-authored"),
+        "auto escalation is only valid when explicitly user-authored")
 
     if not entries:
         expected_selected = "None"
@@ -564,7 +569,7 @@ def evaluate_v4(path, text, expected_profile=None, sidecar_override=None):
         "Runtime attestation identifies a current cross-checked host session",
     )
     add(results, sidecar.get("skillName") == "code-review-lite", "Lite metadata skillName is code-review-lite")
-    add(results, sidecar.get("skillVersion") == "4.1.0", "Lite metadata skillVersion is 4.1.0")
+    add(results, sidecar.get("skillVersion") == "4.1.1", "Lite metadata skillVersion is 4.1.1")
     add(results, sidecar.get("reviewProfile") == profile, "Lite metadata reviewProfile matches report")
     add(results, side_runtime == runtime, "Lite metadata runtime matches attestation")
     add(results, field(text, "Main Runtime") == exact_runtime, "Report runtime matches attested runtime")

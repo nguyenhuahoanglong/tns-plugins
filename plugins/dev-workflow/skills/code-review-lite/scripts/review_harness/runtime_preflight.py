@@ -110,6 +110,26 @@ def resolve_claude_runtime(attestation_root: Path, cwd: Path, *, max_age_seconds
 def evaluate_session(transcript_path: Path, *, allow_existing_session: bool=False) -> dict[str, Any]:
     try: records=[json.loads(x) for x in transcript_path.read_text(encoding="utf-8").splitlines() if x.strip()]
     except (OSError,json.JSONDecodeError): return _blocked("missing_session_evidence",sessionStatus="unknown",overrideRecorded=False)
+    # Modern Codex rollouts have lifecycle records.  Their injected user envelopes
+    # are bootstrap context, not prior tasks, so count task boundaries instead.
+    modern_rollout = any(r.get("type") == "session_meta" and isinstance(r.get("payload"), dict) for r in records)
+    lifecycle = [
+        r for r in records
+        if r.get("type") == "event_msg"
+        and isinstance(r.get("payload"), dict)
+        and r["payload"].get("type") in {"task_started", "task_complete"}
+    ]
+    if modern_rollout and lifecycle:
+        started = [r for r in lifecycle if r["payload"].get("type") == "task_started"]
+        # The last active task is current. Any earlier completed or started task
+        # is a real task boundary; user-message/bootstrap envelopes do not alter it.
+        existing = len(started) > 1 or any(
+            r["payload"].get("type") == "task_complete" for r in lifecycle[:-1]
+        )
+        if existing and not allow_existing_session:
+            return {"status":"confirmation-required","sessionStatus":"existing","overrideRecorded":False}
+        return {"status":"pass","sessionStatus":"existing" if existing else "fresh","overrideRecorded":bool(existing and allow_existing_session)}
+
     users=[]; assistant_seen=False
     for r in records:
         payload = r.get("payload", {}) if isinstance(r.get("payload"), dict) else {}
@@ -122,7 +142,7 @@ def evaluate_session(transcript_path: Path, *, allow_existing_session: bool=Fals
         role=msg.get("role",r.get("role")); content=msg.get("content",r.get("content"))
         if role=="user" and content: users.append(r)
         elif role=="assistant": assistant_seen=True
-    rollout=any(r.get("type")=="session_meta" and isinstance(r.get("payload"),dict) for r in records)
+    rollout=modern_rollout
     existing=len(users)>1 and assistant_seen or (len(users)==1 and "message" not in users[0] and not rollout)
     if existing and not allow_existing_session:return {"status":"confirmation-required","sessionStatus":"existing","overrideRecorded":False}
     return {"status":"pass","sessionStatus":"existing" if existing else "fresh","overrideRecorded":bool(existing and allow_existing_session)}

@@ -1,11 +1,11 @@
 ---
 name: report-template
-description: Exact v4.1.0 Lite report and record-v3 evidence contract
+description: Exact v4.1.1 Lite report and record-v3 evidence contract
 ---
 
 # Report Template
 
-Use `.CodeReview/{safe-branch}.lite.md`; Pro escalation produces no Lite report. Use v4.1 fields exactly.
+Use `.CodeReview/{safe-branch}.lite.md`; Pro escalation produces no Lite report. Use v4.1.1 fields exactly.
 
 ```markdown
 # Code Review (Lite): {title}
@@ -14,7 +14,7 @@ Use `.CodeReview/{safe-branch}.lite.md`; Pro escalation produces no Lite report.
 **Source**: {source}
 **Target**: {target}
 **Files Reviewed**: {count}
-**Skill**: code-review-lite v4.1.0
+**Skill**: code-review-lite v4.1.1
 **Review Profile**: No Production Code | Code Tiny | Lite
 **Main Runtime**: {exact attested modelId} / {exact attested effort}
 **Context Manifest**: {absolute ephemeral path | n/a}
@@ -32,12 +32,12 @@ overrideRecorded}` session projection, `productionAllowlist`, deterministic buil
 evidence, and artifact `path`/`sha256`. The report runtime must equal the attestation and sidecar.
 Existing sessions require `overrideRecorded: true`; fresh sessions require `false`.
 
-Apply this v4.1.0 decision table before creating a Lite artifact:
+Apply this v4.1.1 decision table before creating a Lite artifact:
 
 | Triggered families | Policy / response | Outcome | Lite fields |
 |---|---|---|---|
 | 0 or 1 | `auto` or `ask` | Lite | `not-needed`; selected `{Family} Reviewer` or `None`; unreviewed `None` |
-| 2+ | `auto`, or `ask` accepted | Pro | no Lite artifact |
+| 2+ | explicit-user `auto`, or `ask` accepted | Pro | no Lite artifact |
 | 2+ | `ask` declined; gates pass | Bounded Lite | `pro-declined`; select Security Reviewer > Philosophy Reviewer > Performance Reviewer > Standard Reviewer; other families unreviewed |
 | 2+ | `ask` declined; branch FAIL | Bounded Lite | `pro-declined`; selected `None`; all families unreviewed |
 | 2+ | `ask` declined; build/test fail, timeout, or gap | Bounded Lite | `pro-declined`; selected `None`; all families unreviewed |
@@ -50,6 +50,7 @@ Apply this v4.1.0 decision table before creating a Lite artifact:
 - **Risk Triggers**: {labels or None}
 - **Specialist Triggers**: {Reviewer=label or None}
 - **Escalation Policy**: auto | ask
+- **Escalation Policy Provenance**: omitted-default | user-authored
 - **Escalation Decision**: not-needed | pro-declined
 - **Selected Specialist**: Security Reviewer | Philosophy Reviewer | Performance Reviewer | Standard Reviewer | None
 - **Unreviewed Risk Families**: {ordered Reviewer=trigger list | None}
@@ -70,7 +71,8 @@ Apply this v4.1.0 decision table before creating a Lite artifact:
 - **Test Gate**: PASS | ADVISORY (use-unit-testing) | BLOCKED (fail|timeout|gap) | NOT APPLICABLE (no-production-code)
 ```
 
-`Escalation Policy` defaults to `auto` when omitted. For one/zero family Lite, use
+`Escalation Policy` defaults to `ask` when omitted. For two or more families it pauses for the
+user; only explicit-user `auto` routes immediately to Pro. For one/zero family Lite, use
 `not-needed`, the selected `{Family} Reviewer` where applicable, and `None` unreviewed. For a declined
 multi-family ask, preserve trigger order for `Unreviewed Risk Families`; successful bounded Lite
 selects exactly one persisted value by Security Reviewer > Philosophy Reviewer > Performance

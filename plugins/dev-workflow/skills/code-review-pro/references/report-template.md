@@ -14,11 +14,13 @@ Use these fields exactly once. `Main Runtime` is exactly `{runtimeAttestation.mo
 ```markdown
 # Code Review: {title}
 
-**Skill**: code-review-pro v3.0.0
+**Skill**: code-review-pro v3.0.1
 **Review Profile**: No-production-code | Tiny | Pro
 **Main Runtime**: {modelId} / {effort}
 **Agents Triggered**: {pipe-separated exact actor records, or None}
 **Agents Skipped**: {pipe-separated exact actor/reason records, or None}
+**Invocation Source**: direct-user | lite-escalation
+**Lite Escalation Consent**: n/a | user-confirmed | explicit-auto
 **Date**: {YYYY-MM-DD}
 **Source**: {branch/commit/PR}
 **Target**: {target}

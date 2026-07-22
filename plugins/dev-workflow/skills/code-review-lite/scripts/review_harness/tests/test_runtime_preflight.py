@@ -186,3 +186,42 @@ def test_tc_007_allows_fresh_session_without_override(tmp_path: Path) -> None:
     assert result["status"] == "pass"
     assert result["sessionStatus"] == "fresh"
     assert result["overrideRecorded"] is False
+
+
+def _modern_rollout(*events: dict) -> str:
+    return "\n".join(json.dumps(item) for item in (
+        {"type": "session_meta", "payload": {"id": "thread-123"}}, *events
+    )) + "\n"
+
+
+def test_tc_008_modern_codex_bootstrap_envelopes_are_not_prior_tasks(tmp_path: Path) -> None:
+    transcript = tmp_path / "modern.jsonl"
+    transcript.write_text(_modern_rollout(
+        {"type": "event_msg", "payload": {"type": "task_started"}},
+        {"type": "response_item", "payload": {"type": "message", "role": "user", "content": [{"type": "input_text", "text": "<environment_context>workspace instructions</environment_context>"}]}},
+        {"type": "turn_context", "payload": {"model": "gpt-5.6-sol", "effort": "high"}},
+        {"type": "response_item", "payload": {"type": "message", "role": "user", "content": [{"type": "input_text", "text": "review this PR"}]}},
+        {"type": "event_msg", "payload": {"type": "user_message"}},
+        {"type": "response_item", "payload": {"type": "message", "role": "assistant", "content": [{"type": "output_text", "text": "starting"}]}},
+    ))
+    assert evaluate_session(transcript) == {"status": "pass", "sessionStatus": "fresh", "overrideRecorded": False}
+
+
+def test_tc_009_modern_codex_prior_lifecycle_boundary_requires_override(tmp_path: Path) -> None:
+    transcript = tmp_path / "prior.jsonl"
+    transcript.write_text(_modern_rollout(
+        {"type": "event_msg", "payload": {"type": "task_started"}},
+        {"type": "event_msg", "payload": {"type": "task_complete"}},
+        {"type": "event_msg", "payload": {"type": "task_started"}},
+    ))
+    assert evaluate_session(transcript)["status"] == "confirmation-required"
+    assert evaluate_session(transcript, allow_existing_session=True)["overrideRecorded"] is True
+
+
+def test_tc_010_modern_codex_many_injected_envelopes_in_one_task_are_fresh(tmp_path: Path) -> None:
+    transcript = tmp_path / "injected.jsonl"
+    transcript.write_text(_modern_rollout(
+        {"type": "event_msg", "payload": {"type": "task_started"}},
+        *({"type": "user_message", "payload": {"role": "user", "content": "injected"}} for _ in range(4)),
+    ))
+    assert evaluate_session(transcript)["sessionStatus"] == "fresh"
