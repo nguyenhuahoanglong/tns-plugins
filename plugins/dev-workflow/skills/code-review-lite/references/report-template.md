@@ -1,11 +1,11 @@
 ---
 name: report-template
-description: Exact v4.1.1 Lite report and record-v3 evidence contract
+description: Exact v4.1.2 Lite report and record-v3 evidence contract
 ---
 
 # Report Template
 
-Use `.CodeReview/{safe-branch}.lite.md`; Pro escalation produces no Lite report. Use v4.1.1 fields exactly.
+Use `.CodeReview/{safe-branch}.lite.md`; Pro escalation produces no Lite report. Use v4.1.2 fields exactly.
 
 ```markdown
 # Code Review (Lite): {title}
@@ -14,25 +14,34 @@ Use `.CodeReview/{safe-branch}.lite.md`; Pro escalation produces no Lite report.
 **Source**: {source}
 **Target**: {target}
 **Files Reviewed**: {count}
-**Skill**: code-review-lite v4.1.1
+**Skill**: code-review-lite v4.1.2
 **Review Profile**: No Production Code | Code Tiny | Lite
-**Main Runtime**: {exact attested modelId} / {exact attested effort}
+**Main Runtime**: {exact attested modelId} / {exact attested effort} ({trustLevel})
 **Context Manifest**: {absolute ephemeral path | n/a}
 
 ## Runtime, Scope, and Test Evidence
 - **Runtime Attestation**: {absolute path} / sha256:{hash}
+- **Trust**: verified | self-reported | unknown
+- **Recommendation**: met | not met
 - **Scope Manifest**: {absolute path} / sha256:{hash}
 - **Test Evidence**: {absolute path} / sha256:{hash}
 - **Lite Metadata**: {absolute .{safe-branch}.lite.review-meta.json path}
 ```
 
-The sidecar contains `recordVersion: 3`, `skillName: code-review-lite`, `skillVersion: 4.1.0`,
-`reviewProfile`, the complete runtime attestation, its exact `{status, sessionStatus,
+Add a reminder line only when `Trust` is not `verified` or `Recommendation` is `not met`:
+
+```markdown
+> Reminder: runtime not verified as recommended ({trustLevel}{, reasonCode}); for higher-confidence review switch to Claude Opus (or Sonnet 5+) at high thinking and re-run.
+```
+
+The sidecar contains `recordVersion: 3`, `skillName: code-review-lite`, `skillVersion: 4.1.2`,
+`reviewProfile`, the complete runtime attestation (including `trustLevel` and, when present,
+`reasonCode`), its exact `{status, sessionStatus,
 overrideRecorded}` session projection, `productionAllowlist`, deterministic build/semantic-agent
 evidence, and artifact `path`/`sha256`. The report runtime must equal the attestation and sidecar.
 Existing sessions require `overrideRecorded: true`; fresh sessions require `false`.
 
-Apply this v4.1.1 decision table before creating a Lite artifact:
+Apply this v4.1.2 decision table before creating a Lite artifact:
 
 | Triggered families | Policy / response | Outcome | Lite fields |
 |---|---|---|---|

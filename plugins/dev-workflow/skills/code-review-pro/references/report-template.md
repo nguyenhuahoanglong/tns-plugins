@@ -9,14 +9,14 @@ Write `.CodeReview/{safe-branch}.md` and `.CodeReview/.{safe-branch}.review-meta
 
 ## Header
 
-Use these fields exactly once. `Main Runtime` is exactly `{runtimeAttestation.modelId} / {runtimeAttestation.effort}`; never use settings, self-report, or `not exposed`.
+Use these fields exactly once. `Main Runtime` is exactly `{runtimeAttestation.modelId} / {runtimeAttestation.effort} ({runtimeAttestation.trustLevel})`; a labeled, untrusted self-report (`trustLevel: self-reported`) or `unknown` is permitted only when attestation is unavailable, and never use settings or `not exposed`.
 
 ```markdown
 # Code Review: {title}
 
-**Skill**: code-review-pro v3.0.1
+**Skill**: code-review-pro v3.0.2
 **Review Profile**: No-production-code | Tiny | Pro
-**Main Runtime**: {modelId} / {effort}
+**Main Runtime**: {modelId} / {effort} ({trustLevel})
 **Agents Triggered**: {pipe-separated exact actor records, or None}
 **Agents Skipped**: {pipe-separated exact actor/reason records, or None}
 **Invocation Source**: direct-user | lite-escalation
@@ -45,10 +45,14 @@ Skipped records use `{Actor}({reason})`. No-production-code triggers no semantic
 
 ```markdown
 ## Runtime Evidence
-- **Status**: PASS
+- **Status**: pass | advisory
+- **Trust**: verified | self-reported | unknown
+- **Recommendation**: met | not met
 - **Artifact**: `{contained relative path}`
 - **SHA-256**: `{digest}`
 - **Session**: fresh | existing (override recorded)
+
+> Reminder: runtime not verified as recommended ({trustLevel}{, reasonCode}); for higher-confidence review switch to Claude Opus (or Sonnet 5+) at high thinking and re-run.
 
 ## Scope Evidence
 - **Status**: pass | no-production-code
@@ -70,6 +74,8 @@ Skipped records use `{Actor}({reason})`. No-production-code triggers no semantic
 ```
 
 Every production review uses `executions[]`, one unique record per repository. Failed/timeout evidence is reportable only as `BLOCKED` with sidecar `testGate.blocking: true`. Missing direct tests use exactly `use-unit-testing`; never put that advisory in findings.
+
+Include the Runtime Evidence reminder line only when `trustLevel` is not `verified` or `Recommendation` is `not met`; omit it entirely on a fully verified, on-recommendation run.
 
 ## Classification and Gates
 

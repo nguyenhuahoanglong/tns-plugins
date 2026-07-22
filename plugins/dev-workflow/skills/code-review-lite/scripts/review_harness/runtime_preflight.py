@@ -27,7 +27,8 @@ def evaluate_runtime(host: str, model_id: str, effort: str, *, policy_path: Path
     if TIERS[host][tier] < TIERS[host][policy[host]["minimumTier"]]: return _blocked("tier_below_minimum", host=host, modelId=model_id, effort=effort)
     if effort not in EFFORTS: return _blocked("unknown_effort", host=host, modelId=model_id, effort=effort)
     if EFFORTS[effort] < EFFORTS[policy["minimumEffort"]]: return _blocked("effort_below_minimum", host=host, modelId=model_id, effort=effort)
-    return {"status":"pass", "host":host, "modelId":model_id, "effort":effort, "generation":parsed["generation"], "tier":tier, "recommended": TIERS[host][tier] >= TIERS[host][policy[host]["recommendedTier"]] and EFFORTS[effort] >= EFFORTS[policy["recommendedEffort"]]}
+    recommended = TIERS[host][tier] >= TIERS[host][policy[host]["recommendedTier"]] and EFFORTS[effort] >= EFFORTS[policy["recommendedEffort"]]
+    return {"status":"pass", "host":host, "modelId":model_id, "effort":effort, "generation":parsed["generation"], "tier":tier, "recommended": recommended, "recommendationMet": recommended}
 def _records(root: Path, filename_hint: str | None = None) -> list[tuple[Path, list[dict[str, Any]]]]:
     output=[]
     paths = sorted(root.rglob(f"*{filename_hint}*.json*")) if root.exists() and filename_hint else []
@@ -75,7 +76,8 @@ def resolve_codex_runtime(thread_id: str, sessions_root: Path) -> dict[str, Any]
     models={str(p[k]).lower() for k in ("modelId","model","model_id") if p.get(k) not in (None,"")}; efforts={str(p[k]).lower() for k in ("effort","reasoningEffort","reasoning_effort") if p.get(k) not in (None,"")}
     if len(models)>1 or len(efforts)>1: return _blocked("conflicting_runtime_evidence", host="codex", sessionId=thread_id, crossChecks=[])
     result=evaluate_runtime("codex", str(model or ""), str(effort or ""))
-    return {**result,"sessionId":thread_id,"thinkingEnabled":p.get("thinkingEnabled"),"source":"codex-rollout","crossChecks":["threadId","latest-turn-context","duplicate-runtime-fields"],"freshness":"current",_TRANSCRIPT_PATH_KEY:str(transcript_path)}
+    trust={"trustLevel":"verified"} if result.get("status")=="pass" else {}
+    return {**result,"sessionId":thread_id,"thinkingEnabled":p.get("thinkingEnabled"),"source":"codex-rollout","crossChecks":["threadId","latest-turn-context","duplicate-runtime-fields"],"freshness":"current",_TRANSCRIPT_PATH_KEY:str(transcript_path),**trust}
 def _latest_assistant(path: Path) -> dict[str, Any] | None:
     try: records=[json.loads(x) for x in path.read_text(encoding="utf-8").splitlines() if x.strip()]
     except (OSError,json.JSONDecodeError): return None
@@ -106,7 +108,8 @@ def resolve_claude_runtime(attestation_root: Path, cwd: Path, *, max_age_seconds
     if str(transcript_effort or "").lower() != str(e.get("effort") or "").lower(): return _blocked("transcript_effort_mismatch",host="claude",crossChecks=[])
     result=evaluate_runtime("claude",str(e.get("modelId", "")),str(e.get("effort", "")))
     checks=["attestation-schema","sessionId","cwd","transcript-model","transcript-effort"]
-    return {**result,"sessionId":e.get("sessionId"),"thinkingEnabled":e.get("thinkingEnabled"),"source":"claude-statusline","crossChecks":checks,"freshness":"current",_TRANSCRIPT_PATH_KEY:e["transcriptPath"]}
+    trust={"trustLevel":"verified"} if result.get("status")=="pass" else {}
+    return {**result,"sessionId":e.get("sessionId"),"thinkingEnabled":e.get("thinkingEnabled"),"source":"claude-statusline","crossChecks":checks,"freshness":"current",_TRANSCRIPT_PATH_KEY:e["transcriptPath"],**trust}
 def evaluate_session(transcript_path: Path, *, allow_existing_session: bool=False) -> dict[str, Any]:
     try: records=[json.loads(x) for x in transcript_path.read_text(encoding="utf-8").splitlines() if x.strip()]
     except (OSError,json.JSONDecodeError): return _blocked("missing_session_evidence",sessionStatus="unknown",overrideRecorded=False)
@@ -162,18 +165,39 @@ def _write_json_atomically(output_path: Path, value: dict[str, Any]) -> None:
         if temporary.exists():
             temporary.unlink()
 
-def run_preflight(*,host:str="auto",allow_existing_session:bool=False,output_path:Path|None=None)->dict[str,Any]:
+def run_preflight(*,host:str="auto",allow_existing_session:bool=False,output_path:Path|None=None,model:str|None=None,effort:str|None=None)->dict[str,Any]:
+    # Advisory, never-block ladder: (1) verified attestation -> real capability + session verdict;
+    # (2) self-reported model/effort when attestation is unavailable; (3) unknown otherwise.
+    # `evaluate_runtime`/`_blocked`/resolver cross-checks stay pure signals; only this function
+    # decides the final advisory-vs-pass status.
     selected=os.environ.get("CODE_REVIEW_HOST",host).lower(); selected="codex" if selected=="auto" and os.environ.get("CODEX_THREAD_ID") else "claude" if selected=="auto" else selected
     sessions_root=Path(os.environ.get("CODEX_SESSIONS_ROOT", Path.home() / ".codex" / "sessions"))
     attestation_root=Path(os.environ.get("CLAUDE_ATTESTATION_ROOT", Path.home() / ".claude" / "review-attestations"))
     thread_id=os.environ.get("CODEX_THREAD_ID","")
-    result=resolve_codex_runtime(thread_id,sessions_root) if selected=="codex" else resolve_claude_runtime(attestation_root,Path.cwd()) if selected=="claude" else _blocked("unknown_host",host=selected)
-    bound_transcript=result.pop(_TRANSCRIPT_PATH_KEY,None)
-    if result.get("status")=="pass":
-        transcript=Path(bound_transcript) if isinstance(bound_transcript,str) and bound_transcript else Path(os.environ["CODE_REVIEW_TRANSCRIPT"]) if selected=="codex" and os.environ.get("CODE_REVIEW_TRANSCRIPT") else _codex_transcript_path(thread_id,sessions_root) if selected=="codex" else None
-        result.update(evaluate_session(transcript,allow_existing_session=allow_existing_session) if transcript else _blocked("missing_session_evidence",sessionStatus="unknown",overrideRecorded=False))
+    resolver=resolve_codex_runtime(thread_id,sessions_root) if selected=="codex" else resolve_claude_runtime(attestation_root,Path.cwd()) if selected=="claude" else _blocked("unknown_host",host=selected)
+    bound_transcript=resolver.pop(_TRANSCRIPT_PATH_KEY,None)
+    self_model=model or os.environ.get("CODE_REVIEW_MODEL"); self_effort=effort or os.environ.get("CODE_REVIEW_EFFORT")
+    if bound_transcript is not None or resolver.get("status")=="pass":
+        # Evidence reached evaluate_runtime, i.e. provenance itself was verified (attestation/rollout
+        # cross-checks passed) even if the model/effort turned out to be below the recommended bar.
+        result={**resolver,"trustLevel":"verified"}
+        result.setdefault("recommendationMet", bool(result.get("recommended", False)))
+        if resolver.get("status")=="pass":
+            transcript=Path(bound_transcript) if isinstance(bound_transcript,str) and bound_transcript else Path(os.environ["CODE_REVIEW_TRANSCRIPT"]) if selected=="codex" and os.environ.get("CODE_REVIEW_TRANSCRIPT") else _codex_transcript_path(thread_id,sessions_root) if selected=="codex" else None
+            session=evaluate_session(transcript,allow_existing_session=allow_existing_session) if transcript else {**_blocked("missing_session_evidence",sessionStatus="unknown",overrideRecorded=False),"status":"advisory"}
+            result.update(session)
+            if result.get("status")=="pass" and not result.get("recommendationMet",False): result["status"]="advisory"
+        else:
+            result["status"]="advisory"; result["recommendationMet"]=False
+    elif self_model and self_effort:
+        evaluated=evaluate_runtime(selected,self_model,self_effort)
+        result={**evaluated,"trustLevel":"self-reported","status":"advisory","recommendationMet":evaluated.get("status")=="pass" and bool(evaluated.get("recommended"))}
+    else:
+        result={"status":"advisory","trustLevel":"unknown","recommendationMet":False,"modelId":None,"effort":None}
+        if resolver.get("reasonCode"): result["reasonCode"]=resolver["reasonCode"]
     if output_path: _write_json_atomically(output_path, result)
     return result
 def main(argv:list[str]|None=None)->int:
-    p=argparse.ArgumentParser();p.add_argument("--host",default="auto",choices=["auto","codex","claude"]);p.add_argument("--allow-existing-session",action="store_true");p.add_argument("--output",type=Path);a=p.parse_args(argv);r=run_preflight(host=a.host,allow_existing_session=a.allow_existing_session,output_path=a.output);print(json.dumps(r,sort_keys=True));return 0 if r.get("status")=="pass" else 2
+    p=argparse.ArgumentParser();p.add_argument("--host",default="auto",choices=["auto","codex","claude"]);p.add_argument("--allow-existing-session",action="store_true");p.add_argument("--output",type=Path);p.add_argument("--model");p.add_argument("--effort");a=p.parse_args(argv)
+    r=run_preflight(host=a.host,allow_existing_session=a.allow_existing_session,output_path=a.output,model=a.model,effort=a.effort);print(json.dumps(r,sort_keys=True));return 0 if r.get("status") in ("pass","advisory") else 2
 if __name__=="__main__": raise SystemExit(main())

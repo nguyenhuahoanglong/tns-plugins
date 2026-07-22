@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Adaptive evidence-driven production-code review for PRs, branches, staged changes, and follow-up iterations. Version 3.0.1 hard-gates runtime/session evidence, classifies No-production-code, Tiny, or Pro scope, and binds reports to deterministic artifacts.
+Adaptive evidence-driven production-code review for PRs, branches, staged changes, and follow-up iterations. Version 3.0.2 attests runtime/session evidence advisorily (never blocking), classifies No-production-code, Tiny, or Pro scope, and binds reports to deterministic artifacts.
 
 ## Pain Points
 
@@ -38,6 +38,12 @@ specialists use `standard` (Claude Sonnet; Codex Terra/medium). Reports and side
 actual launch runtime for the main agent instead of assuming one.
 
 ## Changelog
+
+### 2026-07-22 - v3.0.2 advisory runtime preflight
+
+- Runtime preflight is now advisory and never hard-blocks: unverifiable or below-recommended runtime records a `trustLevel` (`verified|self-reported|unknown`) and reminds the user to switch to a recommended model + high thinking, then continues. Fixes hard-stops under GitHub Copilot VS Code and Claude CLI without a status line.
+- Capability is enforced by tier (sonnet+), not raw generation, so flagship Claude Opus 4.8 is no longer rejected (`claude.minimumGeneration` `[5]`→`[4]`).
+- Reports/sidecars carry `trustLevel`; self-report is accepted only as labeled, untrusted metadata.
 
 ### 2026-07-22 - v3.0.1 Lite escalation provenance
 

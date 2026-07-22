@@ -77,15 +77,16 @@ def test_tc_036_codex_preflight_defaults_to_home_sessions_and_uses_own_rollout_a
     assert result["overrideRecorded"] is False
 
 
-def test_tc_037_preflight_blocks_a_passing_runtime_when_no_session_evidence_is_discoverable(
+def test_tc_037_preflight_is_advisory_for_a_passing_runtime_when_no_session_evidence_is_discoverable(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """TC-037 / DoD-1.3: runtime approval alone cannot approve a review.
+    """TC-037 / DoD-1.3: runtime approval alone cannot approve a review outright.
 
     Steps:
       1. Supply a runtime resolver which passes policy but has no discoverable session.
       2. Omit any explicit review transcript.
-      3. Verify preflight fails closed with missing-session evidence.
+      3. Verify preflight never blocks: it downgrades to advisory with the verified trust
+         level and the missing-session reason code preserved.
     """
     # Arrange
     monkeypatch.setattr(
@@ -101,7 +102,8 @@ def test_tc_037_preflight_blocks_a_passing_runtime_when_no_session_evidence_is_d
     result = runtime_preflight.run_preflight(host="codex")
 
     # Assert
-    assert result["status"] == "blocked"
+    assert result["status"] == "advisory"
+    assert result["trustLevel"] == "verified"
     assert result["reasonCode"] == "missing_session_evidence"
 
 
@@ -189,7 +191,8 @@ def test_tc_042_claude_preflight_requires_a_trusted_attestation_transcript_path(
     Steps:
       1. Store a current, policy-compliant Claude attestation without transcriptPath.
       2. Run Claude preflight without CODE_REVIEW_TRANSCRIPT.
-      3. Verify it fails closed with missing-session evidence.
+      3. Verify it never blocks: the attestation schema itself was incomplete (no transcript
+         was ever bound), so preflight falls through to the unknown-trust advisory path.
     """
     attestation_root = tmp_path / "attestations"
     attestation_root.mkdir()
@@ -211,8 +214,10 @@ def test_tc_042_claude_preflight_requires_a_trusted_attestation_transcript_path(
 
     result = runtime_preflight.run_preflight(host="claude")
 
-    assert result["status"] == "blocked"
+    assert result["status"] == "advisory"
+    assert result["trustLevel"] == "unknown"
     assert result["reasonCode"] == "missing_session_evidence"
+    assert result["recommendationMet"] is False
 
 
 def test_tc_046_claude_preflight_requires_an_attested_same_session_cwd(
@@ -223,7 +228,8 @@ def test_tc_046_claude_preflight_requires_an_attested_same_session_cwd(
     Steps:
       1. Store a current, policy-compliant Claude attestation without cwd.
       2. Run Claude preflight without an external transcript override.
-      3. Verify it fails closed because the same-session workspace was not attested.
+      3. Verify it never blocks: the incomplete attestation schema never bound a transcript,
+         so preflight falls through to the unknown-trust advisory path.
     """
     attestation_root = tmp_path / "attestations"
     attestation_root.mkdir()
@@ -258,8 +264,10 @@ def test_tc_046_claude_preflight_requires_an_attested_same_session_cwd(
 
     result = runtime_preflight.run_preflight(host="claude")
 
-    assert result["status"] == "blocked"
+    assert result["status"] == "advisory"
+    assert result["trustLevel"] == "unknown"
     assert result["reasonCode"] == "missing_session_evidence"
+    assert result["recommendationMet"] is False
 
 
 def test_tc_050_claude_preflight_binds_session_evaluation_to_the_selected_attestation(
@@ -371,7 +379,11 @@ def test_tc_050_claude_preflight_binds_session_evaluation_to_the_selected_attest
     assert without_override["modelId"] == "claude-sonnet-5"
     assert without_override["sessionStatus"] == "existing"
     assert without_override["overrideRecorded"] is False
-    assert with_override["status"] == "pass"
+    # claude-sonnet-5 clears the minimum bar (verified, session ok) but is below the
+    # recommended opus tier, so the final status is advisory rather than pass.
+    assert with_override["status"] == "advisory"
+    assert with_override["trustLevel"] == "verified"
+    assert with_override["recommendationMet"] is False
     assert with_override["sessionId"] == "session-1"
     assert with_override["modelId"] == "claude-sonnet-5"
     assert with_override["sessionStatus"] == "existing"
@@ -517,3 +529,159 @@ def test_tc_039_parses_real_claude_hyphen_generation_ids(
     assert parsed["generation"] == expected_generation
     assert parsed["tier"] == expected_tier
     assert result["status"] == "pass"
+
+
+def test_regression_run_preflight_is_advisory_and_unknown_with_no_attestation_and_no_self_report(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Regression: with no attestation/rollout and no self-report, preflight never blocks.
+
+    Steps:
+      1. Point both the Codex sessions root and Claude attestation root at empty directories.
+      2. Omit any --model/--effort self-report (args and env).
+      3. Verify the result is advisory with unknown trust, no session eval was attempted,
+         and `main` would exit 0 for this outcome.
+    """
+    # Arrange
+    home = tmp_path / "home"
+    home.mkdir()
+    monkeypatch.setattr(Path, "home", classmethod(lambda cls: home))
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.delenv("CODEX_THREAD_ID", raising=False)
+    monkeypatch.delenv("CODE_REVIEW_HOST", raising=False)
+    monkeypatch.delenv("CODE_REVIEW_TRANSCRIPT", raising=False)
+    monkeypatch.delenv("CODE_REVIEW_MODEL", raising=False)
+    monkeypatch.delenv("CODE_REVIEW_EFFORT", raising=False)
+
+    # Act
+    result = runtime_preflight.run_preflight(host="claude")
+
+    # Assert
+    assert result["status"] == "advisory"
+    assert result["status"] != "blocked"
+    assert result["trustLevel"] == "unknown"
+    assert result["recommendationMet"] is False
+    assert result["modelId"] is None
+    assert result["effort"] is None
+    assert "sessionStatus" not in result
+    assert (0 if result["status"] in ("pass", "advisory") else 2) == 0
+
+
+def test_regression_run_preflight_uses_self_reported_model_and_effort_without_attestation(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Regression: a self-reported model/effort (env) is used when no attestation exists.
+
+    Steps:
+      1. Point the Claude attestation root at an empty directory (no attestation available).
+      2. Set CODE_REVIEW_MODEL / CODE_REVIEW_EFFORT to a capable model.
+      3. Verify preflight reports self-reported trust, computes recommendationMet from the
+         self-reported runtime, skips session evaluation, and never blocks.
+    """
+    # Arrange
+    home = tmp_path / "home"
+    home.mkdir()
+    monkeypatch.setattr(Path, "home", classmethod(lambda cls: home))
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.delenv("CODEX_THREAD_ID", raising=False)
+    monkeypatch.delenv("CODE_REVIEW_HOST", raising=False)
+    monkeypatch.delenv("CODE_REVIEW_TRANSCRIPT", raising=False)
+    monkeypatch.setenv("CODE_REVIEW_MODEL", "claude-opus-4-8")
+    monkeypatch.setenv("CODE_REVIEW_EFFORT", "high")
+
+    # Act
+    result = runtime_preflight.run_preflight(host="claude")
+
+    # Assert
+    assert result["status"] == "advisory"
+    assert result["status"] != "blocked"
+    assert result["trustLevel"] == "self-reported"
+    assert result["modelId"] == "claude-opus-4-8"
+    assert result["effort"] == "high"
+    assert result["recommendationMet"] is True
+    assert "sessionStatus" not in result
+
+
+def test_regression_run_preflight_self_reported_below_minimum_is_advisory_not_blocked(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Regression: a self-reported but underpowered model never blocks preflight either.
+
+    Steps:
+      1. Point the Claude attestation root at an empty directory (no attestation available).
+      2. Self-report a below-tier model via --model/--effort args.
+      3. Verify preflight is advisory, self-reported, recommendationMet is False, and the
+         underlying capability reason code is preserved.
+    """
+    # Arrange
+    home = tmp_path / "home"
+    home.mkdir()
+    monkeypatch.setattr(Path, "home", classmethod(lambda cls: home))
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.delenv("CODEX_THREAD_ID", raising=False)
+    monkeypatch.delenv("CODE_REVIEW_HOST", raising=False)
+    monkeypatch.delenv("CODE_REVIEW_TRANSCRIPT", raising=False)
+    monkeypatch.delenv("CODE_REVIEW_MODEL", raising=False)
+    monkeypatch.delenv("CODE_REVIEW_EFFORT", raising=False)
+
+    # Act
+    result = runtime_preflight.run_preflight(host="claude", model="claude-haiku-5", effort="medium")
+
+    # Assert
+    assert result["status"] == "advisory"
+    assert result["trustLevel"] == "self-reported"
+    assert result["recommendationMet"] is False
+    assert result["reasonCode"] == "tier_below_minimum"
+
+
+def test_regression_run_preflight_verified_but_below_recommended_tier_is_advisory(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Regression: a fully verified attestation with a below-minimum model is advisory,
+    keeps trustLevel verified (provenance was proven), and preserves the reason code.
+
+    Steps:
+      1. Store a fully cross-checked Claude attestation and transcript for a below-tier model.
+      2. Run preflight for that workspace.
+      3. Verify the result is advisory (never blocked), trustLevel is verified, and
+         recommendationMet is False with the capability reason code intact.
+    """
+    attestation_root = tmp_path / "attestations"
+    attestation_root.mkdir()
+    transcript = tmp_path / "transcript.jsonl"
+    transcript.write_text(
+        json.dumps(
+            {
+                "type": "assistant",
+                "sessionId": "session-1",
+                "cwd": str(tmp_path),
+                "message": {"role": "assistant", "model": "claude-haiku-5", "effort": "medium"},
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    (attestation_root / "current.json").write_text(
+        json.dumps(
+            {
+                "host": "claude",
+                "sessionId": "session-1",
+                "modelId": "claude-haiku-5",
+                "effort": "medium",
+                "cwd": str(tmp_path),
+                "transcriptPath": str(transcript),
+            }
+        ),
+        encoding="utf-8",
+    )
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("CLAUDE_ATTESTATION_ROOT", str(attestation_root))
+    monkeypatch.delenv("CODE_REVIEW_TRANSCRIPT", raising=False)
+
+    result = runtime_preflight.run_preflight(host="claude")
+
+    assert result["status"] == "advisory"
+    assert result["status"] != "blocked"
+    assert result["trustLevel"] == "verified"
+    assert result["recommendationMet"] is False
+    assert result["reasonCode"] == "tier_below_minimum"

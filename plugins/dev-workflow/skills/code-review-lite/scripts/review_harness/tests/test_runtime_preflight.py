@@ -102,6 +102,24 @@ def test_tc_003_hard_stops_untrusted_or_underpowered_runtime(
     assert result["reasonCode"] == reason_code
 
 
+def test_tc_003b_claude_opus_4_8_passes_after_generation_policy_fix() -> None:
+    """Regression / DoD-1.1: claude-opus-4-8 must pass and be recommended.
+
+    Steps:
+      1. Evaluate a flagship opus model whose generation parses to [4, 8].
+      2. Verify the policy's minimumGeneration of [4] no longer rejects it.
+      3. Verify it also clears the recommended tier/effort bar.
+    """
+    # Arrange
+    # Act
+    result = evaluate_runtime("claude", "claude-opus-4-8", "high")
+
+    # Assert
+    assert result["status"] == "pass"
+    assert result["recommended"] is True
+    assert result["recommendationMet"] is True
+
+
 def test_tc_004_selects_only_the_rollout_matching_requested_thread(tmp_path: Path) -> None:
     """TC-004 / DoD-1.2: select runtime evidence by exact thread UUID.
 

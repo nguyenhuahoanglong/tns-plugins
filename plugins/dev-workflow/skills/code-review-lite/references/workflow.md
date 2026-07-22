@@ -1,6 +1,6 @@
 ---
 name: workflow
-description: v4.1.1 runtime, scope, test, escalation, and isolated-agent workflow
+description: v4.1.2 runtime, scope, test, escalation, and isolated-agent workflow
 ---
 
 # Workflow
@@ -8,10 +8,14 @@ description: v4.1.1 runtime, scope, test, escalation, and isolated-agent workflo
 ## 1. Shared clearance before repository reads
 
 Before reading repository files, gathering paths, inspecting a diff, or creating a worktree, run
-the shared `runtime-preflight` with exact Codex rollout or Claude status-line evidence. Persist its
-JSON. `blocked` is a hard stop. Run session classification next: `confirmation-required` pauses
-until explicit confirmation, then rerun/record `overrideRecorded: true`. Do not infer runtime from
-settings or rendered labels.
+the shared `runtime-preflight` with exact Codex rollout or Claude status-line evidence when
+available; when unavailable, a labeled, untrusted self-report (`--model`/`--effort`) or `unknown`
+is permitted. Persist its JSON, including `trustLevel`. The result is advisory and never blocks: when
+`trustLevel` is not `verified` or `recommendationMet` is false, remind the user to switch to a
+recommended model (Claude Opus, or Sonnet 5+ minimum) at high thinking, then continue. Run session
+classification next only on the verified path: `confirmation-required` pauses until explicit
+confirmation, then rerun/record `overrideRecorded: true`. Do not infer runtime from settings or
+rendered labels.
 
 ## 2. Scope before Lite work
 
@@ -75,7 +79,7 @@ Use `Task(subagent_type="requirement-validator", prompt="...", description="..."
 findings outside the allowlist. Keep prompt cache/context ephemeral.
 
 Write `.CodeReview/.{safe-branch}.lite.review-meta.json` with `recordVersion: 3`,
-`skillVersion: 4.1.1`, exact attested runtime, session override, production allowlist, build and semantic-agent
+`skillVersion: 4.1.2`, exact attested runtime, session override, production allowlist, build and semantic-agent
 evidence, and absolute runtime/scope/test artifact references with SHA-256 hashes. Add
 `escalationPolicy`, `escalationPolicyProvenance`, `escalationDecision`, `selectedSpecialist`, and `unreviewedRiskFamilies`, mirrored
 by report fields `Escalation Policy`, `Escalation Policy Provenance`, `Escalation Decision`, `Selected Specialist`, and `Unreviewed

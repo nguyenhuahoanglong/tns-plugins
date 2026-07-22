@@ -5,7 +5,7 @@
     "recommendedTier": "sol"
   },
   "claude": {
-    "minimumGeneration": [5],
+    "minimumGeneration": [4],
     "minimumTier": "sonnet",
     "recommendedTier": "opus"
   },

@@ -10,7 +10,7 @@
         "The report selects Code Tiny only after recording one changed file, no more than 100 changed lines, Documentation Only false, and no risk or specialist trigger.",
         "The branch check, exact approved dotnet command, and discovered direct/affected tests run as deterministic processes; each repo/run remains in test executions evidence.",
         "Triggered and Agent Usage are both None because Code Tiny dispatches zero Requirement Validator or specialist children.",
-        "The report identifies code-review-lite v4.1.1, mirrors Escalation Policy ask with omitted-default provenance, Escalation Decision not-needed, Selected Specialist None, and Unreviewed Risk Families None in its recordVersion 3 sidecar, and passes scripts/verify_output.py with expected profile Code Tiny."
+        "The report identifies code-review-lite v4.1.2, mirrors Escalation Policy ask with omitted-default provenance, Escalation Decision not-needed, Selected Specialist None, and Unreviewed Risk Families None in its recordVersion 3 sidecar, and passes scripts/verify_output.py with expected profile Code Tiny."
       ]
     },
     {
@@ -54,7 +54,7 @@
       "prompt": "Lite-review a passing change with Security=auth, Performance=async, and Standard=lockfile specialist triggers. Escalation Policy: ask. I decline Pro escalation.",
       "expected_output": "Continue as bounded Lite after the declined ask, select Security Reviewer by priority, and preserve the other exact trigger entries as ordered unreviewed risk families.",
       "expectations": [
-        "The Lite report and record-v3 sidecar use code-review-lite v4.1.1 and mirror policy ask, user-authored provenance, decision pro-declined, selected Security Reviewer, and the exact ordered residual trigger list.",
+        "The Lite report and record-v3 sidecar use code-review-lite v4.1.2 and mirror policy ask, user-authored provenance, decision pro-declined, selected Security Reviewer, and the exact ordered residual trigger list.",
         "Requirement Validator and Security Reviewer are the only semantic agents after passing gates; Performance and Standard are not silently reviewed.",
         "Changing the policy to auto or accepting the ask invokes Pro and produces no Lite artifact."
       ]
@@ -74,7 +74,7 @@
       "prompt": "For the same passing Lite cancellation review, show the exact semantic-child dispatch plan for both Claude Code and Codex. Do not execute the review. Include only the stable contract and dynamic tail fields needed to prove context isolation and runtime routing.",
       "expected_output": "Describe host-specific isolated dispatch with equivalent semantic roles: Claude named custom agents and Codex custom agent_type calls with fork_turns none.",
       "expectations": [
-        "The dispatch plan requires a passing attestation, recorded session clearance, and a production finding allowlist before either host dispatches a child.",
+        "The dispatch plan requires a recorded attestation (verified, self-reported, or unknown), recorded session clearance, and a production finding allowlist before either host dispatches a child.",
         "Claude uses the isolated Requirement Validator and code-reviewer named-agent mappings without preloading code-review-lite into the reviewer child.",
         "Codex uses the custom requirement-validator and code-reviewer agent_type contract with fork_turns set to none; it does not silently fall back to inherited history or main-model routing.",
         "Requirement Validator retains deep routing and the named specialist retains standard routing for each host.",
@@ -95,7 +95,7 @@
     }
   ],
   "v4_contract_evals": [
-    {"scenario":"blocked runtime","expects":["run shared preflight before repository reads","hard-stop with no Lite gates or report"]},
+    {"scenario":"unverified or below-recommended runtime","expects":["run shared preflight before repository reads and record trustLevel","advisory only: remind the user to switch to a recommended model at high thinking, then continue Lite gates and report"]},
     {"scenario":"existing session override","expects":["pause for explicit confirmation","record override in recordVersion 3 sidecar"]},
     {"scenario":"docs and tests only","expects":["No Production Code","no build/test/semantic findings"]},
     {"scenario":"missing direct tests","expects":["run affected tests","exact use-unit-testing advisory","no defect"]},

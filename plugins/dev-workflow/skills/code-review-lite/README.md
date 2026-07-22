@@ -2,8 +2,8 @@
 
 ## Purpose
 
-Adaptive, low-cost production-code review for quick checks and pre-merge validation. Version 4.1.1
-attests the host runtime/session before repository reads, partitions production from evidence-only
+Adaptive, low-cost production-code review for quick checks and pre-merge validation. Version 4.1.2
+advisorily attests the host runtime/session (never blocking) before repository reads, partitions production from evidence-only
 and excluded files, verifies tests deterministically, and supports controlled multi-specialist
 escalation to Pro.
 
@@ -81,6 +81,12 @@ outcomes route no semantic agents; blocking build or test outcomes route only th
 Validator. In either case, `Selected Specialist` is `None` and every triggered family is unreviewed.
 
 ## Changelog
+
+### 2026-07-22 - v4.1.2 advisory runtime preflight
+
+- Runtime preflight is now advisory and never hard-blocks: unverifiable or below-recommended runtime records a `trustLevel` (`verified|self-reported|unknown`) and reminds the user to switch to a recommended model + high thinking, then continues. Fixes hard-stops under GitHub Copilot VS Code and Claude CLI without a status line.
+- Capability is enforced by tier (sonnet+), not raw generation, so flagship Claude Opus 4.8 is no longer rejected.
+- Self-report is accepted only as labeled, untrusted metadata; the switch-to-recommended reminder is the safeguard.
 
 ### 2026-07-22 - v4.1.1 consent-first escalation
 

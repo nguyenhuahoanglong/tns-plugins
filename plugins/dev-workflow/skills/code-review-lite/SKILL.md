@@ -1,12 +1,12 @@
 ---
 name: code-review-lite
 description: "Adaptive, attested production-code review. Use for quick reviews, pre-merge checks, deterministic evidence, and Pro escalation."
-version: 4.1.1
+version: 4.1.2
 ---
 
 # Code Review Lite
 
-Read `references/workflow.md` and `references/report-template.md`. This is v4.1.1.
+Read `references/workflow.md` and `references/report-template.md`. This is v4.1.2.
 
 ## Invocation
 
@@ -16,9 +16,13 @@ Accept optional `Escalation Policy: auto|ask`; omitted means `ask`. Record wheth
 ## Mandatory order
 
 1. Before any repository read, diff, worktree, build, test, or classification, run shared
-   `runtime-preflight` and session gate using exact host metadata. Missing, stale, conflicting,
-   unknown, or below-minimum runtime is a hard stop. An existing session pauses for explicit
-   confirmation; record its override. Never use display names, self-report, or defaults.
+   `runtime-preflight` using exact host metadata and record the resolved `modelId`, `effort`, and
+   `trustLevel`. This is advisory and never a hard stop: missing, stale, conflicting, unknown, or
+   below-minimum runtime reminds the user to switch to a recommended model (Claude Opus, or
+   Sonnet 5+ minimum) at high thinking, then continues. Self-report via `--model`/`--effort` is
+   permitted only as labeled, untrusted `trustLevel: self-reported` when attestation is
+   unavailable; never use display names or silent defaults. The session gate and existing-session
+   confirmation apply only on the verified path; record its override.
 2. Gather paths and diff, persist the production scope manifest, then classify only production
    hunks. Tests and documents are evidence-only; generated, vendor, and binary paths are excluded.
 3. If scope is `no-production-code`, write the `No Production Code` report and record-v3 Lite
@@ -79,7 +83,7 @@ Write `.CodeReview/{safe-branch}.lite.md` and collision-safe
 `.CodeReview/.{safe-branch}.lite.review-meta.json`. The report fields are `Escalation Policy`,
 `Escalation Policy Provenance`, `Escalation Decision`, `Selected Specialist`, and `Unreviewed Risk Families`; the matching sidecar
 keys are `escalationPolicy`, `escalationPolicyProvenance`, `escalationDecision`, `selectedSpecialist`, and
-`unreviewedRiskFamilies`. The sidecar uses `recordVersion: 3`, `skillVersion: 4.1.1`, exact
+`unreviewedRiskFamilies`. The sidecar uses `recordVersion: 3`, `skillVersion: 4.1.2`, exact
 runtime/session values, scope/test evidence, SHA-256 references, production allowlist, and
 build/semantic-agent evidence. Its `selectedSpecialist` value must be exactly `Security Reviewer`,
 `Philosophy Reviewer`, `Performance Reviewer`, `Standard Reviewer`, or `None`. Use the template

@@ -9,7 +9,7 @@ Follow-ups use the same runtime, scope, test, classifier, actor, and verifier co
 
 ## Detection
 
-Require the report and sidecar. Accept only a parsed `recordVersion: 3`, `skillName: code-review-pro`, `skillVersion: 3.0.0` record with all retained provenance and three contained, hash-bound artifact references. A missing/invalid/pre-v3 record requires fresh full-scope classification; never upgrade a legacy record in place.
+Require the report and sidecar. Accept only a parsed `recordVersion: 3`, `skillName: code-review-pro`, `skillVersion: 3.0.2` record with all retained provenance and three contained, hash-bound artifact references. A missing/invalid/pre-v3 record requires fresh full-scope classification; never upgrade a legacy record in place.
 
 Recompute the normalized scoped-diff SHA-256:
 
@@ -22,7 +22,7 @@ Stop without new review work only when the recomputed fingerprint equals `diffFi
 
 ## Delta
 
-After a passing fresh runtime/session preflight, diff `{reviewedCommit}..HEAD`, create new scope/test artifacts, and classify only the delta:
+After running the runtime preflight (advisory) and session classification, diff `{reviewedCommit}..HEAD`, create new scope/test artifacts, and classify only the delta:
 
 - No-production-code: branch gate when applicable, no worktree/build/test/semantic actor/finding.
 - Tiny: one Build Validator per repository, then Tiny main all-lens review.
@@ -38,7 +38,7 @@ This abridged shape lists every required field. Artifact `path` values are conta
 {
   "recordVersion": 3,
   "skillName": "code-review-pro",
-  "skillVersion": "3.0.0",
+  "skillVersion": "3.0.2",
   "reviewProfile": "Pro",
   "reviewKind": "follow-up",
   "iteration": 2,
@@ -49,6 +49,7 @@ This abridged shape lists every required field. Artifact `path` values are conta
   "session": {"status": "fresh", "overrideRecorded": false},
   "runtime": {
     "main": "gpt-5.6-terra / medium",
+    "trustLevel": "verified",
     "build": "haiku / default",
     "requirement": "opus / default",
     "specialists": "sonnet / default"
