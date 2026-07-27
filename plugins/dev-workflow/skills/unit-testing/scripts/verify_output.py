@@ -16,8 +16,10 @@ Checks (mirror evals/evals.json expectations):
      — so the suite is maintained in place instead of accreting duplicates.
   6. (optional, --test-cases) Traceability against the test-case registry
      ({design-doc}.test-cases.md): every TC-NNN referenced in tests exists in the
-     registry (FAIL on unknown IDs), every registry case has a referencing test
-     (WARN if pending), and test files cite the registry in a header (WARN).
+     registry (FAIL on unknown IDs), approved pending cases remain visible without
+     penalty, and test headers identify the exact registry and subject (FAIL).
+     Registry rows require Status, Coverage / reason, and Covered by metadata;
+     Known Quirk labels and uncovered-gap reasons must be explicit.
 
 Usage:
     verify_output.py <test-file-or-dir> [--existing <existing-tests-dir>]
@@ -48,7 +50,11 @@ _MAPPING_HINTS = re.compile(
     r"(REQ-\d|AC-\d|TC-\d|requirement|characterization|acceptance criteri)", re.IGNORECASE
 )
 _TC_ID = re.compile(r"\bTC-\d{3,}\b")
-_REGISTRY_HEADER_HINT = re.compile(r"test.cases", re.IGNORECASE)
+_REGISTRY_HEADER = re.compile(r"(?:test registry|test cases)\s*:\s*(\S+)", re.IGNORECASE)
+_SUBJECT_METADATA = re.compile(
+    r"^\s*(?://+\s*)?(?:subject|target)\s*:\s*\S+", re.IGNORECASE | re.MULTILINE
+)
+_KNOWN_QUIRK = re.compile(r"Known Quirk", re.IGNORECASE)
 
 
 def _collect_test_files(path: Path) -> list[Path]:
@@ -98,6 +104,38 @@ def _registry_tc_ids(registry_text: str) -> set[str]:
     return ids
 
 
+def _registry_rows(registry_text: str) -> list[dict[str, str]]:
+    """Read TC rows using the registry's named columns, not fixed positions."""
+    lines = registry_text.splitlines()
+    header = next((line for line in lines if re.match(r"^\|.*\bID\b.*\|", line, re.IGNORECASE)), "")
+    columns = [cell.strip().lower() for cell in header.strip().strip("|").split("|")]
+    required = {"id", "status", "coverage / reason", "covered by"}
+    if not required.issubset(columns):
+        return []
+    rows = []
+    for line in lines:
+        cells = [cell.strip() for cell in line.strip().strip("|").split("|")]
+        if len(cells) != len(columns) or not re.fullmatch(r"TC-\d{3,}", cells[columns.index("id")]):
+            continue
+        rows.append(dict(zip(columns, cells)))
+    return rows
+
+
+def _header_registry_path(text: str) -> str | None:
+    """Return the registry identity declared near the top of an owned test file."""
+    match = _REGISTRY_HEADER.search(text[:500])
+    return match.group(1) if match else None
+
+
+def _tc_has_known_quirk(text: str, tc_id: str) -> bool:
+    """A per-test header must carry the label close to the referenced TC."""
+    for match in re.finditer(re.escape(tc_id), text):
+        window = text[max(0, match.start() - 250):match.end() + 250]
+        if _KNOWN_QUIRK.search(window):
+            return True
+    return False
+
+
 def _check_test_cases(files, blob, registry_path) -> list:
     """Traceability checks against the test-case registry (test-case-management.md)."""
     results = []
@@ -106,7 +144,8 @@ def _check_test_cases(files, blob, registry_path) -> list:
         results.append(("FAIL", f"--test-cases registry not found: {rp}"))
         return results
 
-    registry_ids = _registry_tc_ids(rp.read_text(encoding="utf-8", errors="ignore"))
+    registry_text = rp.read_text(encoding="utf-8", errors="ignore")
+    registry_ids = _registry_tc_ids(registry_text)
     if not registry_ids:
         results.append(("FAIL", f"no 'TC-NNN' table rows found in registry: {rp}"))
         return results
@@ -118,20 +157,55 @@ def _check_test_cases(files, blob, registry_path) -> list:
                     f"tests reference TC id(s) missing from the registry: {', '.join(unknown)}"
                     if unknown else "all TC ids referenced in tests exist in the registry"))
 
-    uncovered = sorted(registry_ids - referenced)
-    results.append(("WARN" if uncovered else "PASS",
-                    f"{len(uncovered)} registry case(s) not referenced by any test "
-                    f"(pending or a gap): {', '.join(uncovered[:8])}"
-                    f"{' ...' if len(uncovered) > 8 else ''}"
-                    if uncovered else "every registry test case is referenced by a test"))
+    rows = _registry_rows(registry_text)
+    if not rows:
+        results.append(("FAIL", "registry lacks required ID, Status, Coverage / reason, or Covered by metadata"))
+        return results
 
-    missing_header = [f.name for f in files
-                      if not _REGISTRY_HEADER_HINT.search(
-                          f.read_text(encoding="utf-8", errors="ignore")[:500])]
-    results.append(("WARN" if missing_header else "PASS",
-                    "test file(s) missing the registry header comment "
-                    f"('Test cases: ...'): {', '.join(missing_header[:8])}"
-                    if missing_header else "all test files cite the test-case registry"))
+    uncovered = sorted(registry_ids - referenced)
+    pending = {row["id"] for row in rows if row["status"].lower() == "pending"}
+    actionable = [tc_id for tc_id in uncovered if tc_id not in pending]
+    results.append(("WARN" if actionable else "PASS",
+                    f"{len(actionable)} registry case(s) not referenced by any test: "
+                    f"{', '.join(actionable[:8])}{' ...' if len(actionable) > 8 else ''}"
+                    if actionable else "all non-pending registry cases are referenced by a test"))
+    if pending:
+        results.append(("PASS", "approved pending registry cases remain visible without a traceability penalty"))
+
+    missing_reason = []
+    for row in rows:
+        coverage = row["coverage / reason"].strip()
+        is_uncovered = coverage.lower().startswith("uncovered")
+        has_reason = bool(re.match(r"^uncovered\s*:\s*\S+", coverage, re.IGNORECASE))
+        if is_uncovered and not has_reason:
+            missing_reason.append(row["id"])
+    results.append(("FAIL" if missing_reason else "PASS",
+                    f"uncovered registry case(s) lack an explicit reason: {', '.join(missing_reason)}"
+                    if missing_reason else "all intentionally uncovered registry cases record a reason"))
+
+    expected_identity = str(registry_path)
+    bad_headers = []
+    missing_subject = []
+    for f in files:
+        text = f.read_text(encoding="utf-8", errors="ignore")
+        identity = _header_registry_path(text)
+        if identity != expected_identity:
+            bad_headers.append(f"{f.name} ({identity or 'missing'})")
+        if not _SUBJECT_METADATA.search(text[:500]):
+            missing_subject.append(f.name)
+    results.append(("FAIL" if bad_headers else "PASS",
+                    "test file(s) missing the exact registry identity: " + ", ".join(bad_headers)
+                    if bad_headers else "all test files identify the exact registry path"))
+    results.append(("FAIL" if missing_subject else "PASS",
+                    "test file(s) missing Subject/Target header metadata: " + ", ".join(missing_subject)
+                    if missing_subject else "all test files include Subject/Target header metadata"))
+
+    quirk_ids = [row["id"] for row in rows if _KNOWN_QUIRK.search(row["coverage / reason"])]
+    missing_quirk_headers = [tc_id for tc_id in quirk_ids if not _tc_has_known_quirk(blob, tc_id)]
+    results.append(("FAIL" if missing_quirk_headers else "PASS",
+                    "Known Quirk registry case(s) lack the matching test header label: "
+                    + ", ".join(missing_quirk_headers)
+                    if missing_quirk_headers else "Known Quirk registry labels are paired with test headers"))
 
     return results
 
@@ -181,7 +255,9 @@ def evaluate(output_path, existing_path=None, test_cases_path=None):
         if not ep.exists():
             results.append(("WARN", f"--existing path not found, skipped dup check: {ep}"))
         else:
-            existing_files = [f for f in _collect_test_files(ep) if f not in set(files)]
+            supplied_files = _collect_test_files(ep)
+            output_files = set(files)
+            existing_files = [f for f in supplied_files if f not in output_files]
             dups = sorted(_extract_test_names(blob) & _extract_test_names(_read_blob(existing_files)))
             if dups:
                 shown = ", ".join(dups[:8]) + (" ..." if len(dups) > 8 else "")
@@ -189,6 +265,10 @@ def evaluate(output_path, existing_path=None, test_cases_path=None):
                                         f"— update in place instead of adding: {shown}"))
             else:
                 results.append(("PASS", "no test-name collisions with existing tests"))
+            if output_files & set(supplied_files):
+                results.append(("PASS", "generated tests reuse the supplied canonical owner"))
+            else:
+                results.append(("FAIL", "generated tests do not reuse the supplied canonical owner"))
 
     # Traceability check (Step 7): tests <-> test-case registry.
     if test_cases_path:

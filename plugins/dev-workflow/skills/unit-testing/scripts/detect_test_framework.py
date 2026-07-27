@@ -23,6 +23,12 @@ from pathlib import Path
 # How far up to walk looking for project roots, and what marks a root.
 _MAX_UP = 6
 _ROOT_MARKERS = ("package.json", ".git", "*.sln")
+_TOOL_INSTRUCTION_FILES = ("CLAUDE.md", "COPILOT.md")
+_TEST_CONFIG_NAMES = (
+    "vitest.config.ts", "vitest.config.js", "vitest.config.mts",
+    "jest.config.js", "jest.config.ts", "jest.config.cjs", "jest.config.mjs",
+    "xunit.runner.json", "pytest.ini", ".runsettings",
+)
 
 
 def _find_context_dir(start: Path) -> Path:
@@ -50,8 +56,27 @@ def _nearest(start: Path, filename: str) -> Path | None:
     return None
 
 
+def _nearest_solution(start: Path) -> Path | None:
+    """Find the closest solution without recursively scanning an ancestor."""
+    cur = start.resolve()
+    for _ in range(_MAX_UP):
+        solutions = sorted(cur.glob("*.sln"))
+        if solutions:
+            return solutions[0]
+        # A package/git root bounds a non-.NET project; do not recurse through
+        # arbitrary user-directory solutions when checking a Node fixture.
+        if (cur / "package.json").is_file() or (cur / ".git").exists():
+            break
+        if cur.parent == cur:
+            break
+        cur = cur.parent
+    return None
+
+
 def _glob_up(start: Path, pattern: str, limit: int = 20) -> list[Path]:
-    """Find files matching pattern at/under each ancestor (shallow per level)."""
+    """Find non-recursive matches at each ancestor, stopping after `limit`."""
+    if "**" in pattern:
+        raise ValueError("recursive patterns must be scanned within a detected project root")
     found: list[Path] = []
     cur = start.resolve()
     for _ in range(_MAX_UP):
@@ -60,6 +85,94 @@ def _glob_up(start: Path, pattern: str, limit: int = 20) -> list[Path]:
             break
         cur = cur.parent
     return found
+
+
+def _glob_within_root(root: Path, pattern: str, limit: int = 20) -> list[Path]:
+    """Find recursive matches strictly below a detected project root."""
+    return sorted(root.glob(pattern))[:limit]
+
+
+def _ancestors(start: Path, root: Path) -> list[Path]:
+    """Return directories from target-nearest through the supplied root."""
+    result: list[Path] = []
+    cur = start.resolve()
+    root = root.resolve()
+    for _ in range(_MAX_UP):
+        result.append(cur)
+        if cur == root or cur.parent == cur:
+            break
+        cur = cur.parent
+    return result
+
+
+def _project_root(ctx: Path, results: list[dict]) -> Path:
+    """Use detected project evidence, otherwise the nearest recognised ancestor."""
+    roots = [Path(r["project_root"]) for r in results if r.get("project_root")]
+    if roots:
+        return roots[0]
+    for directory in _ancestors(ctx, ctx.parents[min(_MAX_UP - 1, len(ctx.parents) - 1)]):
+        if any(directory.glob(marker) for marker in _ROOT_MARKERS):
+            return directory
+    return ctx
+
+
+def _test_files(root: Path, limit: int = 40) -> list[Path]:
+    files: list[Path] = []
+    for pattern in ("**/*.test.*", "**/*.spec.*", "**/*Tests.cs", "**/*Test.cs"):
+        files.extend(sorted(root.glob(pattern)))
+    return list(dict.fromkeys(files))[:limit]
+
+
+def _subject_key(path: Path) -> str:
+    """Normalise a SUT or test basename for conservative ownership matching."""
+    name = path.name.lower()
+    name = re.sub(r"\.(test|spec)\.[^.]+$", "", name)
+    name = re.sub(r"(tests?|specs?)\.[^.]+$", "", name)
+    name = Path(name).stem
+    return re.sub(r"[^a-z0-9]", "", name)
+
+
+def discover_context(path: Path, results: list[dict]) -> dict:
+    """Collect deterministic context evidence; never choose an ambiguous owner."""
+    ctx = _find_context_dir(path)
+    root = _project_root(ctx, results)
+    ancestors = _ancestors(ctx, root)
+    instructions = [directory / "AGENTS.md" for directory in ancestors
+                    if (directory / "AGENTS.md").is_file()]
+    tool_instructions = [directory / name for directory in ancestors
+                         for name in _TOOL_INSTRUCTION_FILES
+                         if (directory / name).is_file()]
+    tests = _test_files(root)
+    test_dirs = {test.parent for test in tests}
+    docs = [candidate for directory in sorted(test_dirs) for candidate in
+            (directory / "README.md", *sorted(directory.glob("*test*.md")))
+            if candidate.is_file()]
+    configs = [root / name for name in _TEST_CONFIG_NAMES if (root / name).is_file()]
+    configs.extend(sorted(root.glob("**/*.runsettings")))
+    configs = list(dict.fromkeys(configs))
+
+    target_key = _subject_key(path)
+    owners = [test for test in tests if target_key and target_key == _subject_key(test)]
+    convention = sorted({
+        ".test" if ".test." in test.name else ".spec" if ".spec." in test.name
+        else "*Tests.cs" if test.name.endswith("Tests.cs") else "*Test.cs"
+        for test in tests
+    })
+    return {
+        "project_root": str(root),
+        "instructions": [str(item) for item in instructions],
+        "tool_instructions": [str(item) for item in tool_instructions],
+        "test_documentation": [str(item) for item in docs],
+        "test_configuration": [str(item) for item in configs],
+        "observed_suite_conventions": convention,
+        "test_owner_candidates": [str(item) for item in owners],
+        "owner_resolution": "ambiguous — user direction required" if len(owners) > 1
+        else "canonical owner candidate" if owners else "no owner candidate found",
+        "same_scope_instruction_conflict": any(
+            sum(item.parent == directory for item in tool_instructions) > 1
+            for directory in {item.parent for item in tool_instructions}
+        ),
+    }
 
 
 def detect_node(ctx: Path) -> dict | None:
@@ -101,7 +214,10 @@ def detect_node(ctx: Path) -> dict | None:
         "@testing-library/react", "@testing-library/user-event",
         "msw", "@testing-library/jest-dom") if name in deps]
 
-    test_files = _glob_up(root, "**/*.test.*", limit=5) + _glob_up(root, "**/*.spec.*", limit=5)
+    test_files = (
+        _glob_within_root(root, "**/*.test.*", limit=5)
+        + _glob_within_root(root, "**/*.spec.*", limit=5)
+    )
     return {
         "stack": stack,
         "framework": framework,
@@ -117,9 +233,9 @@ def detect_dotnet(ctx: Path) -> dict | None:
     """Detect C# / xUnit testing setup from nearby .csproj files."""
     csprojs = _glob_up(ctx, "*.csproj", limit=20)
     # Also look for sibling test projects under the solution dir.
-    sln = _glob_up(ctx, "*.sln", limit=2)
+    sln = _nearest_solution(ctx)
     if sln:
-        csprojs += sorted(sln[0].parent.rglob("*.Tests.csproj"))[:10]
+        csprojs += sorted(sln.parent.rglob("*.Tests.csproj"))[:10]
     csprojs = list(dict.fromkeys(csprojs))  # dedupe, keep order
     if not csprojs:
         return None
@@ -171,6 +287,29 @@ def report(path: Path, results: list[dict]) -> tuple[str, int]:
         lines.append("")
         lines.append("Result: 0 stacks detected")
         return "\n".join(lines), 1
+
+    context = discover_context(path, results)
+    lines.extend((
+        "",
+        "--- test context ---",
+        "instruction precedence: explicit user instructions; nearest scoped project instructions; "
+        "ancestor project instructions; test documentation; test configuration and observed convention; "
+        "skill defaults",
+    ))
+    # This category order is contractual. Entries within a category are target-nearest first.
+    for label, key in (
+        ("AGENTS.md candidates", "instructions"),
+        ("tool instruction candidates", "tool_instructions"),
+        ("test documentation", "test_documentation"),
+        ("test configuration", "test_configuration"),
+        ("observed suite conventions", "observed_suite_conventions"),
+        ("test owner candidates", "test_owner_candidates"),
+    ):
+        values = context[key]
+        lines.append(f"{label}: {', '.join(values) if values else '(none)'}")
+    lines.append(f"owner resolution: {context['owner_resolution']}")
+    lines.append("same-scope instruction conflict: " +
+                 ("yes — user direction required" if context["same_scope_instruction_conflict"] else "no"))
 
     for i, r in enumerate(results, 1):
         lines.append("")

@@ -51,7 +51,7 @@ Write these exact `##` sections in the backbone design document:
 3. `Touchpoint Matrix` — table: `Requirement IDs | Path | Symbol | Action | Justification`; action must be `reuse`, `modify`, `extract`, or `new`.
 4. `Runtime Readiness` — table: `Concern | Decision | Verification | Evidence Path | Evidence Symbol`; include `entrypoint`, `dependency wiring`, `local mock`, `production isolation`, and `end-to-end workflow`.
 5. `Testing Decision` — table: `Decision | Rationale | Verification`; decision must be `selected` or `skipped`, confirmed explicitly by the user.
-6. When selected, `Test Coverage Matrix` — table: `Requirement ID | Test Path | Test Name | Category | Initial State | Coverage`; classify readiness tests as `green` and completion tests as `red`. When skipped, omit this section.
+6. When selected, `Test Coverage Matrix` — table: `Requirement ID | Test Path | Test Name | Category | Initial State | Coverage`; classify readiness tests as `green` and completion tests as `red`. The approved matrix satisfies `unit-testing` test-case approval; do not reopen that gate. When skipped, omit this section.
 
 Use runtime source files for touchpoints, runtime/config source for readiness evidence, and—when selected—project-native test source for test evidence; documentation is never execution evidence. Map every requirement to at least one runtime touchpoint. Every `extract` or `new` needs evidence that existing ownership cannot safely serve the design. Mark requirements intentionally deferred or `N/A` only with user approval. Read `references/runtime-backbone-patterns.md` for mock/wiring patterns.
 
@@ -74,7 +74,7 @@ Update design paths and symbols if implementation reveals a mismatch. Architectu
 ## Phase 5 — Follow testing decision
 
 - If skipped, create no test matrix, test registry, or test code. Verify project build and complete real local happy-path execution.
-- If selected, invoke `unit-testing` in spec-first mode and follow its review gate. After approval, create project-native readiness tests plus completion tests covering every normative requirement and documented case.
+- If selected, invoke `unit-testing` in spec-first mode. The approved Test Coverage Matrix already satisfies its test-case approval gate; create project-native readiness tests plus completion tests covering every normative requirement and documented case.
 - For selected tests, run readiness tests green and confirm completion-test RED failures assert missing detail behavior, not skips, imports, setup, fixtures, compilation, or infrastructure failures.
 - Do not weaken tests to fit backbone output. Junior finishes detail logic by making completion tests green.
 

@@ -1,165 +1,106 @@
-# Test-Case List Management & QA Traceability
+# Test-Case Registry and Traceability
 
-How to derive a reviewable test-case list from a design document, maintain it long-term
-without redundancy, and annotate tests so QA can read the code and know exactly which
-test case each method covers.
+Use one registry for each testable change or preservation target. It is the
+cross-framework source of truth; framework-native tags are optional additions
+only when the project already supports them.
 
-## Source of truth
+## Resolve the registry and owner
 
-1. **Primary**: the design document in the project's `.docs/` folder (or the doc the user points at).
-2. **Secondary**: ADO work items / design tasks for the same feature.
-3. **Conflict rule**: if the `.docs/` design document and an ADO task disagree on a behavior,
-   the `.docs/` document **wins** — but **stop and confirm the conflict with the user first**
-   (quote both versions). Never silently pick one.
+Resolve the registry in this order:
 
-## The test-case file
+1. Existing registry for the target.
+2. Approved plan or design artifact.
+3. Project convention.
+4. Canonical test file.
 
-One file per design document, next to it, named after it:
+Do not assume a design artifact exists for code-only or Existing Behavior work.
+Reuse the canonical test owner for the same subject, module, fixture, and
+project convention. If equally valid owners remain, stop for user direction;
+never create a parallel test file silently.
 
-```
-.docs/order-validation.md            <- design document
-.docs/order-validation.test-cases.md <- derived test-case registry (this file)
-```
+## Approval gate
 
-This file is the **ID registry and long-lived traceability matrix** for the feature. It is
-maintained, never regenerated from scratch.
+For a direct unit-test request, present the behavior/risk case list and wait
+for approval before changing test code. An approved `implement-plan` task or
+`design-backbone` Test Coverage Matrix already satisfies this gate: derive the
+cases from it and do not request approval again.
 
-### Format
+## Registry format
+
+Use stable IDs and record both intent and implementation state:
 
 ```markdown
----
-source-design: .docs/order-validation.md
-test-project: Tests/OrderValidation.Tests
-last-reconciled: 2026-07-15
----
+# Test Cases: <target>
 
-# Test Cases — Order Validation
-
-| ID | Title | Type | Design ref | Covered by |
-|----|-------|------|-----------|------------|
-| TC-001 | Accept order within credit limit | happy | § 3.1 | `OrderValidatorTests.cs` → `Should_AcceptOrder_When_WithinCreditLimit` |
-| TC-002 | Reject order when credit limit is expired | error | § 3.2 | `OrderValidatorTests.cs` → `Should_RejectOrder_When_CreditExpired` |
-| TC-003 | Boundary: order total exactly equals credit limit | boundary | § 3.1 | *(not yet implemented)* |
-
-## Not covered / out of scope
-
-- § 5 email notification — integration behavior, covered by E2E suite, not unit tests.
+| ID | Behavior / risk | Priority | Status | Coverage / reason | Covered by |
+|---|---|---|---|---|---|
+| TC-001 | Returns total for valid order | P0 | Implemented | Covered | `OrderTests.Should_Total...` |
+| TC-002 | Rejects an expired approval | P1 | Pending | Uncovered: external fixture unavailable | *(not yet implemented)* |
+| TC-003 | Rounds odd cents down | P1 | Implemented | Known Quirk: pinned current result | `OrderTests.Characterize...` |
 ```
 
-- **ID**: `TC-NNN`, auto-numbered per file starting at `TC-001`.
-- **Type**: `happy` | `error` | `boundary` | `edge` | `characterization` — makes coverage shape visible at a glance.
-- **Design ref**: section/heading in the source design doc the case verifies.
-- **Covered by**: test file → test method(s). Empty (`*(not yet implemented)*`) until tests are green — this doubles as the status column.
-- **Not covered / out of scope**: design aspects deliberately excluded, with the reason. Gaps must be explicit, never silent.
+`Coverage / reason` is authoritative registry metadata. Every intentional
+uncovered gap must name its reason (for example, unavailable dependency,
+out-of-scope integration boundary, or pending product decision); never hide it
+behind a coverage percentage. Coverage percentage detects gaps only, not
+completion.
 
-## ID rules (non-negotiable)
+For a `Known Quirk`, state the current observable result and why it is pinned.
+It preserves current behavior without claiming that behavior is correct or
+approved. The registry metadata and the matching test header must both carry
+the `Known Quirk` label.
 
-- IDs are **stable forever**: never renumber, never reuse a retired ID, never reorder to "clean up".
-- New cases always take the **next unused number**, even if earlier cases were removed.
-- An ID that appears in test code is a public contract with QA — breaking it breaks their mapping.
+## Required test-file header
 
-## Generating the list (first run)
-
-1. Read the design document end-to-end. Extract every testable aspect: stated behaviors,
-   validation rules, error branches, boundaries, state transitions, calculations.
-2. Draft one test case per aspect (split "and also" cases). Assign IDs sequentially.
-3. Fill **Not covered / out of scope** for aspects that are not unit-testable (E2E flows,
-   infra behavior) with the reason.
-4. Write the file, then **hard stop**: present the list in chat and wait for the user to
-   review/edit/approve. **No test code is written before explicit approval.**
-   Exception — gate delegation: inside a workflow whose test plan the user already explicitly
-   approved (`implement-plan` approval gate, `design-backbone` Phase 3), derive the cases from the
-   approved artifact and continue without a second stop; registry, headers, and back-linking
-   still apply.
-
-## Reconciling the list (re-runs)
-
-When the file already exists (design changed, new methods added, coverage extended):
-
-1. **Load the existing file first.** It is the baseline; the design doc is the target.
-2. **Dedup before adding**: for each candidate new case, check semantic overlap with existing
-   rows (same behavior, same branch, same boundary). Prefer **updating the existing row**
-   (title/design-ref wording) over adding a near-duplicate with a new ID.
-3. Classify every change as one of:
-   - **ADD** — genuinely new aspect → next unused `TC-NNN`.
-   - **UPDATE** — existing aspect whose wording/design-ref changed → same ID, edited row.
-   - **REMOVED FROM DESIGN** — the design no longer contains the aspect → do **not** delete the
-     row silently; flag it in the diff and let the user decide (delete row + its tests, or keep).
-4. **Show the diff before saving**: present ADD/UPDATE/REMOVED tables in chat and wait for
-   approval, then write the file and bump `last-reconciled`.
-
-## QA-readable traceability in test code
-
-Every generated test carries the mapping **in the code itself**, in natural language a QA
-engineer can read without opening the design doc.
-
-### File-level header — which registry generated this file
-
-Top of every generated test file:
+Each owned test file identifies the exact registry path and target:
 
 ```csharp
-// Test cases: .docs/order-validation.test-cases.md
-// Design doc: .docs/order-validation.md
+// Test registry: .docs/order-validation.test-cases.md
+// Subject: OrderService
 ```
 
 ```typescript
-// Test cases: .docs/order-validation.test-cases.md
-// Design doc: .docs/order-validation.md
+// Test registry: .docs/order-validation.test-cases.md
+// Subject: OrderService
 ```
 
-### Per-test header — one-line summary + numbered steps
+The registry path and per-test headers are the authoritative traceability
+metadata across C#, React, and PCF. A `Trait("TestCase", "TC-001")` or a TC ID
+in a JS test name may help runner filtering when already conventional, but
+does not replace the header.
 
-Plain English, written for QA (no jargon, no implementation detail). State what is set up,
-what is done, and what is verified — as a test script.
+## Per-test header
 
-**C# / xUnit** — XML doc comment + `Trait` (machine-filterable: `dotnet test --filter "TestCase=TC-004"`):
+Use a QA-readable header that names the TC ID, setup, action, and observable
+verification. Include the exact `Known Quirk` label when applicable.
 
 ```csharp
-/// <summary>
-/// TC-004: Reject order when credit limit is expired
-/// Steps:
-///   1. Create customer with credit approval expired yesterday
-///   2. Submit a new order for that customer
-///   3. Verify order rejected with error CREDIT_EXPIRED
-/// Design: .docs/order-validation.md § 3.2
-/// </summary>
+/// TC-003: Rounds odd cents down.
+/// Known Quirk: pins the current result; correctness is not asserted.
 [Fact]
-[Trait("TestCase", "TC-004")]
-public void Should_RejectOrder_When_CreditExpired() { ... }
+public void Characterize_Rounding_For_OddCents() { /* ... */ }
 ```
-
-**Vitest / Jest (React, PCF)** — JSDoc block + TC ID in the test name (the name is the trait;
-it shows in runner output and supports `--testNamePattern "TC-004"`):
 
 ```typescript
-/**
- * TC-004: Reject order when credit limit is expired
- * Steps:
- *   1. Create customer with credit approval expired yesterday
- *   2. Submit a new order for that customer
- *   3. Verify order rejected with error CREDIT_EXPIRED
- * Design: .docs/order-validation.md § 3.2
- */
-it('TC-004: rejects the order when the credit limit is expired', () => { ... });
+/** TC-003: rounds odd cents down.
+ * Known Quirk: pins the current result; correctness is not asserted. */
+it('TC-003: characterizes odd-cent rounding', () => { /* ... */ });
 ```
 
-Rules:
-- **One TC per test** is the default. A `[Theory]`/`it.each` may cover several boundary TCs —
-  list every covered ID in the header and one `Trait` per ID (`[Trait("TestCase","TC-003")]
-  [Trait("TestCase","TC-005")]`) or all IDs in the test name.
-- Steps describe **observable behavior**, not mocks or internals ("Create customer with expired
-  credit", not "Setup NSubstitute ICreditRepo to return...").
-- The header is for QA; the test name is for developers. Both carry the TC ID.
+One TC per test is the default. Parameterized tests may cover multiple cases
+when their header and native tags/name list every ID. Describe observable
+behavior, not mock setup or private implementation.
 
-## Back-linking (after tests are green)
+## Reconcile and back-link
 
-Once the suite passes, update the registry so traceability works in both directions:
+Before adding a row, find existing same-subject coverage. Leave correct
+coverage, update the owned test for an approved change, add only an uncovered
+meaningful behavior, and flag contradictions for review. Do not duplicate a
+behavior or weaken a passing test to make a suite green.
 
-1. For each implemented TC, fill **Covered by** with `<test file>` → `<method/test name(s)>`.
-2. Leave unimplemented rows as `*(not yet implemented)*` so remaining work is visible.
-3. If a test method is later renamed, the Covered-by entry must be updated in the same change.
+After the relevant suite is GREEN, update `Covered by` with the owned file and
+test name. Keep pending and intentionally uncovered rows visible with their
+reasons. If a test is renamed, update its back-link in the same change.
 
-Verification (`scripts/verify_output.py --test-cases <registry.md>`) checks:
-- every `TC-NNN` referenced in test code exists in the registry (**FAIL** on unknown ID),
-- every registry TC has at least one referencing test (**WARN** — may be intentionally pending),
-- generated test files carry the file-level registry header (**WARN** if missing).
+`verify_output.py --test-cases <registry.md>` validates registry IDs,
+file-level registry headers, test references, and traceability warnings.

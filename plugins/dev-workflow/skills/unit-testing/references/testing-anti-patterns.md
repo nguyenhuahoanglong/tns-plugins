@@ -1,210 +1,84 @@
 # Testing Anti-Patterns
 
-Load this reference before writing or changing any test that involves a mock. Cross-cutting principles
-(AAA, mock-at-boundary, naming, determinism) live in `best-practices.md` — this file is the *failure modes*
-of mocking specifically, for both C# (xUnit + NSubstitute) and React (Vitest/Jest + RTL).
+Read this before changing a test that uses mocks. Test what the system under
+test (SUT) does; a mock isolates an external boundary and is never the outcome
+being verified.
 
-**Core principle:** test what the code does, not what the mock does. A mock isolates the unit under test;
-it is never itself the thing being verified.
+## Non-negotiable rules
 
-## The Iron Laws
+1. Assert observable SUT behavior, not that mock plumbing ran.
+2. Never add a production method solely for tests.
+3. Understand a real dependency and its side effects before mocking it.
+4. Model the complete real data shape that downstream code can read.
+5. Maintain tests with the implementation; do not defer meaningful coverage.
 
-```
-1. NEVER assert on mock behavior — assert on the SUT's observable behavior
-2. NEVER add test-only methods to production classes
-3. NEVER mock a dependency without understanding what the real one actually does
-```
-
-## Anti-Pattern 1: Asserting the Mock Instead of the Behavior
-
-**BAD** — proves the substitute was configured, not that the SUT does anything:
+## 1. Assert behavior, not mock calls
 
 ```csharp
-[Fact]
-public void Should_ApplyDiscount_When_CustomerIsPremium()
-{
-    var repo = Substitute.For<IPriceRepository>();
-    repo.GetBasePrice("SKU1").Returns(100m);
-    var sut = new OrderService(repo);
+// Bad: only proves a substitute was called.
+repo.Received(1).GetBasePrice("SKU1");
 
-    sut.Quote("SKU1", isPremium: true);
-
-    repo.Received(1).GetBasePrice("SKU1");   // only checks the stub was called
-}
+// Good: proves the SUT's observable result.
+total.Should().Be(90m);
 ```
 
-**GOOD** — assert the SUT's output; the call to the collaborator is incidental, not the point:
+Interaction assertions are valid only when the interaction itself is the
+observable contract (for example, publishing a required command). Otherwise,
+supplement them with output, state, or boundary-effect verification.
+
+## 2. Do not make production code test-aware
 
 ```csharp
-[Fact]
-public void Should_ApplyDiscount_When_CustomerIsPremium()
-{
-    var repo = Substitute.For<IPriceRepository>();
-    repo.GetBasePrice("SKU1").Returns(100m);
-    var sut = new OrderService(repo);
+// Bad: public production surface exists only for tests.
+public void ResetForTests() => _entries.Clear();
 
-    var total = sut.Quote("SKU1", isPremium: true);
-
-    total.Should().Be(90m);   // behavior, not mock plumbing
-}
-```
-
-### Gate function
-
-```
-BEFORE the final assertion in a test:
-  Ask: "Does this assertion describe what the SUT produced, or just that a mock fired?"
-  IF it only proves the mock fired:
-    STOP — replace or supplement it with an assertion on the SUT's return value / rendered output / state
-```
-
-## Anti-Pattern 2: Test-Only Methods on Production Classes
-
-**BAD** — `ResetForTests()` ships in the production class just so tests can rewind state:
-
-```csharp
-public class SessionCache
-{
-    public void ResetForTests() => _entries.Clear();   // dead weight in production, a foot-gun if ever called live
-}
-```
-
-**GOOD** — the test owns its own teardown; the production class never learns tests exist:
-
-```csharp
-// test helper, not on SessionCache
+// Good: fresh fixture or test helper owns setup and teardown.
 private static SessionCache CreateSut() => new SessionCache();
-// each test builds a fresh instance instead of resetting a shared one
 ```
 
-### Gate function
+Before adding a method, ask whether production callers need it. If not, keep it
+in test support or inject the dependency needed to construct the SUT.
 
-```
-BEFORE adding any method to a production class:
-  Ask: "Is this only ever called from a test?"
-  IF yes:
-    STOP — put it in a test helper/fixture instead; do not add it to the class
-```
+## 3. Mock only understood external boundaries
 
-## Anti-Pattern 3: Mocking Without Understanding the Real Dependency
-
-**BAD** — mocking a method that has a side effect the test silently depends on:
+Before mocking, read the real implementation/schema and list its relevant side
+effects. If the assertion depends on a write, cache update, validation, or
+other effect, keep that part real or fake it faithfully; mock only the slow or
+external boundary. Do not mock “to be safe” without evidence.
 
 ```ts
-it('detects a duplicate server registration', async () => {
-  vi.mock('./toolCatalog', () => ({
-    discoverAndCacheTools: vi.fn().mockResolvedValue(undefined), // real impl also PERSISTS the config
-  }));
+// Bad: replaces persistence that the duplicate assertion needs.
+vi.mock('./toolCatalog', () => ({ discoverAndCacheTools: vi.fn() }));
 
-  await addServer(config);
-  await addServer(config); // expected to throw "already registered" — but the config was never written, so it won't
-});
+// Better: isolate only remote discovery; preserve the configuration write.
+vi.mock('./remoteToolDiscovery');
 ```
 
-**GOOD** — mock only the slow/external part; keep the side effect the test's assertion relies on:
+## 4. Avoid incomplete or invented mocks
 
-```ts
-it('detects a duplicate server registration', async () => {
-  vi.mock('./remoteToolDiscovery'); // just the slow network call, not the config write
+Build mock responses from the real DTO, API contract, schema, or captured
+sample. Include every field downstream paths can read, including metadata and
+nested state. If the shape is uncertain, inspect or capture the real object;
+do not guess from today's assertion.
 
-  await addServer(config);
-  await expect(addServer(config)).rejects.toThrow('already registered');
-});
-```
+## 5. Do not treat tests as an afterthought
 
-### Gate function
+For approved new or changed behavior, add the relevant tests with the slice:
+write the case, make the smallest implementation change, verify it, then
+refactor. For Existing Behavior Preservation, retain the GREEN baseline and
+characterize meaningful risks before refactoring. Do not claim completion while
+meaningful approved behavior has no test or an uncovered-gap reason.
 
-```
-BEFORE mocking any dependency:
-  1. Ask: "What does the real implementation do — including side effects?"
-  2. Ask: "Does this test's assertion depend on any of those side effects?"
-  IF unsure or it does depend on them:
-    Run against the real implementation first, observe what happens, THEN mock only the
-    slow/external boundary — never the method the assertion actually needs.
-  Red flag: "I'll mock this to be safe" without having read the real implementation.
-```
+## Fast review checks
 
-## Anti-Pattern 4: Incomplete Mocks
+- Is mock setup more prominent than the behavior assertion? Simplify it.
+- Would the assertion pass with production code removed? It tests the mock.
+- Is a production member referenced only by tests? Move responsibility to test
+  support.
+- Does the test rely on real data, time, ordering, or side effects the mock
+  erased? Use a deterministic fake or preserve the needed behavior.
+- Did a duplicate test, broad snapshot, shared mystery fixture, real sleep, or
+  irrelevant log/call-order assertion appear? Replace it with a focused test.
 
-**BAD** — mock only carries the fields the current test happens to read:
-
-```ts
-const mockResponse = {
-  status: 'success',
-  data: { userId: '123', name: 'Alice' },
-  // real API also returns `metadata.requestId` — downstream code reads it and blows up in production
-};
-```
-
-**GOOD** — mirror the complete real response shape, not just what today's assertion touches:
-
-```ts
-const mockResponse = {
-  status: 'success',
-  data: { userId: '123', name: 'Alice' },
-  metadata: { requestId: 'req-789', timestamp: 1719260400 }, // every field the real API returns
-};
-```
-
-**The rule:** mock the COMPLETE data structure as it exists in reality — check the real API/DTO/schema
-before writing the mock, not just the fields your test currently consumes.
-
-### Gate function
-
-```
-BEFORE hand-writing a mock response/entity/DTO:
-  Check: "What does the REAL dependency return, in full?" (docs, a live sample, the actual class/schema)
-  Include every field downstream code might read — not only the ones this test's assertion uses
-  IF uncertain which fields exist:
-    Capture one real response/object and base the mock on it — don't guess
-```
-
-## Anti-Pattern 5: Tests Written as an Afterthought
-
-**BAD:**
-
-```
-Implementation complete. No tests written. "Ready for review."
-```
-
-**GOOD** — tests land with the implementation, not after it:
-
-```
-1. Write the test for the next behavior (it should fail for the right reason)
-2. Implement just enough to make it pass
-3. Refactor
-4. Only then move to the next behavior / claim the slice complete
-```
-
-### Gate function
-
-```
-BEFORE marking any implementation task complete:
-  Ask: "Do tests exist for every behavior/AC this change introduces?"
-  IF no:
-    STOP — write them now; "tests later" reliably becomes "tests never"
-```
-
-## Red Flags
-
-- Mock setup is **>50% of the test** — the test is more about wiring than behavior.
-- An assertion checks that a mock/stub/spy was called, with no assertion on the SUT's output or state.
-- A method exists on a production class and is only ever referenced from test files.
-- Mocking "just to be safe" without having read what the real dependency does.
-- A hand-built mock response/entity that was never compared against the real shape.
-- "Implementation done, tests pending" appears in a status update.
-
-## Quick Reference
-
-| Anti-pattern | Fix |
-|---|---|
-| Assert on mock call instead of behavior | Assert on the SUT's return value/output/state |
-| Test-only methods on production classes | Move to a test helper/fixture |
-| Mock without understanding side effects | Read the real dependency first; mock the minimal boundary |
-| Incomplete mocks | Mirror the complete real data structure |
-| Tests as afterthought | Write the test before/alongside the code, not after |
-
-## The Bottom Line
-
-Mocks isolate the unit under test — they are never the thing under test. If an assertion would still pass
-with the production code deleted and only the mock left standing, it is testing the mock, not the code.
+These guardrails protect both correctness and maintenance cost: minimal,
+behavior-focused tests are easier to trust and survive safe refactors.

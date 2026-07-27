@@ -1,77 +1,69 @@
-# Unit Testing Best Practices (cross-stack)
+# Unit Testing Best Practices
 
-Shared rules that apply regardless of language. The per-stack references show the syntax; this is the *judgment*.
+These rules apply to C#, React, and PCF. Stack references provide syntax;
+this reference supplies judgment.
 
-## What makes a good unit test
+## Write behavior-focused tests
 
-- **Tests behavior, not implementation.** Assert observable outcomes (return values, calls to boundaries, rendered output), not private internals. A correctness-preserving refactor must keep tests green — otherwise the test is testing the code's shape, not its contract.
-- **One logical behavior per test.** Multiple `assert`s are fine if they verify one behavior; if a test needs "and also" in its name, split it.
-- **Fast and isolated.** No shared mutable state between tests; no ordering dependency; each test sets up its own world.
-- **Deterministic.** Inject the clock, IDs, and randomness. Never assert against `DateTime.Now` / `Date.now()` / `Guid.NewGuid()` / `Math.random()` produced inside the code under test.
+- Assert observable outputs, errors, rendered state, persisted state, or
+  meaningful boundary effects; do not assert private implementation shape.
+- Keep one logical behavior per test. Multiple assertions are fine when they
+  prove that one behavior.
+- Use Arrange, Act, Assert with one clear Act. Give every test its own state;
+  never rely on execution order or shared mutable state.
+- Make inputs deterministic: inject clocks, IDs, random values, and external
+  boundaries instead of relying on real time, generated IDs, or randomness.
+- Name the behavior and condition: C# `Should_<Behavior>_When_<Condition>` or
+  a readable JS/TS sentence inside a unit-focused `describe`.
 
-## AAA structure
+## Cover behavior and risk
 
-Every test reads as **Arrange** (set up inputs + mocks), **Act** (invoke the one thing under test), **Assert** (verify the outcome). Keep the three visually separated. Exactly one "Act" — if there are two, it is two tests.
+Inventory meaningful observable behavior, not lines:
 
-## Naming
+- Normal and alternative branches.
+- Boundaries: null, empty, zero, maximum, off-by-one, and duplicates where
+  relevant.
+- Errors, validation, and failure outcomes.
+- Side effects, state changes, and calls across external boundaries.
 
-Use a name that states behavior and condition so a failure is self-describing:
+Prioritize risks to callers, persisted data, calculations, permissions,
+external requests, error handling, and important boundaries. A coverage
+percentage is a gap detector only. Each intentionally uncovered gap must stay
+visible in authoritative registry metadata with a concrete reason; do not add
+empty tests merely to raise a number.
 
-- C#: `Should_<ExpectedBehavior>_When_<Condition>` (method name) or `Method_State_Expected`.
-- JS/TS: `it('returns 0 when the cart is empty', ...)` — full sentence under a `describe('<unit>')`.
+## Mock at boundaries
 
-A reader should know what broke from the test name alone, without opening the body.
+Mock databases, HTTP/APIs, message buses, filesystem, clocks, PCF host context,
+and other external boundaries. Prefer cheap, deterministic real collaborators
+or fakes for pure logic and simple in-memory behavior. Do not mock helpers or
+value objects inside the unit; that couples tests to implementation and makes
+safe refactors fail. Read `testing-anti-patterns.md` before any mock changes.
 
-## Mock at the boundary — not internal collaborators
+## Traceability and Existing Behavior
 
-Mock things the unit *talks to the outside world* through: databases, HTTP/APIs, message buses, the PCF host context, the filesystem, the clock. Do **not** mock the class's own helper methods or value objects — that couples the test to internal structure and makes refactors fail for no real reason. Over-mocking is the most common way unit tests become a maintenance tax.
+Use the registry hierarchy and authoritative registry/header metadata in
+`test-case-management.md`. For Existing Behavior Preservation, reconcile the
+same-subject suite before adding tests: leave correct coverage, update the
+canonical owned test only for an approved change, add the smallest missing
+behavior, and flag contradictions for review.
 
-Prefer real collaborators when they are cheap and deterministic (pure functions, in-memory stores). Use [fakes](https://martinfowler.com/bliki/TestDouble.html) (in-memory implementations) over heavy mock setups when a fake exists (e.g. EF Core in-memory, MSW for HTTP, FakeXrmEasy for Dataverse).
+Use `Known Quirk` only for suspicious current behavior that must remain pinned.
+Put it in registry metadata and the test header, state what happens today and
+why it is pinned, and never imply it is correct. Detailed workflow and stop
+rules live in `existing-behavior.md`; this replaces legacy-only handling.
 
-## Coverage philosophy
+## Maintain a trustworthy suite
 
-Coverage is a *gap finder*, not a goal. Chase **branches and edge cases**, not a percentage:
-- Happy path (P0)
-- Each error/validation branch (P1)
-- Boundaries: empty, null, zero, max, off-by-one, duplicates (P2)
-- Concurrency/ordering only where the code actually depends on it
+1. Find existing tests for the same subject before writing a new one.
+2. Capture the relevant GREEN baseline and record pre-existing failures.
+3. Do not delete, loosen, or duplicate passing coverage to make another test
+   pass. Treat a new red test as evidence to investigate.
+4. Keep characterization pins load-bearing: a failing pin means current
+   behavior changed and needs confirmation before any baseline update.
+5. After a GREEN run, back-link the owned test in the registry and retain
+   uncovered gaps with reasons.
 
-Do not write tests purely to raise a number — a test with no meaningful assertion is worse than no test.
-
-## Requirement → test traceability
-
-When the work is driven by a design document, the canonical mapping is the **test-case registry** (`{design-doc}.test-cases.md` — see `test-case-management.md`): stable `TC-NNN` IDs, per-test natural-language headers QA can read, and a back-linked *Covered by* column. Use that mechanism whenever a design doc exists.
-
-For ad-hoc work with no design doc (quick coverage of a utility, characterization pins), still keep a lightweight mapping at the top of the test file (comment) or in the QA report:
-
-```
-| Requirement / Behavior            | Test(s)                          | Strategy     |
-|-----------------------------------|----------------------------------|--------------|
-| AC-1: reject order past cutoff    | Rejects_Order_When_PastCutoff    | spec-first   |
-| AC-2: apply 10% loyalty discount  | Applies_LoyaltyDiscount          | behavior     |
-| (legacy) current rounding output  | Characterize_RoundingBehavior    | legacy/pin   |
-```
-
-Every acceptance criterion should map to at least one test. Every legacy "pin" should be labeled so reviewers know it captures *current* behavior, not necessarily *correct* behavior.
-
-## Maintaining an existing suite
-
-New tests live next to old ones — reconcile, don't just append. Before adding tests for a target:
-
-1. **Find what's already there.** Search the test files for the unit/symbol under test; the framework detector only samples filenames, it doesn't tell you which behaviors are already covered.
-2. **Establish a green baseline.** Run the suite first. A test that was already failing is not your regression; a test that *starts* failing after your change probably is.
-3. **Decide per behavior:** covered+correct → leave; covered but spec changed → **update that test in place** (one source of truth per behavior, not two divergent ones); uncovered → add; existing test contradicts the current spec → **flag it for a human**, since "the test is wrong" and "the code is wrong" look identical from here.
-
-Rules that keep the suite trustworthy:
-- **Never** delete or loosen a *passing* test to make something else go green — that erases a guarantee. If a test is genuinely obsolete (the behavior was intentionally removed), remove it deliberately and say so.
-- A red test is **evidence**, not an obstacle. Read it before changing it; the most expensive bug is the one whose failing test you "fixed" by editing the assertion.
-- **Don't duplicate.** Two tests asserting the same behavior double the maintenance and drift apart over time. Prefer one clear test, or a `[Theory]`/`it.each` parameterization.
-- **Characterization tests are load-bearing.** A red characterization test means current behavior changed — confirm that was intended before re-pinning the baseline.
-
-## Anti-patterns to avoid
-
-- Asserting on log messages or call order when the behavior doesn't depend on them.
-- Tests that pass whether or not the code is correct (no real assertion, or assertion always true).
-- Giant setup shared across unrelated tests ("mystery guest").
-- Sleeping/real timers for async — use fake timers or awaited promises.
-- Snapshotting whole pages/objects so any change "breaks" the test — snapshot small, intentional surfaces only (see `legacy-characterization.md`).
+Avoid assertions on irrelevant logs, call order, or mock plumbing; giant shared
+fixtures; real sleeps/timers; and broad snapshots. Snapshot only intentional,
+small surfaces when a snapshot is the right characterization tool.

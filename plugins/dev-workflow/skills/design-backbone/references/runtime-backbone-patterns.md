@@ -54,7 +54,7 @@ Ask user to select or skip tests during design. Do not infer selection from proj
 
 When skipped, require project build plus complete real local happy-path execution. Create no test matrix, registry, or test code.
 
-When selected, invoke `unit-testing` in spec-first mode and follow its review gate. Then apply these states:
+When selected, invoke `unit-testing` in spec-first mode. The approved Test Coverage Matrix satisfies its test-case approval gate once; do not request a second review. Then apply these states:
 
 **Readiness tests — green at handoff**
 

@@ -43,7 +43,7 @@ Optional:
 
 ### Output Structure
 
-All artifacts are grouped by feature under `.qa/`:
+Integration/E2E artifacts are grouped by feature under `.qa/`:
 
 ```
 .qa/
@@ -55,9 +55,11 @@ All artifacts are grouped by feature under `.qa/`:
         └── {report-name}.md
 ```
 
-- `index.md` — The agent's understanding of requirements, extracted from specs/PRDs with section references. **User should review this first** to confirm the agent interpreted requirements correctly before proceeding to test case generation.
-- `test-cases/` — Individual test case documents, one per logical test suite
-- `reports/` — Verification reports, coverage analysis, gap reports
+- `index.md` — Requirements extraction for integration/E2E planning.
+- `test-cases/` — Integration/E2E suite documents.
+- `reports/` — Integration/E2E verification and coverage reports.
+
+For every unit/component request, use the `unit-testing` registry hierarchy instead: existing registry, approved plan/design, project convention, then canonical same-subject test file. Do not fall back to `.qa/` merely because a design document is absent.
 
 ---
 
@@ -100,9 +102,9 @@ All artifacts are grouped by feature under `.qa/`:
 
 #### Step B: Generate Test Cases → `test-cases/`
 
-**Unit test cases driven by a design document** follow the `unit-testing` skill's registry convention instead of the suite format below: write `{design-doc-name}.test-cases.md` **next to the design doc** (auto-numbered stable `TC-NNN` IDs, *Not covered* section, reconcile-don't-regenerate — see the skill's `references/test-case-management.md`), and report it to the orchestrator for the user's review gate. Use the `.qa/` suite format below for integration/E2E cases and for features with no design document.
+**Unit/component test cases** always follow the `unit-testing` skill's registry hierarchy and Existing Behavior modes, not the suite format below. Reuse the existing registry when present; otherwise use approved plan/design, project convention, then the canonical same-subject test file. A direct request needs test-case approval, but an approved `implement-plan` task or approved `design-backbone` Test Coverage Matrix already satisfies that gate. Use `.qa/` only for integration/E2E cases.
 
-4. Using confirmed requirements from `index.md`, generate test cases to `.qa/{feature-name}/test-cases/{suite-name}.md`:
+4. For integration/E2E work only, use confirmed requirements from `index.md` to generate `.qa/{feature-name}/test-cases/{suite-name}.md`:
 
 ```markdown
 # Test Cases: [Suite Name]
@@ -137,12 +139,12 @@ All artifacts are grouped by feature under `.qa/`:
 
 ### Phase: Unit Test Writing (`unit-tests`)
 
-**Use the `unit-testing` skill** for unit/component tests — it carries the best-practice depth (per-stack syntax via `detect_test_framework.py`, AAA/naming/mock-at-boundary rules, the **legacy characterization** strategy, and **spec-first/parallel** generation). This phase routes the work; the skill does the *how*. Two modes worth calling out:
+**Use the `unit-testing` skill** for unit/component tests — it owns context discovery, registry/ownership resolution, Existing Behavior modes, traceability, and framework conventions. This phase routes the work; the skill does the *how*.
 
-- **Legacy mode** — target has no/low coverage and is about to change: generate **characterization tests** that pin current behavior first (regression net), labeled as such, *before* any behavior-changing work.
+- **Existing Behavior Preservation** — characterize healthy, legacy, or suspicious current behavior before an unapproved change; capture baseline GREEN, reuse canonical ownership, and mark suspicious pinned outcomes as `Known Quirk` in registry metadata and test headers without calling them correct.
 - **Spec-first/parallel mode** — invoked alongside an implementer (e.g. from `implement-plan`): derive tests from the spec/acceptance criteria; they are expected to be RED until the code lands. Never write the source files the implementer owns.
 
-1. Read test cases (from `.qa/{feature-name}/test-cases/` or orchestrator-provided path); in spec-first mode, work from the spec/AC directly
+1. Follow the `unit-testing` registry hierarchy and ownership rules. If equally valid owners remain, stop for user direction; never create a parallel test file. In spec-first mode, use the approved plan/design cases directly.
 2. Detect project test framework (run the skill's `detect_test_framework.py` — do not assume Vitest vs Jest):
 
 | Stack | Framework | Mocking | Assertions |
@@ -152,45 +154,22 @@ All artifacts are grouped by feature under `.qa/`:
 | C# .NET | xUnit + NSubstitute (FakeXrmEasy for plugins) | NSubstitute | FluentAssertions (pin v7) |
 | PowerShell | Pester | Pester mocks | Pester `Should` |
 
-3. Create test project/files if none exist — follow project naming conventions
-4. Write tests following the **AAA pattern** (Arrange, Act, Assert):
-   - One test method per test case
-   - Descriptive names: `Should_[ExpectedBehavior]_When_[Condition]`
-   - Mock external dependencies at the boundary — not internal collaborators
-   - Test behavior, not implementation details
-5. **QA traceability is mandatory** (templates in the skill's `references/test-case-management.md`):
-   - File-level header citing the test-case registry/document the tests came from
-   - Per-test natural-language header: `TC-NNN: <summary>`, numbered Steps (setup → action → verification, no mock/internal jargon), design/spec reference
-   - xUnit: `[Trait("TestCase", "TC-NNN")]`; Vitest/Jest: TC ID in the test name
+3. Classify New Behavior, Existing Behavior Preservation, Existing Behavior Change, or Coverage Gap. For existing code, capture GREEN baseline, inventory behavior/risk/gaps, and reconcile instead of duplicating coverage.
+4. Use AAA, one behavior-focused `Should_[ExpectedBehavior]_When_[Condition]` test per case, and mock external boundaries rather than internal collaborators.
+5. **QA traceability is mandatory**: file registry header; natural-language `TC-NNN` header with numbered steps and design/spec reference; `[Trait("TestCase", "TC-NNN")]` or TC ID in the test name.
 6. Run tests to verify they compile and pass where expected
-7. **Back-link**: once green, fill the registry's *Covered by* column with test file → method names; verify with the skill's `verify_output.py --test-cases <registry.md>`
+7. **Back-link**: once green, update the resolved registry or canonical test-file metadata with test file → method names; verify with the skill's `verify_output.py --test-cases <registry.md>` when a separate registry exists.
 
 **C# specific guidance**:
-- DI-first pattern: inject `ILogger<T>` via constructor to avoid `FunctionContext` mocking
-- Use `ServiceBusModelFactory` for Service Bus message test data
-- Use `InMemory` EF Core provider for repository tests
-- Test MediatR handlers directly — mock `IMediator` only in trigger/orchestrator tests
+- Prefer DI-first `ILogger<T>`, `ServiceBusModelFactory`, InMemory EF Core, and direct MediatR-handler tests; mock `IMediator` only at trigger/orchestrator boundaries.
 
 ---
 
 ### Phase: Verification (`verify`)
 
-1. Run the full test suite:
-   - Jest: `npx jest --coverage`
-   - xUnit: `dotnet test --collect:"XPlat Code Coverage"`
-   - Pester: `Invoke-Pester -CodeCoverage`
-
-2. Analyze results:
-   - Pass/fail summary
-   - Coverage by file and function
-   - Uncovered lines and branches
-
-3. Map coverage to spec requirements:
-   - Which requirements have test coverage?
-   - Which are partially covered?
-   - Which have no coverage?
-
-4. Generate verification report to `.qa/{feature-name}/reports/verification.md`:
+1. Run the relevant full suite (`npx jest --coverage`, `dotnet test --collect:"XPlat Code Coverage"`, or `Invoke-Pester -CodeCoverage`).
+2. Analyze pass/fail, file/function coverage, uncovered lines/branches, and requirement coverage gaps.
+3. For integration/E2E work, generate `.qa/{feature-name}/reports/verification.md`:
 
 ```markdown
 # Verification Report: [Feature/Module]
@@ -209,8 +188,6 @@ All artifacts are grouped by feature under `.qa/`:
 ## Uncovered Code Paths
 - [file:line — description of untested path]
 
-## Suggested Additional Tests
-- [TC-XXX: description and rationale]
 ```
 
 ---
@@ -225,15 +202,8 @@ All artifacts are grouped by feature under `.qa/`:
 | **Playwright scripts** | Automated, repeatable browser tests | Write `.spec.ts` files, run via `npx playwright test` |
 | **Manual test steps** | Interactive, exploratory, visual verification | Output structured steps, flag orchestrator to invoke `browser-skill` |
 
-3. For Playwright scripts:
-   - Use page object pattern for complex UIs
-   - Write assertions for critical user flows
-   - Run via Bash and capture results
-
-4. For interactive browser testing:
-   - Output step-by-step instructions with expected results
-   - Include element selectors and test data
-   - The orchestrator will invoke `browser-skill` or an ad-hoc agent with Chrome/Playwright MCP tools
+3. For Playwright, use page objects where useful, assert critical flows, and capture the run result.
+4. For interactive work, output steps, expected results, selectors, and test data; route browser control to `browser-skill` or an MCP-capable agent.
 
 ## Guidelines
 

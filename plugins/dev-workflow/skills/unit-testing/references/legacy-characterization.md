@@ -1,55 +1,65 @@
-# Legacy Code: Characterization Tests
+# Existing Behavior Characterization
 
-**Goal:** when you must change code that has no tests, first build a safety net that captures what the code **does today** — so a future change that alters behavior fails loudly. This is the primary defense for *"future changes won't break the current logic."*
+Characterization is a technique within `Existing Behavior Preservation`, not a
+legacy-only testing path. Use it when running code needs protection before a
+refactor, extension, or later behavior decision and current behavior is not
+fully specified. Do not change production behavior in this workflow.
 
-A characterization test does not assert *correct* behavior — it asserts *current* behavior, even if that behavior is arguably a bug. You are pinning a baseline. Fixing behavior is a separate, later commit (and the failing characterization test is your proof the behavior changed).
+## Purpose and scope
 
-## When to use this path
+Capture what the code does today so an unintended later change fails loudly.
+A characterization test pins current observable behavior; it does not prove
+that behavior is correct. Pin only the target's blast radius and meaningful
+branches, boundaries, errors, and side effects, rather than trying to cover an
+entire module.
 
-- Code is about to be refactored, extended, or have a bug fixed, **and** has no/low test coverage.
-- You don't fully understand all the code's behavior (that's normal for legacy — the tests document it as you go).
+If an approved contract already describes the intended behavior, use the
+normal new/change behavior strategy. If observed behavior conflicts with that
+contract and intent is unclear, stop for user direction.
 
-If the code already has good tests, use the normal behavior/spec strategy instead.
+## Safe loop
 
-## The loop (Feathers' method)
+1. Discover instructions, resolve canonical ownership, and capture a GREEN
+   baseline as required by `existing-behavior.md`.
+2. Inventory behavior and prioritize regression risks before choosing cases.
+3. Find the smallest seam needed to invoke the unit. Prefer a behavior-neutral
+   injected boundary or wrapper for a hard external dependency.
+4. Call the code with representative inputs, observe the actual output, and
+   pin that output with a behavior-focused assertion.
+5. Repeat for meaningful risk paths; record every intentional uncovered gap
+   and reason in the registry.
+6. Run the relevant suite, then back-link owned tests to the registry.
 
-1. **Find a seam.** A seam is a place you can sense or substitute behavior without editing the code in place. If there is none, create the smallest one possible (extract an interface, add a constructor parameter, wrap a static call). Make the *smallest* structural change that lets you instantiate and invoke the unit. See per-stack notes below.
-2. **Write a test that calls the code** with representative inputs and asserts something you *expect to be wrong* (e.g. `result.Should().Be("PLACEHOLDER")`).
-3. **Run it.** The failure message reveals the actual output.
-4. **Paste the actual output into the assertion.** The test now pins current behavior.
-5. **Repeat** across branches/inputs until the behavior you're about to touch is covered.
-6. **Now refactor/fix** with confidence — green means behavior preserved; red on a pin you didn't intend to change means you broke something.
+Keep seam creation minimal and behavior-preserving. Do not reformat or clean up
+while the safety net is absent. Never add production methods that exist only
+for tests; use a test helper, fixture, or injected dependency instead.
 
-## Approval / snapshot testing (faster for complex output)
+## Known Quirk policy
 
-When the output is large or structured (objects, generated text, rendered DOM), use approval testing instead of hand-writing asserts — the tool records the first run as the "approved" baseline file, then diffs future runs:
-
-- **C#:** `Verify` (VerifyXunit) or `ApprovalTests` — first run writes `*.received.*`; you promote it to `*.verified.*`.
-- **React/TS:** Vitest/Jest `toMatchSnapshot()` — but keep snapshots **small and intentional** (one component, key props), never whole pages, or every UI tweak breaks unrelated tests.
-- **PCF:** snapshot the rendered grid fragment for the states you're about to change.
-
-Commit the approved baseline files. A diff in review = a behavior change to scrutinize.
-
-## Creating seams safely
-
-The risk in legacy code is that *enabling* testing changes behavior. Keep seam-creation edits behavior-preserving and minimal:
-
-- **Extract interface + inject** the hard dependency (DB, service, clock) so a test can substitute a fake. (C#: extract `IFoo`, take it via constructor. TS: accept a dependency arg/prop.)
-- **Wrap statics/singletons** behind an injectable wrapper rather than calling them directly.
-- **Don't reformat or "clean up"** while adding seams — every line changed before the net exists is unprotected. Pin first, beautify later.
-
-## Labeling
-
-Mark characterization tests so reviewers don't mistake a pinned quirk for an intended spec:
+When a current result looks suspicious but must remain pinned, label it
+`Known Quirk` in both authoritative registry metadata and the per-test header.
+State the observable current result and why it is pinned. Never describe the
+quirk as correct, expected, approved, or a requirement.
 
 ```csharp
-// CHARACTERIZATION: pins CURRENT behavior of legacy rounding; not verified as correct.
+// Known Quirk: pins the current odd-cent result; correctness is not asserted.
 [Fact]
-public void Characterize_TaxRounding_For_OddCents() { ... }
+public void Characterize_TaxRounding_For_OddCents() { /* ... */ }
 ```
 
-In the requirement→test mapping (see `best-practices.md`), tag these as `legacy/pin` so the QA report distinguishes "captures current behavior" from "verifies a requirement".
+The later fix is a separate approved behavior change. A failing
+characterization test is evidence that current behavior changed; confirm intent
+before replacing its baseline.
 
-## Scope discipline
+## Approval and snapshots
 
-Pin only the behavior in the blast radius of your change — you do not need 100% characterization of an entire legacy module. Cover what you're about to touch and the paths that flow into it.
+Direct test requests still require approved behavior/risk cases. An approved
+`implement-plan` task or `design-backbone` Test Coverage Matrix satisfies that
+same gate; do not ask twice. Registry selection, ownership, headers, and
+back-links follow `test-case-management.md`.
+
+For large, structured, or rendered output, an approval/snapshot baseline can
+be the characterization assertion: use C# Verify/ApprovalTests or a small,
+intentional Vitest/Jest/PCF snapshot. Commit approved baseline artifacts and
+review every diff as a behavior change. Never snapshot an entire page or object
+merely for convenience.

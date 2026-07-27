@@ -43,6 +43,77 @@
         "After tests pass, the registry's Covered-by column is updated with test file and method names",
         "If the registry already exists, IDs stay stable (no renumbering) and an ADD/UPDATE/REMOVED diff is shown before saving"
       ]
+    },
+    {
+      "id": 5,
+      "prompt": "Add regression tests for the healthy existing C# TaxBandResolver before a cleanup. It currently has a same-subject TaxBandResolverTests fixture and all relevant tests pass. Do not change its behavior.",
+      "expected_output": "Existing Behavior Preservation workflow: report instruction candidates, reuse TaxBandResolverTests, capture the GREEN baseline, inventory observable branches/boundaries/errors/side effects, map risks, reconcile coverage, and add only missing owned cases after the applicable approval gate.",
+      "expectations": [
+        "Classifies this as Existing Behavior Preservation, not a legacy-only workflow or Existing Behavior Change",
+        "Records a GREEN baseline before test edits and reuses the same-subject fixture rather than creating a parallel test file",
+        "Produces a behavior/risk audit covering observable branches, boundaries, errors, side effects, and each intentional coverage gap with a reason",
+        "Leaves already-correct coverage intact and adds only non-duplicate cases"
+      ]
+    },
+    {
+      "id": 6,
+      "prompt": "Characterize existing calculateShipping() behavior before refactoring. For an empty postal code it returns a negative fee; product has not approved changing that result yet.",
+      "expected_output": "An Existing Behavior Preservation characterization case that pins the negative-fee result as a Known Quirk in both registry metadata and the test header, without calling the behavior correct or changing production code.",
+      "expectations": [
+        "Labels the suspicious result Known Quirk in both the registry metadata and test header",
+        "States the test records current behavior without asserting that the negative fee is correct",
+        "Does not alter calculateShipping() or silently normalize the behavior"
+      ]
+    },
+    {
+      "id": 7,
+      "prompt": "Add a unit test for src/rules/price.ts. The target folder has AGENTS.md, the repo root has AGENTS.md and CLAUDE.md, the test project README specifies naming, and vitest.config.ts exists.",
+      "expected_output": "A context report that lists target-nearest AGENTS.md outward, then target-nearest tool instructions outward, then test documentation, configuration, and observed conventions; it applies the declared precedence before selecting the detected runner and location.",
+      "expectations": [
+        "Reports instruction candidates in the required category and nearest-to-root order",
+        "Applies explicit-user, scoped instructions, ancestor instructions, test documentation, configuration/conventions, then skill-default precedence",
+        "Uses detected Vitest conventions only after the instruction report and requests direction for a same-scope conflict"
+      ]
+    },
+    {
+      "id": 8,
+      "prompt": "Add tests for PriceRules.calculate(). PriceRules.unit.test.ts and pricing.test.ts both contain equally valid same-subject fixtures, and project conventions do not choose between them.",
+      "expected_output": "A canonical-ownership assessment that identifies both candidates as ambiguous and stops for user direction without writing a parallel test file.",
+      "expectations": [
+        "Evaluates ownership by same subject, module, fixture, and project convention",
+        "Reports both equally valid owners and asks the user to choose",
+        "Does not silently select an owner or create a third test file"
+      ]
+    },
+    {
+      "id": 9,
+      "prompt": "Add missing boundary coverage for existing parseDealerCode() in a code-only repository. There is no design or plan and no registry, but DealerCodeParserTests.cs is the canonical same-subject test file.",
+      "expected_output": "Coverage Gap handling that resolves the registry through existing registry, approved plan/design, project convention, then the canonical test file; it uses the canonical test file as the code-only registry fallback and records the missing boundary plus any intentional gaps.",
+      "expectations": [
+        "Classifies the request as Coverage Gap and does not require a design document",
+        "States the registry hierarchy in order and falls back to the canonical test file only after earlier sources are absent",
+        "Adds the smallest non-duplicate owned boundary case with authoritative header/registry traceability"
+      ]
+    },
+    {
+      "id": 10,
+      "prompt": "An approved implement-plan task includes unit test cases for a new OrderSummary component, and an approved design-backbone Test Coverage Matrix covers its readiness and completion cases. Implement the unit tests.",
+      "expected_output": "Spec-first unit/component tests derived from the approved artifact(s), with no second test-case approval request; readiness tests are green and completion tests remain executable RED until the detail implementation lands.",
+      "expectations": [
+        "Treats the approved implement-plan task and approved design-backbone Test Coverage Matrix as satisfying the unit-testing approval gate",
+        "Does not reopen, duplicate, or request a second test-case approval gate",
+        "Uses project-native tests with traceability to the approved cases and does not modify production implementation"
+      ]
+    },
+    {
+      "id": 11,
+      "prompt": "The approved contract changes existing applyDiscount() so loyalty members receive 15% instead of 10%. Its canonical DiscountServiceTests fixture already covers the old rule. Update the unit tests.",
+      "expected_output": "Existing Behavior Change handling that reuses DiscountServiceTests, updates the owned old-rule test to the approved 15% contract, preserves unaffected behavior, and avoids duplicate test files.",
+      "expectations": [
+        "Classifies this as Existing Behavior Change because an approved contract changes running behavior",
+        "Updates the canonical owned test for the changed discount rather than adding a contradictory duplicate",
+        "Preserves unaffected behavior coverage and traces the updated case to the approved contract"
+      ]
     }
   ],
   "non_goals": [
