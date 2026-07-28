@@ -8,7 +8,13 @@
     "projects": [],
     "teams": [],
     "member_identity": "",
-    "active_states": ["Active", "In Progress", "Doing", "Committed", "Resolved"]
+    "active_states": [
+      "Active",
+      "In Progress",
+      "Doing",
+      "Committed",
+      "Resolved"
+    ]
   },
   "timesheet": {
     "org_url": "",
@@ -29,31 +35,31 @@
         "cr90e_ProjectCodeCD": {
           "set": "cr90e_xts_timesheet_projectcodes",
           "code": "RDDMS01",
-          "code_field": "cr90e_code",
+          "code_field": "cr90e_projectcodecd",
           "id_field": "cr90e_xts_timesheet_projectcodeid"
         },
         "cr90e_ClientCD": {
           "set": "cr90e_xts_timesheet_clients",
           "code": "RD",
-          "code_field": "cr90e_code",
+          "code_field": "cr90e_clientcd",
           "id_field": "cr90e_xts_timesheet_clientid"
         },
         "cr90e_JobTypeCD": {
           "set": "cr90e_xts_timesheet_jobtypes",
           "code": "RD",
-          "code_field": "cr90e_code",
+          "code_field": "cr90e_jobtypecd",
           "id_field": "cr90e_xts_timesheet_jobtypeid"
         },
         "cr90e_StageCD": {
           "set": "cr90e_xts_timesheet_stages",
           "code": "ST00",
-          "code_field": "cr90e_code",
+          "code_field": "cr90e_stagecd",
           "id_field": "cr90e_xts_timesheet_stageid"
         },
         "xts_ProjectStage": {
           "set": "cr90e_xts_timesheet_projectcodedetails",
           "code": "RDDMS01-ST00",
-          "code_field": "cr90e_code",
+          "code_field": "cr90e_linenbr",
           "id_field": "cr90e_xts_timesheet_projectcodedetailid"
         }
       }

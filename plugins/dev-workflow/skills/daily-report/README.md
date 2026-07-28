@@ -43,6 +43,25 @@ Do not use external global scripts, shell-profile functions, hardcoded cloud fol
 
 ## Changelog
 
+### 2026-07-28 — First verified end-to-end run
+
+- Report lines are formatted from task records instead of `str()`, which was writing a
+  Python dict repr into the workbook, the Teams report, and the timesheet description.
+- Device-code sign-in instructions now reach the user. `acquire_access_token` discards
+  status messages when no callback is given and no caller supplied one, so interactive
+  sign-in printed nothing and could never be completed. They go to stderr, keeping stdout
+  clean for the copy-ready report.
+- Support both `msal-extensions` builder signatures across the declared `>=1.2,<2` range:
+  1.3 removed `fallback_to_plaintext`, so a `TypeError` was being swallowed as
+  "secure storage unavailable" and authentication could not initialize. 1.3+ has no
+  plaintext branch at all, so the no-plaintext guarantee is unchanged.
+- Corrected every lookup `code_field` in the config template: `cr90e_code` does not exist
+  on these entities. Verified by resolving each business code at runtime and matching all
+  five ids against previously known values.
+- `doctor` receives the resolved config path, so an existing config is validated while a
+  first-run machine still reports "not initialized" rather than failing to start.
+- Failures building the encrypted cache now chain their cause instead of being flattened.
+
 ### 2026-07-28 — Working gather path on Windows
 
 - Resolved console shims through `shutil.which`, so `az` (installed as `az.CMD`) no

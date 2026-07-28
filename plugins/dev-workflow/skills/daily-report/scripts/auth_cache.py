@@ -26,14 +26,24 @@ class AuthenticationRequired(RuntimeError):
 
 
 def _encrypted_persistence_builder(location: Path) -> Any:
-    """Import MSAL Extensions only when runtime authentication is requested."""
+    """Import MSAL Extensions only when runtime authentication is requested.
+
+    requirements.txt admits msal-extensions >=1.2,<2, and the builder signature changed
+    inside that range: 1.2 accepts ``fallback_to_plaintext``, while 1.3 removed it. The
+    no-plaintext guarantee survives either way — 1.3+ has no plaintext branch at all and
+    raises on an unsupported platform, returning DPAPI on Windows, Keychain on macOS, and
+    LibSecret on Linux.
+    """
     try:
         from msal_extensions import build_encrypted_persistence
     except ImportError:
         raise SecureStorageUnavailable(
             "Encrypted secure storage is unavailable; install the daily-report runtime dependencies."
         ) from None
-    return build_encrypted_persistence(str(location), fallback_to_plaintext=False)
+    try:
+        return build_encrypted_persistence(str(location), fallback_to_plaintext=False)
+    except TypeError:
+        return build_encrypted_persistence(str(location))
 
 
 def _persisted_token_cache_factory(persistence: Any) -> Any:
@@ -71,10 +81,12 @@ def create_encrypted_persistence(
             return _encrypted_persistence_builder(location)
         except SecureStorageUnavailable:
             raise
-        except Exception:
+        except Exception as error:
+            # Chain the cause: swallowing it hid a builder signature change behind a
+            # generic "secure storage unavailable" for every caller.
             raise SecureStorageUnavailable(
                 "Encrypted secure storage is unavailable for the Dataverse token cache."
-            ) from None
+            ) from error
     try:
         return builder(location, fallback_to_plaintext=False)
     except Exception:

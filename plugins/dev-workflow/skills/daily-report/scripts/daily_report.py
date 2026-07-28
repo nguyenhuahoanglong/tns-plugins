@@ -5,9 +5,32 @@ import argparse
 import datetime as dt
 import json
 import sys
+from collections.abc import Mapping
 from types import SimpleNamespace
 
 from lib_common import load_config, resolve_state_paths
+
+
+def _as_bullet(item):
+    """Render one report line.
+
+    Gathered work arrives as task records, while ``--add`` supplies plain text. A record
+    formatted with ``str()`` leaks a dict repr into the workbook and the timesheet
+    description, so records are formatted explicitly here.
+    """
+    if isinstance(item, Mapping):
+        identifier, title = item.get("id"), str(item.get("title") or "").strip()
+        if identifier is not None:
+            return f"- #{identifier} {title}".rstrip()
+        if title:
+            return f"- {title}"
+    text = str(item).strip()
+    return text if text.startswith("-") else f"- {text}"
+
+
+def _today_block(items):
+    """Join report lines for the workbook's Today block and the copy-ready report."""
+    return "\n".join(_as_bullet(item) for item in items)
 
 
 def _default_dependencies():
@@ -29,15 +52,14 @@ def _default_dependencies():
         return gathered[0] if isinstance(gathered, tuple) else gathered
 
     def render_report(items):
-        return "Yesterday\n\nToday\n" + "\n".join(str(item) for item in items)
+        return "Yesterday\n\nToday\n" + _today_block(items)
 
     def bootstrap(state_or_config, **options):
         state_dir = resolve_state_paths()["state_dir"] if isinstance(state_or_config, dict) else state_or_config
         return setup(state_dir, **options)
 
     def workbook(config, items, when):
-        today = "\n".join(str(item) for item in items)
-        return update_workbook(config, today, date=when)
+        return update_workbook(config, _today_block(items), date=when)
 
     def enqueue(config, payload, error=None):
         report_date = payload.get("date", dt.date.today().isoformat())
@@ -51,7 +73,7 @@ def _default_dependencies():
 
     return SimpleNamespace(
         bootstrap=bootstrap,
-        doctor=lambda config=None: doctor_cli([]),
+        doctor=lambda config=None: doctor_cli(["--config", str(config)] if config else []),
         gather_tasks=gather_tasks,
         merge_additions=merge,
         render_report=render_report,
@@ -177,8 +199,10 @@ def main(argv=None, *, config_loader=load_config, dependencies=None, stdout=None
         result = deps.bootstrap(state, **options) if any(options.values()) else deps.bootstrap(state)
         return 0 if not isinstance(result, dict) or result.get("status") != "FAIL" else 1
     if args.command == "doctor":
-        # Diagnostics must work on a first-run machine, so never load config first.
-        deps.doctor(None); return 0
+        # Diagnostics must work on a first-run machine, so never *load* config first.
+        # The path is still passed so an existing config is validated; doctor reports a
+        # missing file as "not initialized" rather than failing to start.
+        deps.doctor(args.config or state_resolver()["config_path"]); return 0
     config = config_loader(args.config)
     if args.command == "pending":
         deps.sync_old_pending(config); return 0

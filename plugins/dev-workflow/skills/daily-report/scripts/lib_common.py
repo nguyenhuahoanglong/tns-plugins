@@ -112,12 +112,26 @@ def load_config(path=None):
         raise SystemExit(f"ERROR: config is not valid JSON at {config_path}: {error.msg}.")
 
 
-def get_access_token(cfg, interactive=True):
+def _emit_auth_status(message):
+    """Show sign-in instructions on stderr.
+
+    Device-code sign-in cannot complete unless the user sees MSAL's URL and code, and
+    ``acquire_access_token`` discards status messages when no callback is supplied. stderr
+    keeps them off stdout, which carries the copy-ready report.
+    """
+    import sys
+
+    print(message, file=sys.stderr, flush=True)
+
+
+def get_access_token(cfg, interactive=True, status=None):
     """Return a Dataverse token through the portable encrypted-cache boundary."""
     from auth_cache import acquire_access_token
 
     cache_path = resolve_state_paths()["auth_cache_path"]
-    return acquire_access_token(cfg, cache_path=cache_path, interactive=interactive)
+    # Only an interactive attempt can need user-facing instructions.
+    reporter = status or (_emit_auth_status if interactive else None)
+    return acquire_access_token(cfg, cache_path=cache_path, interactive=interactive, status=reporter)
 
 
 def who_am_i(config, token, http_get=None):

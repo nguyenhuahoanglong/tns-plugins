@@ -69,7 +69,7 @@ def test_tc_011_delegates_to_portable_auth_cache_with_resource_settings_and_stat
     monkeypatch.setattr(
         auth,
         "acquire_access_token",
-        lambda received_config, *, cache_path, interactive: calls.append(
+        lambda received_config, *, cache_path, interactive, status=None: calls.append(
             (received_config, cache_path, interactive)
         ) or "portable-access-token",
     )
@@ -81,6 +81,41 @@ def test_tc_011_delegates_to_portable_auth_cache_with_resource_settings_and_stat
 
     assert token == "portable-access-token"
     assert calls == [(config, portable_cache, False)]
+
+
+# TC-011b: Interactive acquisition supplies a status reporter, so device-code
+# instructions reach the user; without one they are silently discarded and sign-in
+# can never be completed. Non-interactive acquisition needs no reporter.
+# Steps:
+#   1. Capture the status argument the portable boundary receives.
+#   2. Acquire interactively, then non-interactively.
+#   3. Verify a callable is supplied only for the interactive attempt, and that it
+#      writes the message somewhere other than stdout.
+# Design: portable-git-daily-report-dev-workflow.md Task 8, AC-7 and AC-12.
+def test_tc_011b_interactive_acquisition_supplies_a_status_reporter(monkeypatch, tmp_path, capsys):
+    received = []
+    auth = _task_8_auth()
+    monkeypatch.setattr(
+        lib_common, "resolve_state_paths", lambda: {"auth_cache_path": tmp_path / "auth-cache.bin"}
+    )
+    monkeypatch.setattr(
+        auth,
+        "acquire_access_token",
+        lambda received_config, *, cache_path, interactive, status=None: received.append(status) or "token",
+    )
+
+    lib_common.get_access_token(_config(), interactive=True)
+    lib_common.get_access_token(_config(), interactive=False)
+
+    interactive_status, silent_status = received
+    assert callable(interactive_status), "device-code instructions would be discarded"
+    assert silent_status is None
+
+    interactive_status("PLEASE-SIGN-IN")
+    captured = capsys.readouterr()
+    # stdout carries the copy-ready report, so instructions must not land there.
+    assert "PLEASE-SIGN-IN" not in captured.out
+    assert "PLEASE-SIGN-IN" in captured.err
 
 
 # TC-012: Non-interactive execution propagates the portable typed sign-in failure.
@@ -138,7 +173,7 @@ def test_tc_078_removes_windows_auth_internals_and_uses_portable_default_from_ti
     monkeypatch.setattr(
         auth,
         "acquire_access_token",
-        lambda received_config, *, cache_path, interactive: calls.append(
+        lambda received_config, *, cache_path, interactive, status=None: calls.append(
             (received_config, cache_path, interactive)
         ) or "portable-access-token",
     )

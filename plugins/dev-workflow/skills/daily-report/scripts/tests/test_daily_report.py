@@ -349,18 +349,71 @@ def test_tc_105_portable_cli_and_verifier_do_not_read_legacy_employee_id():
     assert "employee_id" not in inspect.getsource(verify_output.main)
 
 
+# TC-106b: Task records reach the workbook and report as bullets, never as dict reprs.
+# Steps: 1. Gather a record and add free text. 2. Capture what the workbook receives.
+#        3. Verify the id/title bullet form and that no Python repr leaks.
+# Design: portable-git-daily-report-dev-workflow.md Task 13, AC-9, AC-12.
+def test_tc_106b_report_lines_are_bullets_not_python_reprs():
+    events, received = [], []
+    deps = _deps(events)
+    record = {"id": 418781, "title": "AU Accessory Transfer: Define disposition and reuse",
+              "state": "Active", "project": "Yana", "type": "Task"}
+    deps.gather_tasks = lambda config: [record]
+
+    def workbook(config, items, when):
+        received.append(daily_report._today_block(items))
+        events.append("workbook")
+        return {"status": "UPDATED", "report": received[-1], "path": "book.xlsx"}
+
+    deps.update_workbook = workbook
+
+    daily_report.main(["run", "--add", "reviewed the migration"],
+                      config_loader=lambda *_a: _config(), dependencies=deps, stdout=io.StringIO())
+
+    block = received[0]
+    assert "- #418781 AU Accessory Transfer: Define disposition and reuse" in block
+    assert "- reviewed the migration" in block
+    # A dict repr in the Today block also becomes the timesheet description.
+    for leak in ("{", "}", "'id'", "'title'", "'state'"):
+        assert leak not in block, f"Python repr leaked into the report: {leak}"
+
+
 # TC-107: Doctor diagnoses a first-run machine before any config exists.
-# Steps: 1. Make the config loader fail if called. 2. Run doctor with injected fakes. 3. Verify doctor ran with no config.
+# Steps: 1. Make the config loader fail if called. 2. Run doctor with injected fakes.
+#        3. Verify doctor received the config path, never a loaded config.
 # Design: portable-git-daily-report-dev-workflow.md Task 13, AC-5, AC-9, AC-12.
-def test_tc_107_doctor_diagnoses_before_config_loading():
+def test_tc_107_doctor_diagnoses_before_config_loading(tmp_path):
+    events, received = [], []
+    deps = _deps(events)
+    deps.doctor = lambda config: received.append(config) or events.append("doctor")
+    config_loader = lambda *_args: pytest.fail("doctor must not load config before diagnosing")
+    config_path = tmp_path / "daily-report.config.json"
+
+    assert daily_report.main(
+        ["doctor"], config_loader=config_loader, dependencies=deps,
+        state_resolver=lambda: {"state_dir": tmp_path, "config_path": config_path},
+    ) == 0
+
+    # Diagnostics run without loading config, but still receive the path so an existing
+    # config is validated; a missing file is reported as "not initialized".
+    assert events == ["doctor"]
+    assert received == [config_path]
+
+
+# TC-107b: An explicit --config path reaches doctor unchanged and is still not loaded.
+# Steps: 1. Pass --config. 2. Run doctor with a failing loader. 3. Verify the path passes through.
+# Design: portable-git-daily-report-dev-workflow.md Task 13, AC-5, AC-9, AC-12.
+def test_tc_107b_doctor_forwards_explicit_config_path_without_loading_it():
     events, received = [], []
     deps = _deps(events)
     deps.doctor = lambda config: received.append(config) or events.append("doctor")
     config_loader = lambda *_args: pytest.fail("doctor must not load config before diagnosing")
 
-    assert daily_report.main(["doctor"], config_loader=config_loader, dependencies=deps) == 0
-    assert events == ["doctor"]
-    assert received == [None]
+    assert daily_report.main(
+        ["doctor", "--config", "explicit.json"], config_loader=config_loader, dependencies=deps,
+        state_resolver=lambda: pytest.fail("an explicit --config must not need state resolution"),
+    ) == 0
+    assert received == ["explicit.json"]
 
 
 # TC-108: Config-bound commands still refuse to work before config exists.
