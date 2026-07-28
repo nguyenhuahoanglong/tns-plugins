@@ -1,0 +1,4 @@
+# Runtime dependencies installed only into daily-report's isolated virtual environment.
+msal>=1.31,<2
+msal-extensions>=1.2,<2
+openpyxl>=3.1,<4

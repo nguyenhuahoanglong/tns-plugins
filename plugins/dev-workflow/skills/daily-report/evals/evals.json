@@ -1,0 +1,67 @@
+{
+  "skill_name": "daily-report",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Create my daily report on a new laptop.",
+      "expected_output": "Uses the installed skill-local daily_report.py run entrypoint; creates missing local state idempotently, explains required local configuration if absent, and never uses a machine-specific script or path.",
+      "expectations": [
+        "Uses python scripts/daily_report.py run as normal public entrypoint",
+        "Creates only missing state and does not overwrite existing config, workbook, or queue",
+        "Directs user to doctor or local configuration for unmet prerequisites",
+        "Does not use global functions, external helper scripts, fixed cloud folders, or personal identity"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "Move my old daily-report config and workbook into this installation.",
+      "expected_output": "Uses explicit setup import flags and requires --replace before overwriting destination artifacts.",
+      "expectations": [
+        "Uses daily_report.py setup --import-config and/or --import-workbook with user-provided paths",
+        "Does not auto-discover or copy legacy files",
+        "Requires explicit --replace for an existing destination",
+        "Keeps imported state local to current user"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "Run my daily standup, add planning, and make a backup.",
+      "expected_output": "Runs the autonomous portable flow with --add and --backup, writes timesheet only after preflight and dry-run success, then returns a fenced copy-ready report.",
+      "expectations": [
+        "Uses daily_report.py run --add and --backup",
+        "Backup is explicit; default flow does not create one",
+        "Timesheet commit follows successful authentication and dry-run resolution",
+        "Final successful response ends with fenced text containing only Yesterday and Today report content"
+      ]
+    },
+    {
+      "id": 4,
+      "prompt": "Run today's daily report, but current timesheet period may be unavailable.",
+      "expected_output": "Runs normal report, queues current timesheet when period is missing or ambiguous, and keeps report output available; pending is retried through public pending command.",
+      "expectations": [
+        "Does not invent or hardcode a period",
+        "Enqueues current day for missing or ambiguous period instead of a live write",
+        "Reports queue outcome and preserves copy-ready report behavior",
+        "Uses daily_report.py pending for later retry"
+      ]
+    },
+    {
+      "id": 5,
+      "prompt": "Review my daily report only; secure token storage also failed.",
+      "expected_output": "Uses review-only with no mutation; if authentication is required later, stops live write and gives secure recovery guidance without plaintext fallback.",
+      "expectations": [
+        "Uses daily_report.py run --review-only",
+        "Does not update workbook, commit timesheet, enqueue, or commit during review-only",
+        "Reports secure-store or authentication failure as a stop condition for live write",
+        "Never exposes or stores a plaintext token"
+      ]
+    }
+  ],
+  "non_goals": [
+    "Creating or editing Azure DevOps work items",
+    "Using global PowerShell functions, external global scripts, or personal machine paths",
+    "Overwriting local state during setup or migration without explicit --replace",
+    "Inventing identity, organization, task, period, or business lookup values",
+    "Writing plaintext authentication tokens or treating failed external writes as successful"
+  ]
+}
