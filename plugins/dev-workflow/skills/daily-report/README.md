@@ -43,6 +43,15 @@ Do not use external global scripts, shell-profile functions, hardcoded cloud fol
 
 ## Changelog
 
+### 2026-07-28 — The timesheet records only the day's own work
+
+- The committed timesheet description was built from the Yesterday/Today standup report,
+  so it carried both day-labels and the previous day's task lines. Every other day in the
+  portal holds only that day's lines. Use the workbook's Today block instead; the
+  copy-ready report keeps the standup format, and the workbook's own timesheet memo was
+  already correct.
+- A queued record now stores the same Today block, so a later sync submits the right text.
+
 ### 2026-07-28 — Same-day re-runs stay on one row
 
 - A same-day refresh no longer copies the date cell's number format from a row that

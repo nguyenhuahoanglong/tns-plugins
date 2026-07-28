@@ -125,24 +125,28 @@ def run(config, *, date=None, additions=(), review_only=False, backup=False, dep
         operations.append("workbook")
         return {"ok": False, "code": _code(error), "operations": operations, "message": str(error)}
     report = workbook.get("report", "") if isinstance(workbook, dict) else ""
+    # The timesheet records only the day's own work. The Yesterday/Today report is the
+    # Teams standup format and must not reach the portal, where every other day holds
+    # just that day's lines.
+    today_block = (workbook.get("today", "") if isinstance(workbook, dict) else "") or report
     try:
         deps.auth_preflight(config); operations.append("auth")
     except Exception as error:
         operations.append("auth")
-        queued = deps.enqueue_current(config, {"date": when.isoformat(), "report": report, "today": report}, error); operations.append("enqueue")
+        queued = deps.enqueue_current(config, {"date": when.isoformat(), "report": report, "today": today_block}, error); operations.append("enqueue")
         return {"ok": False, "code": _code(error), "operations": operations, "workbook": workbook,
                 "report": report, "timesheet": queued, "queue": queued}
     try:
-        dry = deps.write_timesheet(config, when, report, commit=False, dry_run=True); operations.append("timesheet-dry-run")
+        dry = deps.write_timesheet(config, when, today_block, commit=False, dry_run=True); operations.append("timesheet-dry-run")
         if isinstance(dry, dict) and (dry.get("status") == "FAIL" or dry.get("action") in {"PERIOD_NOT_FOUND", "PERIOD_AMBIGUOUS"}):
             code = dry.get("action") or dry.get("code") or "TIMESHEET_DRY_RUN_FAILED"
-            queued = deps.enqueue_current(config, {"date": when.isoformat(), "report": report, "today": report}, code); operations.append("enqueue")
+            queued = deps.enqueue_current(config, {"date": when.isoformat(), "report": report, "today": today_block}, code); operations.append("enqueue")
             return {"ok": False, "code": code, "operations": operations, "workbook": workbook,
                     "report": report, "timesheet": dry, "queue": queued}
-        committed = deps.write_timesheet(config, when, report, commit=True, dry_run=False); operations.append("timesheet-write")
+        committed = deps.write_timesheet(config, when, today_block, commit=True, dry_run=False); operations.append("timesheet-write")
     except Exception as error:
         code = _code(error)
-        queued = deps.enqueue_current(config, {"date": when.isoformat(), "report": report, "today": report}, error); operations.append("enqueue")
+        queued = deps.enqueue_current(config, {"date": when.isoformat(), "report": report, "today": today_block}, error); operations.append("enqueue")
         return {"ok": False, "code": code, "operations": operations, "workbook": workbook,
                 "report": report, "timesheet": queued, "queue": queued}
     result = {"ok": True, "workbook": workbook, "report": report, "timesheet": committed,

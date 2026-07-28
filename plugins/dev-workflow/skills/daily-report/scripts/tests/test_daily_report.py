@@ -439,3 +439,67 @@ def test_tc_109_default_dependencies_emit_doctor_checks_without_config(monkeypat
     monkeypatch.setitem(sys.modules, "doctor", SimpleNamespace(main=lambda argv: calls.append(argv) or 0))
     daily_report._default_dependencies().doctor(None)
     assert calls == [[]]
+
+
+# TC-109: The timesheet records only the day's own work, never the Yesterday/Today report.
+# Steps: 1. Return a workbook result whose report and today block differ.
+#        2. Run the committed workflow. 3. Verify the portal received the today block.
+# Design: portable-git-daily-report-dev-workflow.md Task 13, AC-6, AC-9, AC-12.
+def test_tc_109_timesheet_receives_the_today_block_not_the_full_report():
+    events, descriptions, queued = [], [], []
+    deps = _deps(events)
+    today_block = "- #418781 AU Accessory Transfer: Define disposition and reuse"
+    full_report = ("Yesterday\n- #419299 Harden lookup cache\n- #419258 Reduce re-render fan-out\n"
+                   f"Today\n{today_block}")
+
+    def workbook(config, items, when):
+        events.append("workbook")
+        return {"status": "UPDATED", "path": "book.xlsx", "report": full_report, "today": today_block}
+
+    def write(config, when, description, commit, dry_run):
+        descriptions.append(description)
+        events.append("timesheet-dry-run" if dry_run else "timesheet-write")
+        return {"status": "DRY_RUN" if dry_run else "COMMITTED", "action": "CREATE", "mutated": not dry_run}
+
+    deps.update_workbook = workbook
+    deps.write_timesheet = write
+    deps.enqueue_current = lambda config, payload, error=None: queued.append(payload) or {"queued": True}
+
+    output = io.StringIO()
+    daily_report.main(["run"], config_loader=lambda *_a: _config(), dependencies=deps, stdout=output)
+
+    # Both the preview and the committed write must carry only the day's own work.
+    assert descriptions == [today_block, today_block]
+    for description in descriptions:
+        assert "Yesterday" not in description
+        assert "#419299" not in description, "yesterday's work must not reach the portal"
+    # The copy-ready report keeps the standup format.
+    assert "Yesterday" in output.getvalue()
+
+
+# TC-109b: A queued record also stores the day's own work, so a later sync submits it.
+# Steps: 1. Fail auth preflight. 2. Capture the enqueued payload.
+#        3. Verify its today field is the today block, while report stays the standup text.
+# Design: portable-git-daily-report-dev-workflow.md Task 13, AC-6, AC-12.
+def test_tc_109b_queued_record_stores_the_today_block():
+    events, queued = [], []
+    deps = _deps(events)
+    today_block = "- #418781 AU Accessory Transfer: Define disposition and reuse"
+    full_report = f"Yesterday\n- #419299 Harden lookup cache\nToday\n{today_block}"
+
+    deps.update_workbook = lambda config, items, when: (
+        events.append("workbook") or {"status": "UPDATED", "path": "b.xlsx",
+                                      "report": full_report, "today": today_block})
+
+    def failing_auth(config):
+        raise RuntimeError("AUTH_REQUIRED")
+
+    deps.auth_preflight = failing_auth
+    deps.enqueue_current = lambda config, payload, error=None: (
+        queued.append(payload) or {"queued": True, "action": "CREATED"})
+
+    daily_report.main(["run"], config_loader=lambda *_a: _config(), dependencies=deps, stdout=io.StringIO())
+
+    assert queued[0]["today"] == today_block
+    assert "Yesterday" not in queued[0]["today"]
+    assert queued[0]["report"] == full_report
