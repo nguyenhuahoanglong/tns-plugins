@@ -36,12 +36,43 @@ def _copy_style(source, destination):
     destination.number_format = source.number_format
 
 
+# Excel's day 1 is 1900-01-01 and it treats 1900 as a leap year, so serials count from
+# 1899-12-30. That is exact for any date after 1900-02-28, which every report date is.
+_EXCEL_EPOCH = datetime.datetime(1899, 12, 30)
+
+
 def _as_date(value):
     if isinstance(value, datetime.datetime):
         return value.date()
     if isinstance(value, datetime.date):
         return value
+    if isinstance(value, (int, float)) and not isinstance(value, bool):
+        # A date cell that lost its number format reads back as a bare serial. Decoding
+        # it lets a workbook already damaged that way match its own row again instead of
+        # inserting a second row for the same day.
+        try:
+            return (_EXCEL_EPOCH + datetime.timedelta(days=float(value))).date()
+        except (OverflowError, ValueError):
+            return None
     return None
+
+
+def _date_number_format(sheet, column, prior_row):
+    """Pick a date format that survives a save/load round trip.
+
+    A same-day refresh in a workbook with one data row has no row beneath it, and
+    reading a missing cell yields ``General``. Adopting that would serialise the date as
+    a bare number, so the following run would not recognise the row and would insert a
+    duplicate for the same day. The header carries the intended date format.
+    """
+    candidates = []
+    if prior_row <= sheet.max_row:
+        candidates.append(sheet[f"{column}{prior_row}"].number_format)
+    candidates.append(sheet[f"{column}1"].number_format)
+    for candidate in candidates:
+        if candidate and candidate != "General":
+            return candidate
+    return "yyyy-mm-dd"
 
 
 def _unique_lines(*blocks):
@@ -149,7 +180,7 @@ def update_workbook(config, today, today_additions=(), yesterday_addition="", da
 
     sheet[f"{COL['date']}{row}"] = target_date
     if had_data_row:
-        sheet[f"{COL['date']}{row}"].number_format = sheet[f"{COL['date']}{prior_row}"].number_format
+        sheet[f"{COL['date']}{row}"].number_format = _date_number_format(sheet, COL["date"], prior_row)
     sheet[f"{COL['yesterday']}{row}"] = yesterday
     sheet[f"{COL['today']}{row}"] = today_text
     sheet[f"{COL['report']}{row}"] = report

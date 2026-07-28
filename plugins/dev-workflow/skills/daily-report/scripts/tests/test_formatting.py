@@ -534,3 +534,83 @@ if __name__ == "__main__":
             print(f"FAIL  {name}: {exc}")
     print(f"\n{len(tests) - failed}/{len(tests)} passed")
     sys.exit(1 if failed else 0)
+
+
+# --- Same-day idempotence -------------------------------------------------------
+# A re-run must refresh the existing day's row rather than add a second row for the
+# same date, and must not repeat a task line that is already recorded.
+
+
+def test_repeated_same_day_runs_reuse_one_row_and_do_not_duplicate_lines(tmp_path):
+    """Four same-day runs stay on one row; overlapping lines are merged once."""
+    workbook_path = tmp_path / "DailyTask.xlsx"
+    _headers_only_workbook(workbook_path)
+    config = _portable_cfg(workbook_path)
+    day = datetime.date(2026, 7, 28)
+
+    modes = [
+        ud.update_workbook(config, today, date=day)["mode"]
+        for today in ("- #1 Alpha", "- #1 Alpha", "- #1 Alpha\n- #2 Beta", "- #2 Beta")
+    ]
+
+    assert modes == ["INSERT", "UPDATE", "UPDATE", "UPDATE"]
+    sheet = openpyxl.load_workbook(workbook_path)["Daily Report"]
+    assert sheet.max_row == 2, "a same-day re-run must not insert another row"
+    lines = str(sheet["C2"].value).splitlines()
+    assert lines == ["- #1 Alpha", "- #2 Beta"]
+
+
+def test_same_day_refresh_keeps_the_date_cell_recognisable(tmp_path):
+    """The date cell must not inherit General from a row that does not exist.
+
+    With a single data row there is no row beneath it, and a missing cell reports
+    General. Adopting that serialises the date as a bare number, so the next run stops
+    recognising the row and inserts a duplicate for the same day.
+    """
+    workbook_path = tmp_path / "DailyTask.xlsx"
+    _headers_only_workbook(workbook_path)
+    config = _portable_cfg(workbook_path)
+    day = datetime.date(2026, 7, 28)
+
+    ud.update_workbook(config, "- #1 Alpha", date=day)
+    ud.update_workbook(config, "- #1 Alpha", date=day)
+
+    sheet = openpyxl.load_workbook(workbook_path)["Daily Report"]
+    assert ud._as_date(sheet["A2"].value) == day
+    assert sheet["A2"].number_format != "General"
+
+
+def test_workbook_damaged_by_a_lost_date_format_still_matches_its_row(tmp_path):
+    """A date cell already reduced to a bare serial is matched and repaired."""
+    workbook_path = tmp_path / "DailyTask.xlsx"
+    _headers_only_workbook(workbook_path)
+    workbook = openpyxl.load_workbook(workbook_path)
+    sheet = workbook["Daily Report"]
+    sheet["A2"] = 46231  # 2026-07-28 with the date format lost
+    sheet["A2"].number_format = "General"
+    sheet["C2"] = "- #1 Alpha"
+    workbook.save(workbook_path)
+
+    result = ud.update_workbook(_portable_cfg(workbook_path), "- #2 Beta", date=datetime.date(2026, 7, 28))
+
+    assert result["mode"] == "UPDATE"
+    refreshed = openpyxl.load_workbook(workbook_path)["Daily Report"]
+    assert refreshed.max_row == 2, "a damaged row must be reused, not duplicated"
+    assert str(refreshed["C2"].value).splitlines() == ["- #1 Alpha", "- #2 Beta"]
+
+
+def test_excel_serial_decoding_round_trips_workbook_dates():
+    """Serials decode back to their own date, and non-dates stay unrecognised.
+
+    The 1899-12-30 epoch is exact for any date after 1900-02-28; Excel's phantom
+    29 February 1900 shifts only the first two serials, which no report date reaches.
+    """
+    for expected in (datetime.date(2026, 7, 28), datetime.date(2024, 10, 1), datetime.date(1900, 3, 1)):
+        serial = (expected - ud._EXCEL_EPOCH.date()).days
+        assert ud._as_date(serial) == expected, f"serial {serial} should decode to {expected}"
+
+    assert ud._as_date(datetime.datetime(2026, 7, 28, 13, 45)) == datetime.date(2026, 7, 28)
+    assert ud._as_date(datetime.date(2026, 7, 28)) == datetime.date(2026, 7, 28)
+    assert ud._as_date("2026-07-28") is None
+    assert ud._as_date(None) is None
+    assert ud._as_date(True) is None, "a bool must not be read as a date serial"

@@ -43,6 +43,17 @@ Do not use external global scripts, shell-profile functions, hardcoded cloud fol
 
 ## Changelog
 
+### 2026-07-28 — Same-day re-runs stay on one row
+
+- A same-day refresh no longer copies the date cell's number format from a row that
+  does not exist. With a single data row there is nothing beneath it and a missing cell
+  reports `General`; adopting that serialised the date as a bare serial, so the next run
+  stopped recognising the row and inserted a second row for the same day. Only workbooks
+  with one data row were affected — a new user's first two days.
+- A date cell already reduced to a serial is now decoded, so a workbook damaged that way
+  matches its own row again and its format is repaired rather than accumulating rows.
+- Line merging was already idempotent and is unchanged; it is now covered by tests.
+
 ### 2026-07-28 — First verified end-to-end run
 
 - Report lines are formatted from task records instead of `str()`, which was writing a
