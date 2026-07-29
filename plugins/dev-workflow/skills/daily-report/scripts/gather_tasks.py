@@ -25,10 +25,10 @@ def normalize_exported_items(items, active_states):
     return tasks, skipped
 
 
-def gather(config, *, runner=None):
+def gather(config, *, runner=None, no_temp_files=False):
     if "organization" not in config["ado"]:
         raise PortableConfigurationError("portable ADO configuration requires organization")
-    result = gather_current_tasks(config, runner=runner)
+    result = gather_current_tasks(config, runner=runner, no_temp_files=no_temp_files)
     return result["tasks"], result["skipped"]
 
 

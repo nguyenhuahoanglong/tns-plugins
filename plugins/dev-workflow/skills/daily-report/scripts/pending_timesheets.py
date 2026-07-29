@@ -137,7 +137,15 @@ def _combined_output(result):
     return ((result.stdout or "") + ("\n" if result.stdout and result.stderr else "") + (result.stderr or "")).strip()
 
 
-def sync(queue_path, config_path=None, runner=None, script_path=None):
+def _writer_outcome(result):
+    """Read the writer's final JSON envelope; a zero process exit is not proof of a write."""
+    try:
+        return json.loads((result.stdout or "").strip().splitlines()[-1])
+    except (IndexError, json.JSONDecodeError):
+        return None
+
+
+def sync(queue_path, config_path=None, state_dir=None, runner=None, script_path=None):
     data = load_queue(queue_path)
     pending = [r for r in data["records"] if r.get("status") == "pending"]
     if not pending:
@@ -148,9 +156,10 @@ def sync(queue_path, config_path=None, runner=None, script_path=None):
     script_dir = str(script_path.parent)
     base = [sys.executable, str(script_path)]
     cfg_args = ["--config", str(config_path)] if config_path else []
+    state_args = ["--state-dir", str(state_dir)] if state_dir else []
     messages = []
 
-    auth = runner(base + ["--check-auth"] + cfg_args, cwd=script_dir)
+    auth = runner(base + ["--check-auth"] + cfg_args + state_args, cwd=script_dir)
     if auth.returncode != 0:
         msg = _combined_output(auth)
         messages.append("AUTH_REQUIRED while syncing pending timesheets: " + msg)
@@ -161,17 +170,20 @@ def sync(queue_path, config_path=None, runner=None, script_path=None):
     for rec in pending:
         rec["attempts"] = int(rec.get("attempts") or 0) + 1
         rec["updatedAt"] = now_iso()
-        args = ["--date", rec["date"], "--description", rec["todayBlock"]]
+        args = ["--date", rec["date"], "--description", rec["todayBlock"], "--json"]
 
-        dry = runner(base + args + cfg_args, cwd=script_dir)
-        if dry.returncode != 0:
+        dry = runner(base + args + cfg_args + state_args, cwd=script_dir)
+        dry_outcome = _writer_outcome(dry)
+        if dry.returncode != 0 or not isinstance(dry_outcome, dict) or dry_outcome.get("status") != "DRY_RUN":
             rec["lastError"] = _combined_output(dry)[:1200]
             failed += 1
             messages.append(f"PENDING {rec['date']}: {rec['lastError']}")
             continue
 
-        committed = runner(base + args + ["--commit"] + cfg_args, cwd=script_dir)
-        if committed.returncode != 0:
+        committed = runner(base + args + ["--commit"] + cfg_args + state_args, cwd=script_dir)
+        committed_outcome = _writer_outcome(committed)
+        verified = isinstance(committed_outcome, dict) and committed_outcome.get("post_write_verification", {}).get("ok") is True
+        if committed.returncode != 0 or not isinstance(committed_outcome, dict) or committed_outcome.get("status") != "COMMITTED" or not verified:
             rec["lastError"] = _combined_output(committed)[:1200]
             failed += 1
             messages.append(f"PENDING {rec['date']}: {rec['lastError']}")

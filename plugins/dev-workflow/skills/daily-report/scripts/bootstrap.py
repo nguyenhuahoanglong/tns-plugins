@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import shutil
@@ -84,9 +85,15 @@ def resolve_python(
 
 
 def _default_venv_creator(python: str | Path, destination: str | Path) -> None:
-    completed = subprocess.run([str(python), "-m", "venv", str(destination)], check=False)
+    completed = subprocess.run(
+        [str(python), "-m", "venv", str(destination)],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
     if completed.returncode:
-        raise RuntimeError(f"venv creation exited {completed.returncode}")
+        detail = completed.stderr.strip() or completed.stdout.strip()
+        raise RuntimeError(detail or f"venv creation exited {completed.returncode}")
 
 
 def ensure_venv(
@@ -117,12 +124,28 @@ def install_requirements(
     """Install packages only through the isolated environment's interpreter."""
     argv = [str(venv_python), "-m", "pip", "install", "--requirement", str(requirements_path)]
     try:
-        outcome = (runner or (lambda command: subprocess.run(command, check=False).returncode))(argv)
+        outcome = (
+            runner
+            or (
+                lambda command: subprocess.run(
+                    command,
+                    check=False,
+                    capture_output=True,
+                    text=True,
+                )
+            )
+        )(argv)
     except OSError as error:
         return _fail("DEPENDENCY_INSTALL_FAILED", "Could not run the isolated pip installer.", error=str(error))
-    result = _as_result(outcome, "Dependency installation")
+    return_code = getattr(outcome, "returncode", outcome)
+    result = _as_result(return_code, "Dependency installation")
     if result.status != "PASS":
-        return _fail("DEPENDENCY_INSTALL_FAILED", "Dependency installation failed in the isolated environment.")
+        error = getattr(outcome, "stderr", "") or getattr(outcome, "stdout", "")
+        return _fail(
+            "DEPENDENCY_INSTALL_FAILED",
+            "Dependency installation failed in the isolated environment.",
+            error=str(error).strip(),
+        )
     return _pass("Dependencies installed in the isolated environment.", argv=argv)
 
 
@@ -173,13 +196,13 @@ def initialize_state(
             template = json.loads(Path(template_path).read_text(encoding="utf-8"))
             template["excel"]["path"] = str(paths["workbook"])
             writer(paths["config"], template)
-            if is_posix:
+            if is_posix and (permission_setter is not None or paths["config"].exists()):
                 chmod(paths["config"], stat.S_IRUSR | stat.S_IWUSR)
         if paths["workbook"] in requested and not paths["workbook"].exists():
             create_workbook(paths["workbook"])
         if paths["queue"] in requested and not paths["queue"].exists():
             writer(paths["queue"], {"version": 1, "records": []})
-            if is_posix:
+            if is_posix and (permission_setter is not None or paths["queue"].exists()):
                 chmod(paths["queue"], stat.S_IRUSR | stat.S_IWUSR)
     except PermissionError as error:
         return _fail("WORKBOOK_LOCKED", "The workbook is locked; close it and rerun setup.", error=str(error))
@@ -190,6 +213,20 @@ def initialize_state(
 
 def _venv_python(venv_path: Path) -> Path:
     return venv_path / ("Scripts/python.exe" if os.name == "nt" else "bin/python")
+
+
+def reexec_managed_venv(venv_path: str | Path, argv: Sequence[str], *, current_python=None, executor=None):
+    """Re-exec normal workflows through the state-owned interpreter once."""
+    target = _venv_python(Path(venv_path))
+    current = Path(current_python or sys.executable)
+    if not target.is_file() or current.resolve() == target.resolve():
+        return False
+    command = [str(target), *map(str, argv)]
+    if executor is not None:
+        executor(str(target), command)
+    else:
+        os.execv(str(target), command)
+    return True
 
 
 def _default_copy(source: str | Path, destination: str | Path) -> None:
@@ -254,10 +291,16 @@ def setup(
     environment_result = _as_result(environment(), "Virtual environment setup")
     if environment_result.status != "PASS":
         return environment_result
-    installer = install_dependencies or (lambda: install_requirements(_venv_python(venv_path), requirements))
-    dependency_result = _as_result(installer(), "Dependency installation")
-    if dependency_result.status != "PASS":
-        return _fail("DEPENDENCY_INSTALL_FAILED", "Dependency installation failed; local state was not changed.")
+    dependency_marker = state / ".requirements.sha256"
+    requirements_hash = hashlib.sha256(requirements.read_bytes()).hexdigest()
+    dependencies_changed = not dependency_marker.is_file() or dependency_marker.read_text(encoding="ascii").strip() != requirements_hash
+    if dependencies_changed:
+        installer = install_dependencies or (lambda: install_requirements(_venv_python(venv_path), requirements))
+        dependency_result = _as_result(installer(), "Dependency installation")
+        if dependency_result.status != "PASS":
+            return _fail("DEPENDENCY_INSTALL_FAILED", "Dependency installation failed; local state was not changed.")
+        dependency_marker.parent.mkdir(parents=True, exist_ok=True)
+        dependency_marker.write_text(requirements_hash + "\n", encoding="ascii")
 
     paths = _state_artifacts(state)
     copier = copy_file or _default_copy

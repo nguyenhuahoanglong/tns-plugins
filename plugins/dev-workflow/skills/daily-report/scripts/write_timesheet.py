@@ -11,8 +11,8 @@ Usage:
   python write_timesheet.py --description "- #414982 ..." [--date YYYY-MM-DD]
                             [--commit] [--config PATH]
 """
-import argparse, datetime, sys
-from lib_common import load_config, get_access_token, Dataverse, who_am_i
+import argparse, datetime, inspect, json, sys
+from lib_common import load_config, get_access_token, Dataverse, who_am_i, resolve_runtime_context
 
 
 def resolve_timesheet_identity(cfg, token_provider=get_access_token, whoami=who_am_i):
@@ -21,6 +21,20 @@ def resolve_timesheet_identity(cfg, token_provider=get_access_token, whoami=who_
     result = whoami(cfg, token)
     user_id = result.get("user_id") if isinstance(result, dict) else result
     return {"tenant": cfg["timesheet"]["tenant_id"], "user_id": user_id}
+
+
+def _supports_keyword(callable_object, name):
+    """Keep older offline seams usable while production receives the selected cache."""
+    try:
+        return name in inspect.signature(callable_object).parameters or any(
+            parameter.kind is inspect.Parameter.VAR_KEYWORD
+            for parameter in inspect.signature(callable_object).parameters.values())
+    except (TypeError, ValueError):
+        return False
+
+
+def _token_from(provider, cfg, cache_path):
+    return provider(cfg, cache_path=cache_path) if _supports_keyword(provider, "cache_path") else provider(cfg)
 
 
 def resolve_business_lookups(dv, bindings):
@@ -51,10 +65,11 @@ def _portable_header(dv, cfg, today, employee_id):
 
 def write_timesheet(cfg, today, today_block, *, commit=False, dry_run=False,
                     token_provider=get_access_token, whoami=who_am_i, dataverse_factory=Dataverse,
-                    existing_detail=None, lookup_resolver=resolve_business_lookups, mutate=None):
+                    existing_detail=None, lookup_resolver=resolve_business_lookups, mutate=None,
+                    auth_cache_path=None, post_write_verifier=None):
     """Plan an injected timesheet write; mutation is impossible unless ``commit`` is true."""
     # The token is transient: use it for WhoAmI/client construction only, never in a result.
-    token = token_provider(cfg)
+    token = _token_from(token_provider, cfg, auth_cache_path)
     who = whoami(cfg, token)
     employee_id = who.get("user_id") if isinstance(who, dict) else who
     identity = {"tenant": cfg["timesheet"]["tenant_id"], "user_id": employee_id}
@@ -101,6 +116,17 @@ def write_timesheet(cfg, today, today_block, *, commit=False, dry_run=False,
                 return dv.update(cfg["timesheet"]["detail_entity_set"], existing.get("id") or existing.get("cr90e_xts_timesheet_timesheetdetailid"), payload)
             return dv.create(cfg["timesheet"]["detail_entity_set"], payload)
     result["mutation"] = mutate(action, payload)
+    # Re-query after the write. A 2xx mutation response alone is not evidence that
+    # the right day/employee line now carries the exact formatted description.
+    verifier = post_write_verifier or verify_written_detail
+    result["post_write_verification"] = verifier(
+        dv, cfg, header_id, today, identity["user_id"], description
+    )
+    result["post_write_verification"].update(date=today.isoformat(), description=description)
+    if result["post_write_verification"].get("ok") is not True:
+        result["status"], result["mutated"] = "FAIL", True
+        result["code"] = "POST_WRITE_VERIFICATION_FAILED"
+        return result
     result["status"], result["mutated"] = "COMMITTED", True
     return result
 
@@ -157,6 +183,16 @@ def find_existing_detail(dv, cfg, header_id, today, employee_id=None):
     return rows[0] if rows else None
 
 
+def verify_written_detail(dv, cfg, header_id, today, employee_id, description):
+    """Query exact identity after write and expose duplicate count as evidence."""
+    ts = cfg["timesheet"]
+    flt = (f"_cr90e_refnbr_value eq {header_id} and cr90e_taskdate eq {today.isoformat()} "
+           f"and _xts_employee_value eq {employee_id}")
+    rows = dv.get(f"{ts['detail_entity_set']}?$filter={flt}&$select=cr90e_taskdescription").get("json", {}).get("value", [])
+    return {"ok": len(rows) == 1 and rows[0].get("cr90e_taskdescription") == description,
+            "count": len(rows), "expected_description": description}
+
+
 def build_payload(cfg, header, today, description):
     ts = cfg["timesheet"]
     d = ts["defaults"]
@@ -188,14 +224,21 @@ def main(argv=None, config_loader=load_config, execute=write_timesheet, auth_che
                     help="preflight: exit 0 if a token can be acquired silently, "
                          "else exit non-zero with AUTH_REQUIRED (never prompts)")
     ap.add_argument("--config")
+    ap.add_argument("--state-dir")
+    ap.add_argument("--json", action="store_true", help="Emit a stable structured result.")
     args = ap.parse_args(argv)
 
-    cfg = config_loader(args.config)
+    context = resolve_runtime_context(state_dir=args.state_dir, config_path=args.config)
+    cfg = config_loader(context.config_path)
 
     if args.check_auth:
-        auth_checker(cfg, interactive=False)
-        print("AUTH_OK")
-        return {"status": "AUTH_OK"}
+        if _supports_keyword(auth_checker, "cache_path"):
+            auth_checker(cfg, interactive=False, cache_path=context.auth_cache_path)
+        else:
+            auth_checker(cfg, interactive=False)
+        result = {"status": "AUTH_OK"}
+        print(json.dumps(result) if args.json else "AUTH_OK")
+        return result
 
     if not args.description:
         ap.error("--description is required unless --check-auth is given")
@@ -203,16 +246,14 @@ def main(argv=None, config_loader=load_config, execute=write_timesheet, auth_che
     today = (datetime.datetime.strptime(args.date, "%Y-%m-%d").date()
              if args.date else datetime.date.today())
 
-    result = execute(
-        cfg,
-        today,
-        args.description,
-        commit=args.commit,
-        dry_run=not args.commit,
-    )
-    print(f"TIMESHEET: {result.get('status', 'UNKNOWN') if isinstance(result, dict) else 'COMPLETE'}")
+    execute_kwargs = {"commit": args.commit, "dry_run": not args.commit}
+    if _supports_keyword(execute, "auth_cache_path"):
+        execute_kwargs["auth_cache_path"] = context.auth_cache_path
+    result = execute(cfg, today, args.description, **execute_kwargs)
+    print(json.dumps(result, ensure_ascii=False, default=str) if args.json else f"TIMESHEET: {result.get('status', 'UNKNOWN') if isinstance(result, dict) else 'COMPLETE'}")
     return result
 
 
 if __name__ == "__main__":
-    main()
+    outcome = main()
+    raise SystemExit(1 if isinstance(outcome, dict) and outcome.get("status") == "FAIL" else 0)

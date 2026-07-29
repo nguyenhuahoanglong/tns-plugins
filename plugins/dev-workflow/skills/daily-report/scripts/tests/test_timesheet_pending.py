@@ -94,7 +94,14 @@ def test_tc_065_characterize_existing_detail_detection():
 def test_tc_066_characterize_queue_sync_and_prune(tmp_path):
     queue = tmp_path / "pending.json"
     pending.enqueue(queue, "2026-07-02", "- #101 First", "period unavailable")
-    run = lambda command, cwd: SimpleNamespace(returncode=0, stdout="OK", stderr="")
+    def run(command, cwd):
+        if "--check-auth" in command:
+            output = '{"status": "AUTH_OK"}'
+        elif "--commit" in command:
+            output = '{"status": "COMMITTED", "post_write_verification": {"ok": true}}'
+        else:
+            output = '{"status": "DRY_RUN"}'
+        return SimpleNamespace(returncode=0, stdout=output, stderr="")
     assert pending.sync(queue, runner=run, script_path=SCRIPTS_DIR / "write_timesheet.py")["synced"] == 1
     data = pending.load_queue(queue); data["records"][0]["syncedAt"] = "2020-01-01T00:00:00"
     pending.save_queue(queue, data)
@@ -205,7 +212,8 @@ def test_tc_072_commits_only_after_explicit_request():
         token_provider=lambda *_args: "example-access-token", whoami=lambda *_args: "example-user",
         dataverse_factory=lambda *_args: _Rows([{"id": "header-one", "projectid": "lookup-one"}]),
         mutate=lambda action, payload: mutations.append((action, payload)) or {"id": "created-one"},
-        lookup_resolver=lambda *_args: {"project": "lookup-one"})
+        lookup_resolver=lambda *_args: {"project": "lookup-one"},
+        post_write_verifier=lambda *_args: {"ok": True, "count": 1})
     assert result["status"] == "COMMITTED" and [call[0] for call in mutations] == ["CREATE"]
 
 
@@ -217,13 +225,35 @@ def test_tc_097_commit_mutation_receives_same_valid_odata_payload_without_pseudo
     result = _portable_writer()(_cfg(), dt.date(2026, 7, 2), "- #101 First", commit=True,
         token_provider=lambda *_args: "example-access-token", whoami=lambda *_args: "example-user",
         dataverse_factory=lambda *_args: _Rows([{"id": "header-one", "projectid": "lookup-one"}]),
-        mutate=lambda action, payload: mutations.append((action, payload)) or {"id": "created-one"})
+        mutate=lambda action, payload: mutations.append((action, payload)) or {"id": "created-one"},
+        post_write_verifier=lambda *_args: {"ok": True, "count": 1})
     payload = mutations[0][1]
     assert result["payload"] == payload
     assert payload["cr90e_RefNbr@odata.bind"] == "/timesheetheaders(header-one)"
     assert payload["xts_Employee@odata.bind"] == "/systemusers(example-user)"
     assert payload["project@odata.bind"] == "/projects(lookup-one)"
     assert not {"header_id", "employee_id", "lookups"} & set(payload)
+
+
+def test_commit_fails_when_post_write_query_finds_no_exact_row():
+    result = _portable_writer()(
+        _cfg(),
+        dt.date(2026, 7, 2),
+        "- #101 First",
+        commit=True,
+        token_provider=lambda *_args: "example-access-token",
+        whoami=lambda *_args: "example-user",
+        dataverse_factory=lambda *_args: _Rows(
+            [{"id": "header-one", "projectid": "lookup-one"}]
+        ),
+        mutate=lambda *_args: {"id": "created-one"},
+        lookup_resolver=lambda *_args: {"project": "lookup-one"},
+        post_write_verifier=lambda *_args: {"ok": False, "count": 0},
+    )
+
+    assert result["status"] == "FAIL"
+    assert result["code"] == "POST_WRITE_VERIFICATION_FAILED"
+    assert result["mutated"] is True
 
 
 # TC-098: Lookups require explicit configured query/id fields and return actionable outcomes.

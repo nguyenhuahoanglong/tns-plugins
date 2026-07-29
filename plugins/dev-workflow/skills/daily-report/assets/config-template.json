@@ -25,42 +25,42 @@
     "defaults": {
       "task_days": 1.0,
       "description_style": "semicolon",
-      "location_option": 100000001,
-      "location_label": "Office",
-      "travel_by_option": 1,
-      "from_hour_local": "09:00",
-      "to_hour_local": "18:00",
-      "timezone_offset_hours": 7,
+      "location_option": 0,
+      "location_label": "",
+      "travel_by_option": 0,
+      "from_hour_local": "",
+      "to_hour_local": "",
+      "timezone_offset_hours": 0,
       "bindings": {
         "cr90e_ProjectCodeCD": {
           "set": "cr90e_xts_timesheet_projectcodes",
-          "code": "RDDMS01",
-          "code_field": "cr90e_projectcodecd",
-          "id_field": "cr90e_xts_timesheet_projectcodeid"
+          "code": "",
+          "code_field": "",
+          "id_field": ""
         },
         "cr90e_ClientCD": {
           "set": "cr90e_xts_timesheet_clients",
-          "code": "RD",
-          "code_field": "cr90e_clientcd",
-          "id_field": "cr90e_xts_timesheet_clientid"
+          "code": "",
+          "code_field": "",
+          "id_field": ""
         },
         "cr90e_JobTypeCD": {
           "set": "cr90e_xts_timesheet_jobtypes",
-          "code": "RD",
-          "code_field": "cr90e_jobtypecd",
-          "id_field": "cr90e_xts_timesheet_jobtypeid"
+          "code": "",
+          "code_field": "",
+          "id_field": ""
         },
         "cr90e_StageCD": {
           "set": "cr90e_xts_timesheet_stages",
-          "code": "ST00",
-          "code_field": "cr90e_stagecd",
-          "id_field": "cr90e_xts_timesheet_stageid"
+          "code": "",
+          "code_field": "",
+          "id_field": ""
         },
         "xts_ProjectStage": {
           "set": "cr90e_xts_timesheet_projectcodedetails",
-          "code": "RDDMS01-ST00",
-          "code_field": "cr90e_linenbr",
-          "id_field": "cr90e_xts_timesheet_projectcodedetailid"
+          "code": "",
+          "code_field": "",
+          "id_field": ""
         }
       }
     }

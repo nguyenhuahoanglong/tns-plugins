@@ -4,6 +4,7 @@ import os
 import shutil
 import subprocess
 import tempfile
+import urllib.parse
 
 # workitemsbatch accepts at most 200 ids per request.
 _BATCH_LIMIT = 200
@@ -91,6 +92,43 @@ def _hydrate(run, organization, project, team, ids):
     return items, None
 
 
+def _query_without_temp_files(run, organization, project, team, wiql):
+    """Query and hydrate with read-only CLI commands that never create request files."""
+    encoded_project = urllib.parse.quote(project, safe="")
+    url = (
+        f"{organization.rstrip('/')}/{encoded_project}"
+        "/_apis/wit/wiql?api-version=7.0"
+    )
+    query_argv = [
+        "az", "rest", "--method", "post", "--url", url,
+        "--resource", "499b84ac-1321-427f-aa17-267ca6975798",
+        "--body", json.dumps({"query": wiql}, separators=(",", ":")),
+        "--output", "json",
+    ]
+    payload, failure = _load_json(run(query_argv), project, team)
+    if failure:
+        return [], failure
+    rows = payload if isinstance(payload, list) else (payload or {}).get("workItems", [])
+    items = []
+    for row in rows:
+        if row.get("fields"):
+            items.append(row)
+            continue
+        identifier = row.get("id")
+        if not identifier:
+            continue
+        show_argv = [
+            "az", "boards", "work-item", "show", "--id", str(identifier),
+            "--org", organization, "--output", "json",
+        ]
+        item, failure = _load_json(run(show_argv), project, team)
+        if failure:
+            return items, failure
+        if item:
+            items.append(item)
+    return items, None
+
+
 def _teams(ado):
     """Yield (project, team, organization); an entry may override the root organization.
 
@@ -121,7 +159,7 @@ def _record(item, project):
     }
 
 
-def gather_current_tasks(config, *, runner=None):
+def gather_current_tasks(config, *, runner=None, no_temp_files=False):
     """Gather configured-team tasks without relying on ambient CLI defaults."""
     ado = config["ado"]
     organization = ado["organization"]
@@ -154,10 +192,23 @@ def gather_current_tasks(config, *, runner=None):
             "AND [System.AssignedTo] = '" + str(identity).replace("'", "''") + "'"
         )
         try:
-            queried, failure = _post_rest(run, project_organization, project, "wiql", {"query": wiql}, team)
-            if failure is None:
-                identifiers = [row.get("id") for row in (queried or {}).get("workItems", []) if row.get("id")]
-                items, failure = _hydrate(run, project_organization, project, team, identifiers)
+            if no_temp_files:
+                items, failure = _query_without_temp_files(
+                    run, project_organization, project, team, wiql
+                )
+            else:
+                queried, failure = _post_rest(
+                    run, project_organization, project, "wiql", {"query": wiql}, team
+                )
+                if failure is None:
+                    identifiers = [
+                        row.get("id")
+                        for row in (queried or {}).get("workItems", [])
+                        if row.get("id")
+                    ]
+                    items, failure = _hydrate(
+                        run, project_organization, project, team, identifiers
+                    )
         except OSError as error:
             failures.append(_failure("ADO_QUERY_FAILED", project, team, str(error)))
             continue

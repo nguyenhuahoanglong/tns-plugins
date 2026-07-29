@@ -28,12 +28,6 @@ def _default_python_check() -> tuple[str, str]:
 
 
 def _resolve_argv(argv: list[str]) -> list[str]:
-    """Resolve argv[0] to a real path so Windows console shims stay launchable.
-
-    On Windows ``az`` is ``az.CMD`` and CreateProcess does not apply PATHEXT, so a
-    bare ``az`` raises WinError 2 and a present tool is reported missing.
-    ``shutil.which`` performs that lookup on every platform.
-    """
     if not argv:
         return argv
     resolved = shutil.which(argv[0])
@@ -45,18 +39,12 @@ def _default_runner(argv: list[str]) -> subprocess.CompletedProcess[str]:
 
 
 def _command_result(value: Any, label: str) -> tuple[str, str]:
-    if isinstance(value, Mapping):
-        returncode, stderr = value.get("returncode", 1), value.get("stderr", "")
-    else:
-        returncode, stderr = getattr(value, "returncode", 1), getattr(value, "stderr", "")
-    if int(returncode) == 0:
-        return "PASS", f"{label} available"
-    detail = str(stderr).strip()
-    return "FAIL", f"{label} unavailable" + (f": {detail}" if detail else "")
+    returncode = value.get("returncode", 1) if isinstance(value, Mapping) else getattr(value, "returncode", 1)
+    stderr = value.get("stderr", "") if isinstance(value, Mapping) else getattr(value, "stderr", "")
+    return ("PASS", f"{label} available") if int(returncode) == 0 else ("FAIL", f"{label} unavailable" + (f": {str(stderr).strip()}" if str(stderr).strip() else ""))
 
 
 def _run_read_only(runner: Callable[[list[str]], Any], argv: list[str]) -> Any:
-    """Run an argv command while converting a missing executable into a check result."""
     try:
         return runner(argv)
     except OSError as error:
@@ -114,7 +102,6 @@ def run_doctor(
     verbose: bool = False,
     runner: Callable[[list[str]], Any] | None = None,
     python_check: Callable[[], Any] | None = None,
-    git_check: Callable[[], Any] | None = None,
     azure_cli_check: Callable[[], Any] | None = None,
     extension_check: Callable[[], Any] | None = None,
     login_check: Callable[[], Any] | None = None,
@@ -131,7 +118,6 @@ def run_doctor(
     run = runner or _default_runner
     checks: dict[str, dict[str, str]] = {}
     checks["python"] = _normalize_check((python_check or _default_python_check)(), "python")
-    checks["git"] = _normalize_check(git_check() if git_check else _command_result(_run_read_only(run, ["git", "--version"]), "Git"), "git")
     checks["azure_cli"] = _normalize_check(azure_cli_check() if azure_cli_check else _command_result(_run_read_only(run, ["az", "--version"]), "Azure CLI"), "azure_cli")
 
     if extension_check:

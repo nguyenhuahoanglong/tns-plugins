@@ -79,19 +79,19 @@ def test_tc_002_characterize_load_config_uses_environment_path_without_cwd_depen
             "Windows",
             Path("C:/Users/tester"),
             {"LOCALAPPDATA": "C:/Users/tester/AppData/Local"},
-            Path("C:/Users/tester/AppData/Local/rd-team/dev-workflow/daily-report"),
+            Path("C:/Users/tester/.ai/data/daily-report"),
         ),
         (
             "Darwin",
             Path("/Users/tester"),
             {},
-            Path("/Users/tester/Library/Application Support/rd-team/dev-workflow/daily-report"),
+            Path("/Users/tester/.ai/data/daily-report"),
         ),
         (
             "Linux",
             Path("/home/tester"),
             {},
-            Path("/home/tester/.local/share/rd-team/dev-workflow/daily-report"),
+            Path("/home/tester/.ai/data/daily-report"),
         ),
     ],
 )
@@ -172,7 +172,7 @@ def test_tc_009_uses_xdg_data_home_for_linux_state_when_set(tmp_path, monkeypatc
         platform_name="Linux",
         env={"XDG_DATA_HOME": str(xdg_data_home)},
     )
-    assert paths["state_dir"] == xdg_data_home / "rd-team" / "dev-workflow" / "daily-report"
+    assert paths["state_dir"] == home / ".ai" / "data" / "daily-report"
 
 
 def test_tc_005_creates_state_directories_idempotently(tmp_path):
@@ -275,11 +275,11 @@ def test_tc_010_uses_the_actual_os_family_when_platform_name_is_not_injected(tmp
         "XDG_DATA_HOME": str(tmp_path / "xdg-data"),
     }
     expected_state = {
-        "Windows": Path(env["LOCALAPPDATA"]) / "rd-team" / "dev-workflow" / "daily-report",
-        "Darwin": home / "Library" / "Application Support" / "rd-team" / "dev-workflow" / "daily-report",
+        "Windows": home / ".ai" / "data" / "daily-report",
+        "Darwin": home / ".ai" / "data" / "daily-report",
     }.get(
         system_name,
-        Path(env["XDG_DATA_HOME"]) / "rd-team" / "dev-workflow" / "daily-report",
+        home / ".ai" / "data" / "daily-report",
     )
     resolver = getattr(lib_common, "resolve_state_paths", None)
 

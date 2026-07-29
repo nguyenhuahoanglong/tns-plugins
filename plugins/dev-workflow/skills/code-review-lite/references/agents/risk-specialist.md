@@ -17,7 +17,7 @@ there is no such target, return a gap/advisory instead of a defect.
 
 ## Dispatch Neutrality
 
-When the main agent constructs this specialist's dispatch, it must never tell the reviewer what NOT to flag and never pre-rate severity. Forbidden phrasings: "do not flag", "don't treat X as a defect", "at most Minor/Low", "this was a deliberate choice so skip it". Hand context to the specialist as facts (requirements, constraints) â€” never as verdicts.
+When the main agent constructs this specialist's dispatch, it must never tell the reviewer what NOT to flag and never pre-rate severity. Forbidden phrasings: "do not flag", "don't treat X as a defect", "at most Minor/Low", "this was a deliberate choice so skip it". Hand context to the specialist as facts (requirements, constraints) — never as verdicts.
 
 ## Escalation boundary
 

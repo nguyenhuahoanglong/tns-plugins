@@ -4,11 +4,9 @@
 
 ## State location
 
-| Platform | Default state root |
-|---|---|
-| Windows | `%LOCALAPPDATA%/rd-team/dev-workflow/daily-report` |
-| macOS | `~/Library/Application Support/rd-team/dev-workflow/daily-report` |
-| Linux | `$XDG_DATA_HOME/rd-team/dev-workflow/daily-report`, or `~/.local/share/rd-team/dev-workflow/daily-report` |
+Every platform defaults to `~/.ai/data/daily-report`. This keeps config,
+workbook, queue, encrypted authentication cache, managed environment, and run
+status under one predictable user-local root.
 
 `DAILY_REPORT_HOME` replaces the state root. State holds:
 
@@ -16,6 +14,9 @@
 - `DailyTask.xlsx`
 - `pending-timesheets.json`
 - `auth-cache.bin`
+- `last-run.json`
+- `.venv/`
+- `.requirements.sha256`
 
 Config resolution is: `--config PATH`, then `DAILY_REPORT_CONFIG`, then the
 state-root config file. Keep the live config and cache out of source control.
@@ -29,10 +30,10 @@ state without replacing existing files. Migration is explicit:
 daily_report.py setup --import-config OLD.json --import-workbook OLD.xlsx --replace
 ```
 
-Run `doctor.py` for read-only prerequisite checks. It reports Python, Git, Azure
-CLI, Azure DevOps extension/login, secure cache, config, workbook, and guarded
-service status. Fix a reported prerequisite before retrying; doctor does not
-write a workbook or authenticate interactively.
+Run `daily_report.py doctor` for read-only prerequisite checks. It reports
+Python, Azure CLI, Azure DevOps extension/login, secure cache, config, workbook,
+and guarded service status. Git is not required. Fix a reported prerequisite
+before retrying; doctor does not write a workbook or authenticate interactively.
 
 ## Config shape
 
@@ -98,9 +99,9 @@ items through `az devops invoke` (Work Item Tracking `wiql`, then `workitemsbatc
 fetch fields). `az boards query` is not used: on some Azure CLI builds it exits 0 with
 no output, and it rejects `--team`, which the team iteration lookup does require.
 
-## Queue and backup
+## Queue and runtime status
 
 Pending submissions use `pending-timesheets.json`. Current work is enqueued
-before old records are retried; synced records may be pruned later. A workbook
-Git backup is optional, disabled by default, and only stages the configured
-workbook when its configured repository is valid.
+before old records are retried; synced records may be pruned later. The runtime
+never stages, backs up, or commits a workbook. `last-run.json` is an atomic,
+sanitized status document read without mutation by `daily_report.py status`.

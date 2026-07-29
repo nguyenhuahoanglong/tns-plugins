@@ -134,6 +134,39 @@ def _fake_ado(items_for, *, iteration=_current_iteration, on_call=None):
     return runner
 
 
+def test_review_query_path_creates_no_temporary_request_files(monkeypatch):
+    client = _portable_client()
+    calls = []
+
+    monkeypatch.setattr(
+        client.tempfile,
+        "NamedTemporaryFile",
+        lambda *_args, **_kwargs: pytest.fail("review query must not create request files"),
+    )
+
+    def runner(argv):
+        calls.append(argv)
+        if _is_iteration(argv):
+            project = argv[argv.index("--project") + 1]
+            return _completed(argv, _current_iteration(project))
+        if argv[1] == "rest":
+            return _completed(argv, {"workItems": [{"id": 101}]})
+        if argv[1:4] == ["boards", "work-item", "show"]:
+            return _completed(argv, _item(101, "Read-only task", "Active"))
+        pytest.fail(f"unexpected command: {argv}")
+
+    result = client.gather_current_tasks(
+        _portable_config(), runner=runner, no_temp_files=True
+    )
+
+    assert [task["id"] for task in result["tasks"]] == [101, 101]
+    assert result["failures"] == []
+    rest_calls = [argv for argv in calls if argv[1] == "rest"]
+    assert rest_calls
+    assert all("--body" in argv and "--url" in argv for argv in rest_calls)
+    assert all("--in-file" not in argv for argv in calls)
+
+
 # TC-022: Legacy-export normalization filters configured active states and sorts active IDs newest first.
 # Steps:
 #   1. Supply legacy PowerShell-export JSON containing active and non-active items.

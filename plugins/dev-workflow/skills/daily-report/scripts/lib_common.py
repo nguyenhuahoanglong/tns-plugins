@@ -5,6 +5,7 @@ boundary. This module retains a compatibility token-provider function for existi
 daily-report callers without handling token persistence itself.
 """
 import json, os as _stdlib_os, platform, urllib.request
+from dataclasses import dataclass
 from pathlib import Path
 
 
@@ -20,7 +21,31 @@ class _OsFacade:
 
 os = _OsFacade(_stdlib_os)
 
-_STATE_SUFFIX = ("rd-team", "dev-workflow", "daily-report")
+@dataclass(frozen=True)
+class RuntimeContext:
+    """All mutable paths for one daily-report runtime, resolved once."""
+    state_dir: Path
+    config_path: Path
+    workbook_path: Path
+    queue_path: Path
+    auth_cache_path: Path
+    last_run_path: Path
+
+
+def resolve_runtime_context(home=None, env=None, state_dir=None, config_path=None):
+    """Resolve CLI > environment > portable user-state paths without creating them."""
+    values = _environment(env)
+    explicit_config = Path(config_path).expanduser() if config_path else (
+        Path(values["DAILY_REPORT_CONFIG"]).expanduser() if values.get("DAILY_REPORT_CONFIG") else None
+    )
+    root = Path(state_dir).expanduser() if state_dir else (
+        explicit_config.parent if explicit_config else Path(
+            values.get("DAILY_REPORT_HOME") or _home_path(home) / ".ai" / "data" / "daily-report"
+        ).expanduser()
+    )
+    config = explicit_config or root / "daily-report.config.json"
+    return RuntimeContext(root, config, root / "DailyTask.xlsx", root / "pending-timesheets.json",
+                          root / "auth-cache.bin", root / "last-run.json")
 
 
 def _environment(env=None):
@@ -33,31 +58,11 @@ def _home_path(home=None):
 
 
 def resolve_state_paths(home=None, platform_name=None, env=None, create=False):
-    """Resolve mutable daily-report state without depending on the caller cwd."""
-    values = _environment(env)
-    platform_name = platform_name or platform.system()
-    user_home = _home_path(home)
-    override = values.get("DAILY_REPORT_HOME")
-
-    if override:
-        state_dir = Path(override).expanduser()
-    elif platform_name in ("Windows", "win32"):
-        local_app_data = values.get("LOCALAPPDATA")
-        base = Path(local_app_data).expanduser() if local_app_data else user_home / "AppData" / "Local"
-        state_dir = base.joinpath(*_STATE_SUFFIX)
-    elif platform_name in ("Darwin", "macOS"):
-        state_dir = user_home / "Library" / "Application Support" / Path(*_STATE_SUFFIX)
-    else:
-        xdg_data_home = values.get("XDG_DATA_HOME")
-        base = Path(xdg_data_home).expanduser() if xdg_data_home else user_home / ".local" / "share"
-        state_dir = base.joinpath(*_STATE_SUFFIX)
-
-    paths = {
-        "state_dir": state_dir,
-        "config_path": state_dir / "daily-report.config.json",
-        "queue_path": state_dir / "pending-timesheets.json",
-        "auth_cache_path": state_dir / "auth-cache.bin",
-    }
+    """Compatibility mapping backed by the canonical portable RuntimeContext."""
+    context = resolve_runtime_context(home=home, env=env)
+    paths = {"state_dir": context.state_dir, "config_path": context.config_path,
+             "queue_path": context.queue_path, "auth_cache_path": context.auth_cache_path,
+             "workbook_path": context.workbook_path, "last_run_path": context.last_run_path}
     if create:
         for path in paths.values():
             path.parent.mkdir(parents=True, exist_ok=True)
@@ -124,11 +129,11 @@ def _emit_auth_status(message):
     print(message, file=sys.stderr, flush=True)
 
 
-def get_access_token(cfg, interactive=True, status=None):
+def get_access_token(cfg, interactive=True, status=None, cache_path=None):
     """Return a Dataverse token through the portable encrypted-cache boundary."""
     from auth_cache import acquire_access_token
 
-    cache_path = resolve_state_paths()["auth_cache_path"]
+    cache_path = Path(cache_path) if cache_path else resolve_state_paths()["auth_cache_path"]
     # Only an interactive attempt can need user-facing instructions.
     reporter = status or (_emit_auth_status if interactive else None)
     return acquire_access_token(cfg, cache_path=cache_path, interactive=interactive, status=reporter)

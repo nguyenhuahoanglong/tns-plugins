@@ -6,7 +6,7 @@ The live-system behaviour (ADO query, Excel write, Dataverse) is verified by
 verify_output.py against real outputs, not here.
 """
 # Test registry: .plans/portable-git-daily-report-dev-workflow.daily.test-cases.md
-# Subject: portable workbook update and optional workbook backup (Task 11)
+# Subject: portable workbook update and exact verification (Task 11)
 import datetime
 import inspect
 import subprocess
@@ -23,7 +23,6 @@ if str(SCRIPTS_DIR) not in sys.path:
 
 import update_dailytask as ud  # noqa: E402
 import write_timesheet as wt  # noqa: E402
-import commit_workbook as cw  # noqa: E402
 import pending_timesheets as pt  # noqa: E402
 
 CFG = {
@@ -130,41 +129,6 @@ def test_resolve_header_ambiguous_lists_candidates():
         assert "TS-01" in msg and "TS-02" in msg  # both candidates surfaced
 
 
-def _git(repo, *args):
-    return subprocess.run(
-        ["git", "-C", str(repo), *args],
-        check=True,
-        capture_output=True,
-        text=True,
-    ).stdout.strip()
-
-
-def test_commit_workbook_commits_only_workbook():
-    with tempfile.TemporaryDirectory() as temp_dir:
-        repo = Path(temp_dir)
-        _git(repo, "init")
-        _git(repo, "config", "user.name", "Daily Report Test")
-        _git(repo, "config", "user.email", "daily-report@example.test")
-
-        workbook = repo / "DailyTask.xlsx"
-        unrelated = repo / "notes.md"
-        workbook.write_bytes(b"version 1")
-        unrelated.write_text("version 1", encoding="utf-8")
-        _git(repo, "add", ".")
-        _git(repo, "commit", "-m", "initial")
-
-        workbook.write_bytes(b"version 2")
-        unrelated.write_text("version 2", encoding="utf-8")
-        _git(repo, "add", "notes.md")
-
-        commit_hash = cw.commit_workbook(workbook, "chore: update daily task workbook")
-
-        assert commit_hash
-        assert _git(repo, "show", "--pretty=", "--name-only", "HEAD") == "DailyTask.xlsx"
-        assert _git(repo, "diff", "--cached", "--name-only") == "notes.md"
-        assert _git(repo, "status", "--short") == "M  notes.md"
-
-
 def test_pending_enqueue_creates_and_updates_one_date():
     with tempfile.TemporaryDirectory() as temp_dir:
         queue = Path(temp_dir) / "pending-timesheets.json"
@@ -190,7 +154,13 @@ def test_pending_sync_marks_successful_record_synced():
 
         def runner(cmd, cwd):
             calls.append(cmd)
-            return subprocess.CompletedProcess(cmd, 0, stdout="OK", stderr="")
+            if "--check-auth" in cmd:
+                output = '{"status": "AUTH_OK"}'
+            elif "--commit" in cmd:
+                output = '{"status": "COMMITTED", "post_write_verification": {"ok": true}}'
+            else:
+                output = '{"status": "DRY_RUN"}'
+            return subprocess.CompletedProcess(cmd, 0, stdout=output, stderr="")
 
         result = pt.sync(queue, runner=runner, script_path=SCRIPTS_DIR / "write_timesheet.py")
         data = pt.load_queue(queue)
@@ -200,6 +170,47 @@ def test_pending_sync_marks_successful_record_synced():
         assert data["records"][0]["syncedAt"]
         assert any("--check-auth" in c for c in calls)
         assert any("--commit" in c for c in calls)
+
+
+def test_pending_sync_rejects_zero_exit_unverified_writer_result():
+    with tempfile.TemporaryDirectory() as temp_dir:
+        queue = Path(temp_dir) / "pending-timesheets.json"
+        pt.enqueue(queue, "2026-07-01", "- #1 First", "missing period")
+
+        def runner(cmd, cwd):
+            if "--check-auth" in cmd:
+                output = '{"status": "AUTH_OK"}'
+            elif "--commit" in cmd:
+                output = '{"status": "FAIL", "code": "POST_WRITE_VERIFICATION_FAILED"}'
+            else:
+                output = '{"status": "DRY_RUN"}'
+            return subprocess.CompletedProcess(cmd, 0, stdout=output, stderr="")
+
+        result = pt.sync(queue, runner=runner, script_path=SCRIPTS_DIR / "write_timesheet.py")
+        assert result["synced"] == 0 and result["failed"] == 1
+        assert pt.load_queue(queue)["records"][0]["status"] == "pending"
+
+
+def test_pending_sync_passes_override_state_dir_to_auth_and_writer_calls():
+    with tempfile.TemporaryDirectory() as temp_dir:
+        queue = Path(temp_dir) / "pending-timesheets.json"
+        state_dir = Path(temp_dir) / "selected-state"
+        pt.enqueue(queue, "2026-07-01", "- #1 First", "missing period")
+        calls = []
+
+        def runner(cmd, cwd):
+            calls.append(cmd)
+            if "--check-auth" in cmd:
+                output = '{"status": "AUTH_OK"}'
+            elif "--commit" in cmd:
+                output = '{"status": "COMMITTED", "post_write_verification": {"ok": true}}'
+            else:
+                output = '{"status": "DRY_RUN"}'
+            return subprocess.CompletedProcess(cmd, 0, stdout=output, stderr="")
+
+        assert pt.sync(queue, config_path="selected-config.json", state_dir=state_dir,
+                       runner=runner, script_path=SCRIPTS_DIR / "write_timesheet.py")["synced"] == 1
+        assert all(["--state-dir", str(state_dir)] == call[-2:] for call in calls)
 
 
 def test_pending_sync_keeps_missing_period_pending():
@@ -269,7 +280,7 @@ def test_tc_053_creates_first_report_row_from_headers_only_workbook(tmp_path):
     ]
     assert sheet["A2"].value.date() == datetime.date(2026, 7, 27)
     assert sheet["A2"].number_format == "yyyy-mm-dd"
-    assert sheet["B2"].value == ""
+    assert (sheet["B2"].value or "") == ""
     assert sheet["C2"].value == "- #101 First task"
     assert sheet["E2"].value == "Yesterday\n\nToday\n- #101 First task"
     assert sheet["F2"].value == ud.build_timesheet_memo(cfg, "- #101 First task")
@@ -376,105 +387,6 @@ def test_tc_057_uses_workbook_path_from_portable_config_not_caller_directory(tmp
 
     assert openpyxl.load_workbook(configured)["Daily Report"].max_row == 2
     assert openpyxl.load_workbook(decoy)["Daily Report"].max_row == 1
-
-
-# TC-058: Optional backup is disabled by default and invokes no Git runner.
-# Steps:
-#   1. Omit backup enablement from portable config.
-#   2. Request backup with a runner recorder.
-#   3. Verify a structured skip and no argv invocation.
-# Design: portable-git-daily-report-dev-workflow.md Task 11, AC-9, AC-12.
-def test_tc_058_skips_backup_by_default_without_running_git(tmp_path):
-    workbook = tmp_path / "DailyTask.xlsx"
-    workbook.write_bytes(b"workbook")
-    commands = []
-
-    _require_parameters(cw.backup_workbook, "config", "runner")
-    result = cw.backup_workbook(config=_portable_cfg(workbook), runner=lambda argv: commands.append(argv))
-
-    assert result["status"] == "SKIP"
-    assert result["code"] == "BACKUP_DISABLED"
-    assert commands == []
-
-
-# TC-059: Enabled backup outside its configured Git repo is a structured skip, not a failure.
-# Steps:
-#   1. Enable backup for a temporary workbook outside the injected repo root.
-#   2. Run backup through an argv-only runner.
-#   3. Verify OUTSIDE_CONFIGURED_REPO and no staging command.
-# Design: portable-git-daily-report-dev-workflow.md Task 11, AC-9, AC-12.
-def test_tc_059_skips_enabled_backup_when_workbook_is_outside_configured_repo(tmp_path):
-    workbook = tmp_path / "outside" / "DailyTask.xlsx"
-    workbook.parent.mkdir()
-    workbook.write_bytes(b"workbook")
-    commands = []
-    cfg = _portable_cfg(workbook)
-    cfg["backup"] = {"enabled": True, "repo": str(tmp_path / "repo")}
-
-    result = cw.backup_workbook(config=cfg, runner=lambda argv: commands.append(argv))
-
-    assert result["status"] == "SKIP"
-    assert result["code"] == "OUTSIDE_CONFIGURED_REPO"
-    assert commands == []
-
-
-# TC-060: Enabled backup stages and commits only the workbook, preserving unrelated index/worktree state.
-# Steps:
-#   1. Enable backup and inject Git argv results with unrelated staged/modified paths.
-#   2. Back up the configured workbook.
-#   3. Verify no broad add, workbook-only paths, and preserved unrelated state.
-# Design: portable-git-daily-report-dev-workflow.md Task 11, AC-9, AC-12.
-def test_tc_060_backs_up_only_workbook_without_broad_add_or_unrelated_state_loss(tmp_path):
-    repo = tmp_path / "repo"
-    repo.mkdir()
-    workbook = repo / "DailyTask.xlsx"
-    workbook.write_bytes(b"workbook")
-    cfg = _portable_cfg(workbook)
-    cfg["backup"] = {"enabled": True, "repo": str(repo)}
-    commands = []
-
-    def runner(argv):
-        commands.append(argv)
-        if argv[3:] == ["diff", "--cached", "--quiet", "--", "DailyTask.xlsx"]:
-            return {"returncode": 1, "stdout": "", "stderr": ""}
-        if argv[3:] == ["rev-parse", "--short", "HEAD"]:
-            return {"returncode": 0, "stdout": "abc123\n", "stderr": ""}
-        return {"returncode": 0, "stdout": "", "stderr": ""}
-
-    result = cw.backup_workbook(config=cfg, runner=runner)
-
-    assert result == {"status": "COMMITTED", "path": "DailyTask.xlsx", "commit": "abc123"}
-    assert ["git", "-C", str(repo), "add", "--", "DailyTask.xlsx"] in commands
-    assert not any(command[-1:] == ["."] or command[3:5] == ["add", "."] for command in commands)
-    commit = next(command for command in commands if command[3] == "commit")
-    assert commit[-2:] == ["--", "DailyTask.xlsx"]
-
-
-# TC-061: A Git failure is structured and does not escalate to a broad staging recovery.
-# Steps:
-#   1. Enable backup and inject a failing workbook-only Git add result.
-#   2. Run backup.
-#   3. Verify a structured failure, actionable error, and no additional Git mutation.
-# Design: portable-git-daily-report-dev-workflow.md Task 11, AC-9, AC-12.
-def test_tc_061_reports_backup_git_failure_without_broad_staging_recovery(tmp_path):
-    repo = tmp_path / "repo"
-    repo.mkdir()
-    workbook = repo / "DailyTask.xlsx"
-    workbook.write_bytes(b"workbook")
-    cfg = _portable_cfg(workbook)
-    cfg["backup"] = {"enabled": True, "repo": str(repo)}
-    commands = []
-
-    result = cw.backup_workbook(
-        config=cfg,
-        runner=lambda argv: commands.append(argv) or {"returncode": 1, "stdout": "", "stderr": "index locked"},
-    )
-
-    assert result["status"] == "FAIL"
-    assert result["code"] == "BACKUP_FAILED"
-    assert "index locked" in result["message"]
-    assert len(commands) == 1
-    assert commands[0][-2:] == ["--", "DailyTask.xlsx"]
 
 
 # TC-062: Save through a sibling temporary workbook and atomically replace only after save succeeds.

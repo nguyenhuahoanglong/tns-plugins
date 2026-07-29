@@ -23,12 +23,11 @@ Useful options:
 ```bash
 python scripts/daily_report.py run --add "- planning"
 python scripts/daily_report.py run --review-only
-python scripts/daily_report.py run --backup
 python scripts/daily_report.py doctor
 python scripts/daily_report.py pending
 ```
 
-`run` bootstraps missing state without overwriting existing artifacts. It gathers configured tasks, makes an idempotent workbook update, preflights authentication, dry-runs the timesheet, then commits the timesheet only when resolution succeeds. `--review-only` performs no workbook or timesheet mutation. `--backup` is optional and disabled by default.
+`run` bootstraps missing state without overwriting existing artifacts. It gathers configured tasks, makes an idempotent workbook update, preflights authentication, dry-runs the timesheet, then commits the timesheet only when resolution succeeds. `--review-only` performs no workbook or timesheet mutation.
 
 On a missing or ambiguous timesheet period, the current day is queued locally and report generation continues. Run `pending` to retry queued records. Authentication or secure-store failure stops the live write; no plaintext-token fallback exists.
 
@@ -42,6 +41,13 @@ python scripts/daily_report.py setup --import-workbook "PATH" --replace
 Do not use external global scripts, shell-profile functions, hardcoded cloud folders, or another developer's config. See `SKILL.md` for workflow guardrails and `references/` for configuration/auth/schema details.
 
 ## Changelog
+
+### 2026-07-29 — Reliable portable runtime
+
+- Added setup, doctor, auth, run, status, and pending JSON command contracts rooted at `~/.ai/data/daily-report`.
+- Removed workbook Git backup and `commit_workbook.py`; the workbook is local runtime state only.
+- Added silent-before-write authentication, atomic sanitized `last-run.json`, and post-success pending counters.
+
 
 ### 2026-07-28 — The timesheet records only the day's own work
 
@@ -100,7 +106,7 @@ Do not use external global scripts, shell-profile functions, hardcoded cloud fol
 ### 2026-07-27 — Portable dev-workflow release
 
 - Moved runtime contract to skill-local Python CLI.
-- Added idempotent setup, explicit migration, diagnostics, portable state, and optional backup.
+- Added idempotent setup, explicit migration, diagnostics, portable state,.
 - Added secure cross-platform token persistence with no plaintext fallback.
 - Added identity/period resolution, pending queue handling, and copy-ready report contract.
 
@@ -110,4 +116,4 @@ Do not use external global scripts, shell-profile functions, hardcoded cloud fol
 
 ### 2026-06-18 — Workbook verification
 
-- Added isolated workbook commit and copy-ready report output.
+- Added workbook update verification and copy-ready report output.

@@ -225,6 +225,30 @@ def test_tc_039_installs_requirements_inside_venv_only(tmp_path):
     assert all(command[0] != sys.executable for command in commands)
 
 
+def test_tc_039b_default_installer_captures_pip_output(tmp_path, monkeypatch, capsys):
+    venv_python = tmp_path / ".venv" / "bin" / "python"
+    requirements = SCRIPTS_DIR / "requirements.txt"
+    calls = []
+
+    class Completed:
+        returncode = 0
+        stdout = "pip progress must stay private"
+        stderr = ""
+
+    def fake_run(argv, **kwargs):
+        calls.append((argv, kwargs))
+        return Completed()
+
+    monkeypatch.setattr(bootstrap.subprocess, "run", fake_run)
+
+    result = bootstrap.install_requirements(venv_python, requirements)
+
+    assert _result_dict(result)["status"] == "PASS"
+    assert capsys.readouterr().out == ""
+    assert calls[0][1]["capture_output"] is True
+    assert calls[0][1]["text"] is True
+
+
 # TC-040: Initialize missing config, workbook, and queue without external services.
 # Steps:
 #   1. Provide an empty state directory and fake local file creators.
@@ -240,6 +264,7 @@ def test_tc_040_initializes_config_workbook_and_queue_on_empty_first_run(tmp_pat
         template_path=SCRIPTS_DIR.parent / "assets" / "config-template.json",
         workbook_creator=lambda path: writes.append(("workbook", Path(path))),
         json_writer=lambda path, payload: writes.append(("json", Path(path), payload)),
+        platform_name="posix",
     )
 
     assert _result_dict(result)["status"] == "PASS"
@@ -397,20 +422,19 @@ def test_tc_046_tightens_generated_state_permissions_on_posix(tmp_path):
 
 # TC-047: Doctor returns a structured offline matrix across every prerequisite boundary.
 # Steps:
-#   1. Inject Python/Git/Azure CLI/cache/config/workbook/service outcomes.
+#   1. Inject Python/Azure CLI/cache/config/workbook/service outcomes.
 #   2. Run read-only diagnostics.
 #   3. Verify PASS, WARN, and FAIL entries with no real command, auth, or service call.
 # Design: portable-git-daily-report-dev-workflow.md Task 9, AC-5, AC-7, AC-11, AC-12.
 def test_tc_047_doctor_reports_structured_pass_warn_fail_without_external_calls(tmp_path):
     _require_parameters(
-        doctor.run_doctor, "python_check", "git_check", "azure_cli_check", "extension_check",
+        doctor.run_doctor, "python_check", "azure_cli_check", "extension_check",
         "login_check", "secure_cache_check", "config_check", "workbook_check", "service_check",
     )
     calls = []
     result = doctor.run_doctor(
         config=str(tmp_path / "daily-report.config.json"),
         python_check=lambda: ("PASS", "Python 3.11"),
-        git_check=lambda: ("PASS", "Git available"),
         azure_cli_check=lambda: ("PASS", "Azure CLI available"),
         extension_check=lambda: ("WARN", "azure-devops extension missing"),
         login_check=lambda: ("FAIL", "Azure CLI login required"),
@@ -423,7 +447,7 @@ def test_tc_047_doctor_reports_structured_pass_warn_fail_without_external_calls(
     rendered = _result_dict(result)
     assert rendered["status"] == "FAIL"
     assert set(rendered["checks"]) == {
-        "python", "git", "azure_cli", "azure_devops_extension", "azure_login",
+        "python", "azure_cli", "azure_devops_extension", "azure_login",
         "secure_cache", "config", "workbook", "service",
     }
     assert rendered["checks"]["python"]["status"] == "PASS"
@@ -435,7 +459,7 @@ def test_tc_047_doctor_reports_structured_pass_warn_fail_without_external_calls(
 # TC-048: Production doctor routes prerequisite commands through an injected argv runner.
 # Steps:
 #   1. Supply a fake command runner and successful read-only probes.
-#   2. Run doctor without providing Git/Azure CLI/extension/login check functions.
+    #   2. Run doctor without providing Azure CLI/extension/login check functions.
 #   3. Verify the default production route issues only the required argv lists.
 # Design: portable-git-daily-report-dev-workflow.md Task 9, AC-5, AC-7, AC-12.
 def test_tc_048_default_doctor_routes_read_only_prerequisites_through_argv_runner(tmp_path):
@@ -461,7 +485,6 @@ def test_tc_048_default_doctor_routes_read_only_prerequisites_through_argv_runne
 
     assert _result_dict(result)["status"] == "PASS"
     assert commands == [
-        ["git", "--version"],
         ["az", "--version"],
         ["az", "extension", "show", "--name", "azure-devops", "--output", "json"],
         ["az", "account", "show", "--output", "json"],

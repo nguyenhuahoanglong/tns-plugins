@@ -25,11 +25,11 @@
     },
     {
       "id": 3,
-      "prompt": "Run my daily standup, add planning, and make a backup.",
-      "expected_output": "Runs the autonomous portable flow with --add and --backup, writes timesheet only after preflight and dry-run success, then returns a fenced copy-ready report.",
+      "prompt": "Run my daily standup and add planning.",
+      "expected_output": "Runs the autonomous portable flow with --add, writes the timesheet only after silent preflight and preview success, then returns a fenced copy-ready report.",
       "expectations": [
-        "Uses daily_report.py run --add and --backup",
-        "Backup is explicit; default flow does not create one",
+        "Uses daily_report.py run --add",
+        "Does not create repository writes",
         "Timesheet commit follows successful authentication and dry-run resolution",
         "Final successful response ends with fenced text containing only Yesterday and Today report content"
       ]
@@ -55,6 +55,28 @@
         "Reports secure-store or authentication failure as a stop condition for live write",
         "Never exposes or stores a plaintext token"
       ]
+    },
+    {
+      "id": 6,
+      "prompt": "Tell me exactly what the last daily-report run completed and what is still pending.",
+      "expected_output": "Uses the public status command and reports the persisted run outcome plus current queue counters without changing local or external state.",
+      "expectations": [
+        "Uses daily_report.py status rather than reconstructing status from Git or model memory",
+        "Reports completed steps, verification evidence, warnings, and the exact next action",
+        "Reports synced, failed, and remaining pending counters",
+        "Does not update the workbook, queue, authentication cache, or Dataverse"
+      ]
+    },
+    {
+      "id": 7,
+      "prompt": "My daily report says AUTH_REQUIRED. Recover it safely.",
+      "expected_output": "Uses the public interactive auth command, preserves encrypted token storage, and reruns only after authentication succeeds.",
+      "expectations": [
+        "Uses daily_report.py auth as the public recovery command",
+        "Does not request, print, or persist a plaintext token",
+        "Requires successful authentication verification before retrying a normal run",
+        "Does not claim workbook or timesheet success for the failed pre-authentication run"
+      ]
     }
   ],
   "non_goals": [
@@ -62,6 +84,7 @@
     "Using global PowerShell functions, external global scripts, or personal machine paths",
     "Overwriting local state during setup or migration without explicit --replace",
     "Inventing identity, organization, task, period, or business lookup values",
-    "Writing plaintext authentication tokens or treating failed external writes as successful"
+    "Writing plaintext authentication tokens or treating failed external writes as successful",
+    "Creating repository writes or committing the workbook"
   ]
 }

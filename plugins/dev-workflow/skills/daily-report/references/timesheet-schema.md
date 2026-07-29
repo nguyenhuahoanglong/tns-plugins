@@ -49,5 +49,5 @@ when present. Mutation happens only with explicit commit.
 If authentication, period, lookup, or write work cannot complete, enqueue the
 current report atomically by date. Do not retry old pending records first.
 Successful old retries are marked synced; pruning removes only old synced
-records. Workbook verification must succeed before optional backup or pending
+records. Workbook verification must succeed before pending
 sync begins.
