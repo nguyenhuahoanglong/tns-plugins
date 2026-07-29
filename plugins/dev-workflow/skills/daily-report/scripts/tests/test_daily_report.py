@@ -287,7 +287,14 @@ def test_tc_104_successful_cli_output_uses_one_final_fenced_text_report_block():
     events, output = [], io.StringIO()
     daily_report._emit(daily_report.run(_config(), date=TODAY, dependencies=_deps(events)), False, output)
     text = output.getvalue()
-    assert text.index("=== DAILY REPORT RESULT ===") < text.index("```text\n")
+    status, report_block = text.split("```text\n", 1)
+    report_content = report_block.rsplit("\n```", 1)[0]
+    assert "=== DAILY REPORT RESULT ===" in status
+    assert "Overall: SUCCESS" in status
+    assert "=== DAILY REPORT RESULT ===" not in report_content
+    assert "=== COPY-READY REPORT ===" not in report_content
+    assert report_content.startswith("Yesterday\n")
+    assert "\nToday\n" in report_content
     assert text.count("```text\n") == 1
     assert text.rstrip().endswith("```")
 

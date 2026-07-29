@@ -26,12 +26,13 @@
     {
       "id": 3,
       "prompt": "Run my daily standup and add planning.",
-      "expected_output": "Runs the autonomous portable flow with --add, writes the timesheet only after silent preflight and preview success, then returns a fenced copy-ready report.",
+      "expected_output": "Runs the autonomous portable flow with --add, writes the timesheet only after silent preflight and preview success, prints operational status as ordinary chat text, then returns a separate fenced copy-ready report.",
       "expectations": [
         "Uses daily_report.py run --add",
         "Does not create repository writes",
         "Timesheet commit follows successful authentication and dry-run resolution",
-        "Final successful response ends with fenced text containing only Yesterday and Today report content"
+        "Prints DAILY REPORT RESULT as ordinary chat text outside every code fence",
+        "Omits the COPY-READY REPORT label and ends with exactly one fenced text block containing only Yesterday and Today report content"
       ]
     },
     {

@@ -32,12 +32,36 @@ Every command supports `--json`; use per-command `--help` for its options. State
 
 Results have `SUCCESS` (exit 0), `PARTIAL` (2), or `FAILED` (1), an exact code, step evidence, recovery instruction, and report when available. `last-run.json` is atomic and sanitized; `status` only reads it.
 
+## User response contract
+
+For normal human output, always return both parts when the script provides a report:
+
+1. Copy the complete `DAILY REPORT RESULT` section through `Next action` into ordinary chat text. Never put this status section in a code fence.
+2. Drop the `COPY-READY REPORT` label. End the response with exactly one fenced `text` block containing the report string only.
+
+Never answer with the report block alone. Never put status, headings, labels, explanations, JSON, or trailing text inside or after the report fence.
+
+Required shape:
+
+    === DAILY REPORT RESULT ===
+    Overall: SUCCESS
+    ...
+    Next action: None
+
+    ```text
+    Yesterday
+    ...
+
+    Today
+    ...
+    ```
+
 ## Guardrails
 
 - Preserve task bullets as `- #id Title`; do not render Python records.
 - Do not create repository mutations. The workbook remains local runtime data.
 - Do not invent tenant, Dataverse, Azure DevOps, identity, lookup, or schedule defaults.
-- Finish a user-facing successful report with only the copy-ready content in a fenced `text` block.
+- If no report is available, print the operational result and recovery action without an empty fenced block. Return raw JSON only when the user explicitly requests JSON.
 - Run `python scripts/verify_output.py --config PATH` after a live write when a standalone verification record is required.
 
 ## Verify Output
