@@ -32,7 +32,8 @@
         "Does not create repository writes",
         "Timesheet commit follows successful authentication and dry-run resolution",
         "Prints DAILY REPORT RESULT as ordinary chat text outside every code fence",
-        "Omits the COPY-READY REPORT label and ends with exactly one fenced text block containing only Yesterday and Today report content"
+        "Omits the COPY-READY REPORT label and ends with exactly one fenced text block containing only Yesterday and Today report content",
+        "Does not insert a blank line between the final Yesterday content line and the Today heading"
       ]
     },
     {

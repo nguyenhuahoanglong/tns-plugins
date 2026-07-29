@@ -295,6 +295,7 @@ def test_tc_104_successful_cli_output_uses_one_final_fenced_text_report_block():
     assert "=== COPY-READY REPORT ===" not in report_content
     assert report_content.startswith("Yesterday\n")
     assert "\nToday\n" in report_content
+    assert "\n\nToday\n" not in report_content
     assert text.count("```text\n") == 1
     assert text.rstrip().endswith("```")
 

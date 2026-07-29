@@ -16,7 +16,13 @@ COL = {"date": "A", "yesterday": "B", "today": "C", "report": "E", "timesheet": 
 
 
 def build_report(yesterday, today):
-    return f"Yesterday\n{yesterday}\nToday\n{today}"
+    lines = ["Yesterday"]
+    if str(yesterday or "").strip():
+        lines.append(str(yesterday).strip())
+    lines.append("Today")
+    if str(today or "").strip():
+        lines.append(str(today).strip())
+    return "\n".join(lines)
 
 
 def build_timesheet_memo(cfg, today_text):

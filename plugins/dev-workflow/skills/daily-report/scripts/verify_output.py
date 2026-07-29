@@ -14,6 +14,7 @@ Usage:
 import argparse, datetime, sys, zipfile
 import openpyxl
 from lib_common import load_config
+from update_dailytask import build_report
 
 PASS, FAIL = "PASS", "FAIL"
 
@@ -64,7 +65,7 @@ def verify_run_result(result, config=None, date=None):
             checks.extend(((_as_date(sheet["A2"].value) == expected_date, "workbook-date"),
                            (yesterday is not None, "workbook-yesterday"),
                            (bool(str(today or "").strip()), "workbook-today"),
-                           (report_cell == expected_report and report_cell == f"Yesterday\n{yesterday}\nToday\n{today}", "workbook-report")))
+                           (report_cell == expected_report and report_cell == build_report(yesterday, today), "workbook-report")))
         except (OSError, KeyError, zipfile.BadZipFile):
             checks.append((False, "workbook-reopen"))
     checks.append((bool(workbook) and (workbook.get("updated", True) is not False), "workbook"))
@@ -119,7 +120,7 @@ def main():
     results.append((bool(c2 and str(c2).strip()), "Today populated", repr(c2)[:60]))
     results.append((bool(f2 and "Task Description:" in str(f2)), "Timesheet memo populated", repr(f2)[:60]))
 
-    expected_report = f"Yesterday\n{b2}\nToday\n{c2}"
+    expected_report = build_report(b2, c2)
     results.append((e2 == expected_report, "Report matches Yesterday/Today template",
                     "column E differs from composed report"))
 

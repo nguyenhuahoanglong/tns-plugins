@@ -48,8 +48,18 @@ def _bullet(item):
     return text if text.startswith("-") else f"- {text}"
 
 
+def _standup_report(yesterday="", today=""):
+    lines = ["Yesterday"]
+    if str(yesterday or "").strip():
+        lines.append(str(yesterday).strip())
+    lines.append("Today")
+    if str(today or "").strip():
+        lines.append(str(today).strip())
+    return "\n".join(lines)
+
+
 def _report(items):
-    return "Yesterday\n\nToday\n" + "\n".join(_bullet(item) for item in items if str(item or "").strip())
+    return _standup_report(today="\n".join(_bullet(item) for item in items if str(item or "").strip()))
 
 
 def _review_report(config, items):
@@ -62,7 +72,10 @@ def _review_report(config, items):
         yesterday = str(sheet["C2"].value or "")
     except (OSError, KeyError, ImportError):
         pass
-    return "Yesterday\n" + yesterday + "\nToday\n" + "\n".join(_bullet(item) for item in items if str(item or "").strip())
+    return _standup_report(
+        yesterday=yesterday,
+        today="\n".join(_bullet(item) for item in items if str(item or "").strip()),
+    )
 
 
 def _result(status, code, *, report="", steps=None, recovery=None, command=None, context=None, date=None, **details):

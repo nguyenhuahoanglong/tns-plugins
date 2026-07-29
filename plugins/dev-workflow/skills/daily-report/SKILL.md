@@ -39,7 +39,7 @@ For normal human output, always return both parts when the script provides a rep
 1. Copy the complete `DAILY REPORT RESULT` section through `Next action` into ordinary chat text. Never put this status section in a code fence.
 2. Drop the `COPY-READY REPORT` label. End the response with exactly one fenced `text` block containing the report string only.
 
-Never answer with the report block alone. Never put status, headings, labels, explanations, JSON, or trailing text inside or after the report fence.
+Never answer with the report block alone. Never put status, headings, labels, explanations, JSON, or trailing text inside or after the report fence. Preserve exact report newlines: put `Today` immediately after the final `Yesterday` content line, with no blank separator. When `Yesterday` has no content, output `Yesterday` followed immediately by `Today` on the next line.
 
 Required shape:
 
@@ -51,7 +51,6 @@ Required shape:
     ```text
     Yesterday
     ...
-
     Today
     ...
     ```

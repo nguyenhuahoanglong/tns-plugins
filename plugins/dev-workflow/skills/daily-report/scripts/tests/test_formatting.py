@@ -282,7 +282,7 @@ def test_tc_053_creates_first_report_row_from_headers_only_workbook(tmp_path):
     assert sheet["A2"].number_format == "yyyy-mm-dd"
     assert (sheet["B2"].value or "") == ""
     assert sheet["C2"].value == "- #101 First task"
-    assert sheet["E2"].value == "Yesterday\n\nToday\n- #101 First task"
+    assert sheet["E2"].value == "Yesterday\nToday\n- #101 First task"
     assert sheet["F2"].value == ud.build_timesheet_memo(cfg, "- #101 First task")
 
 
