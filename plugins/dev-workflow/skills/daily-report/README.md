@@ -45,9 +45,7 @@ Do not use external global scripts, shell-profile functions, hardcoded cloud fol
 ### 2026-07-29 — Reliable portable runtime
 
 - Added setup, doctor, auth, run, status, and pending JSON command contracts rooted at `~/.ai/data/daily-report`.
-- Removed workbook Git backup and `commit_workbook.py`; the workbook is local runtime state only.
 - Added silent-before-write authentication, atomic sanitized `last-run.json`, and post-success pending counters.
-
 
 ### 2026-07-28 — The timesheet records only the day's own work
 
