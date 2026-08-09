@@ -3,6 +3,9 @@
 Keep Phase 0 to one or two rounds. Explore first; do not ask facts already resolved by input, an
 existing plan, or repository evidence. Implementation waits for written-plan approval.
 
+Before interviewing, apply the SKILL.md entry gate. Without explicit invocation, do not run this skill.
+After invocation, document-only or other non-code primary deliverables route elsewhere without a plan.
+
 ## Record resolved facts
 
 Use the exact Context contract in `quality-assessment.md`. Apply its path matrix: existing plan retains
@@ -12,12 +15,11 @@ Discovered backlog context never redirects.
 
 ## Quality questions
 
-Record recommendation and decision fields separately. Routine doc/config/generated/metadata work is
-`not-recommended` and `skipped` for TDD and review without questions. For risky work, first state
-trigger/evidence, workflow or regression risk, and effort, then ask only the affected choice:
+Record recommendation and decision fields separately. For each recommended risky workflow, first state
+trigger/evidence, workflow or regression risk, and effort, then ask only the unresolved affected choice:
 
-- **Use TDD?** `No (Recommended)` or `Yes`.
-- **Run code review?** `No (Recommended)` or `Yes`.
+- **Use TDD?** `Yes (Recommended)` or `No`.
+- **Run code review?** `Yes (Recommended)` or `No`.
 
 Only explicit `Yes` selects. Recommendation, silence, or existing modern `selected` with
 `source: auto-assessment` is not consent; ask before execution. Preserve modern source `user` and legacy
@@ -47,4 +49,5 @@ more than five criteria questions are needed across two rounds, narrow scope or 
 - Which input/output/error result proves it?
 - For risky work, is the stated risk and effort worth selecting TDD or review?
 
-Approval follows the written plan, not the interview.
+Approval follows the written plan. Explicit approval in the current request counts for an unchanged
+existing plan; ask again only after creating or materially revising it.

@@ -4,6 +4,13 @@ Assess the nearest target module after exploration: read applicable `AGENTS.md`,
 deployment surface, and ownership rules. Recommendations are evidence; only explicit user `Yes` selects
 a risky workflow.
 
+## Eligibility
+
+Assess quality only after the entry gate passes. At least one planned task must deliver source code,
+executable scripts, test code, or runtime/build code tied to a feature, fix, or refactor. Supporting
+non-code files may remain in an eligible code plan when required by an AC, project rule, or verified code
+impact, but never make a plan eligible by themselves.
+
 ## Context contract
 
 Write these exact Context fields on every new or rewritten plan:
@@ -42,10 +49,10 @@ Discovered backlog context never redirects a plan.
 
 ## Recommendation and consent
 
-Routine documentation, config, generated, or metadata records are `not-recommended` and `skipped` for
-both workflows without a question. Their reasons state the routine scope and available build/static
-verification. For risky work, recommendation reasons state the concrete trigger/evidence, affected
-workflow or regression risk, and effort before asking only the relevant question.
+For each code workflow, record concrete trigger/evidence, affected workflow or regression risk, and
+effort. A `not-recommended` workflow is skipped without a question unless the user already selected it.
+Ask only unresolved workflows marked `recommended`; present `Yes (Recommended)` and `No` so the option
+label matches the assessment.
 
 Only explicit user `Yes` selects TDD or review. A recommendation, missing answer, or modern
 `selected` with source `auto-assessment` is evidence only: ask before execution. A modern decision

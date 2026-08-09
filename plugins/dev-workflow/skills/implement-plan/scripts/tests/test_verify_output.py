@@ -68,7 +68,7 @@ Code review decision: {review}"""
 class VerifyOutputTests(unittest.TestCase):
     def clean(self, text): self.assertFalse([item for item in VERIFY.evaluate(text) if item[0] == "FAIL"])
     def test_new_selected_contract(self): self.clean(plan())
-    def test_docs_skip_contract(self): self.clean(plan(unit="skipped", review="skipped"))
+    def test_skipped_quality_contract(self): self.clean(plan(unit="skipped", review="skipped"))
     def test_old_modern_real_schema_accepts_auto_selected(self):
         text = plan(new=False).replace("Unit tests source: user", "Unit tests source: auto-assessment").replace("Code review source: user", "Code review source: auto-assessment").replace("; Escalation Policy: ask", "")
         self.clean(text)
@@ -85,8 +85,8 @@ class VerifyOutputTests(unittest.TestCase):
         self.assertTrue(any("Escalation Policy: ask" in message for _, message in VERIFY.evaluate(plan().replace("; Escalation Policy: ask", ""))))
     def test_new_selected_requires_user_source(self):
         self.assertTrue(any("source is invalid" in message for _, message in VERIFY.evaluate(plan().replace("Unit tests source: user", "Unit tests source: auto-assessment"))))
-    def test_mixed_routine_and_risky_depth(self):
-        text = plan().replace("### Task 1: Change behavior", "### Task 1: Documentation\n- Status: pending\n- Depends on: none\n- Files: `docs/a.md`\n- Risk: routine\n- Risk reason: Wording only.\n- Depth: simplify\n- Mode: simple-new\n- Existing-method baseline: not applicable\n- Scaffold: not applicable\n- Description: Update wording.\n- Done when: Static check passes.\n- ACs: AC-0\n\n### Task 2: Change behavior")
+    def test_mixed_routine_and_risky_code_depth(self):
+        text = plan().replace("### Task 1: Change behavior", "### Task 1: Local helper refactor\n- Status: pending\n- Depends on: none\n- Files: `src/helper.cs`\n- Risk: routine\n- Risk reason: Internal helper preserves behavior.\n- Depth: simplify\n- Mode: existing-method\n- Existing-method baseline: existing suite is GREEN\n- Scaffold: not applicable\n- Description: Refactor local helper without changing behavior.\n- Done when: Build and scoped tests pass.\n- ACs: AC-0\n\n### Task 2: Change behavior")
         self.clean(text)
     def test_backbone_semantics_required(self):
         text = plan(mode="complex-backbone")

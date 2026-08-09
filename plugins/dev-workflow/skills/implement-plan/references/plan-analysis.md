@@ -5,10 +5,11 @@ Phase 0 is read-only; the only Phase 1 write is the plan. Resolve Context fields
 
 ## Exploration and design scaling
 
-Use the minimum explorers that cover scope: one for known isolated files; two or three parallel,
-distinct focuses for uncertain or multi-area work. Personally read every critical file they identify
-before decomposition. Use zero architect agents for trivial one-file work, one for standard scope, and
-up to three distinct read-only perspectives for complex scope; reconcile one approach.
+Use the minimum explorers that cover scope: zero for known isolated files, one for standard discovery,
+and two or three parallel distinct focuses for uncertain or multi-area work. Personally read every
+critical file they identify before decomposition. Use zero architect agents for trivial one-file work,
+one for standard scope, and up to three distinct read-only perspectives for complex scope; reconcile one
+approach.
 
 ## Readiness checks
 
@@ -33,11 +34,12 @@ Existing-method baseline: <existing suite command/result, or not applicable>
 Scaffold: <named signatures/control-flow wiring, or not applicable>
 ```
 
-Only risky user-approved tasks use TDD. No two tasks share a file: merge overlapping work. Separate
-files may parallelize; imports/contracts create explicit dependency edges, and changed shared interfaces
-precede all consumers. Agent scaling is 1 implementer for 1-3 files, 2 for 4-6, 3 for 7-9, and
-dependency-ordered batches for 10+ files. The plan records waves and each agent's file scope, task
-contract, Done-when evidence, and requirement to report changed files plus verification.
+Only risky user-approved tasks use TDD. No two tasks share a file: merge overlapping work. Supporting
+non-code files stay in their owning code task and never create eligibility. Separate independent slices
+may parallelize; imports/contracts create explicit dependency edges, and changed shared interfaces
+precede all consumers. Assign one implementer per dependency-ready slice, keep coupled files together,
+and cap concurrency at three. The plan records waves and each agent's file scope, task contract,
+Done-when evidence, and requirement to report changed files plus verification.
 
 ## Mode-specific execution
 

@@ -1,0 +1,22 @@
+[
+  {"query": "$implement-plan add CSV export to the shared React grid and preserve current filters", "should_trigger": true},
+  {"query": "/implement-plan fix the null persistence bug in DataverseService and run existing tests", "should_trigger": true},
+  {"query": "Use implement-plan to execute the approved cache invalidation plan in .plans/cache-fix.md", "should_trigger": true},
+  {"query": "Run implement-plan for this C# service refactor; keep public contracts unchanged", "should_trigger": true},
+  {"query": "Please use the implement-plan skill to add retry handling to this Azure Function", "should_trigger": true},
+  {"query": "$implement-plan update wording in README only", "should_trigger": true},
+  {"query": "/implement-plan create release notes for YanaGrid v1.5.0", "should_trigger": true},
+  {"query": "Use implement-plan for the approved test automation change under src/sdk", "should_trigger": true},
+  {"query": "run the implement-plan skill for bug 420994 and keep the patch limited to two files", "should_trigger": true},
+  {"query": "$implement-plan implement the approved .backlog/session-timeout/plan.md", "should_trigger": true},
+  {"query": "Implement this approved plan in .plans/cache-fix.md and verify the build", "should_trigger": false},
+  {"query": "Add CSV export to the React grid, write tests, and review the changes", "should_trigger": false},
+  {"query": "Update wording in README and fix two broken links", "should_trigger": false},
+  {"query": "Review the implement-plan skill because it triggers too often", "should_trigger": false},
+  {"query": "What does implement-plan do and when should I call it?", "should_trigger": false},
+  {"query": "Create an implementation plan for this feature but do not write code", "should_trigger": false},
+  {"query": "Execute the implementation plan we discussed yesterday", "should_trigger": false},
+  {"query": "Plan and implement a null-check fix in src/cache.ts", "should_trigger": false},
+  {"query": "Draft a PRD and documentation plan for the new warranty workflow", "should_trigger": false},
+  {"query": "Please improve our planning workflow so agents use fewer tokens", "should_trigger": false}
+]

@@ -47,7 +47,9 @@ the mandatory writable-dispatch footer. Selected review dispatches say `Run code
 Policy: ask` and include `Global Constraints (verbatim from plan): {exact block}`. Re-verify/re-review at
 most twice. Skipped review has no dispatch, offer, or verdict.
 
-## Docs sync
+## Supporting docs
 
-For structural changes only, offer one cheap agent per documentation file using final diff-stat; request
-surgical index/path updates only, then append the mandatory writable-dispatch footer.
+Update or offer supporting docs only when an AC, project rule, or verified code impact requires them.
+Keep each affected document with its owning code task when practical. If a separate final sync is needed,
+use one cheap agent per independent documentation file with final diff-stat, request surgical updates,
+then append the mandatory writable-dispatch footer.

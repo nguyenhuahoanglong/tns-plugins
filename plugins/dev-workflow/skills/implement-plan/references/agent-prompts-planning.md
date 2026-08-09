@@ -1,10 +1,12 @@
 # Planning Agent Prompts
 
-All dispatches are read-only and occur before approval.
+All dispatches are read-only and occur before approval. Use none when main-agent inspection fully covers
+known isolated scope.
 
 ## Explorer
 
-Dispatch 1–3 distinct focuses after reading applicable `AGENTS.md`:
+Dispatch 1–3 distinct focuses only when discovery benefits from delegation after reading applicable
+`AGENTS.md`:
 
 ```text
 Map context for: {feature summary}; project: {project-root}; focus: {specific question}.
@@ -29,7 +31,7 @@ Rules: read-only; no edits, installs, builds, or tests; return one executable pr
 
 ## Plan quick-check
 
-For 3+ tasks, send one fresh-eyes agent:
+For complex scope or three or more risky tasks, send one fresh-eyes agent:
 
 ```text
 Read ONLY plan file {plan-path}. For each task return at most "Task N: not executable because X", or

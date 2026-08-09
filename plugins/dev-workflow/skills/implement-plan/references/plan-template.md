@@ -80,3 +80,5 @@ consent before execution.
 | `blocked` | Retry exhausted |
 
 Every task needs files, dependency, exact fields, concrete description, Done when, and AC mapping.
+At least one task must deliver code. Supporting non-code files stay in their owning code task and require
+an AC, project rule, or verified code-impact reason.

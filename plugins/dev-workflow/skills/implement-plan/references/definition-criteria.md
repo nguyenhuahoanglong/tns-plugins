@@ -36,7 +36,8 @@ follows the Context TDD decision, so mixed plans can retain routine simplify tas
   work follows unchanged `design-backbone`: independent decision/approval locks, verified handoff,
   resume same task, and no duplicate tests.
 
-Routine doc/config/generated/metadata work is TDD/review `not-recommended` and `skipped` without asking.
-Risky recommendation reasons state evidence, risk, and effort before a question. Only user Yes selects;
-modern `selected`/`auto-assessment` requires consent before execution. Preserve `user` decisions and map
-legacy `requested`/`not requested` to user selected/skipped when rewriting.
+Supporting non-code files are allowed only inside an eligible code plan and only when an AC, project
+rule, or verified code impact requires them; include them in the owning code task rather than creating a
+document-only task. Risky recommendation reasons state evidence, risk, and effort before a question.
+Only user Yes selects; modern `selected`/`auto-assessment` requires consent before execution. Preserve
+`user` decisions and map legacy `requested`/`not requested` to user selected/skipped when rewriting.

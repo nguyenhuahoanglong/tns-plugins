@@ -6,6 +6,7 @@ import argparse
 from dataclasses import asdict, dataclass, field, is_dataclass
 import json
 from pathlib import Path
+import shutil
 import subprocess
 from types import SimpleNamespace
 from typing import Callable, Protocol, Sequence
@@ -42,11 +43,37 @@ class Runner(Protocol):
     def run(self, args: list[str], cwd: Path): ...
 
 
+AZ_MISSING_MESSAGE = (
+    "Executable not found: az. Install the Azure CLI from https://aka.ms/installazurecli, "
+    "add the DevOps extension ('az extension add --name azure-devops'), then run 'az login'."
+)
+
+
+def resolve_az() -> str | None:
+    """Return the absolute Azure CLI path, or None when it is not installed.
+
+    On Windows `az` is a batch shim (`az.cmd`) and subprocess.run uses CreateProcess, which does
+    not apply PATHEXT — a bare "az" argv[0] raises FileNotFoundError even with the CLI installed.
+    shutil.which does honour PATHEXT, so resolve through it and spawn the absolute path. `git` is
+    deliberately left bare: CreateProcess resolves `.exe` implicitly, which is why it already works.
+    """
+    return shutil.which("az") or shutil.which("az.cmd")
+
+
 class SubprocessRunner:
     """Production process boundary using argv arrays only."""
 
     def run(self, args: list[str], cwd: Path) -> subprocess.CompletedProcess[str]:
-        command = args if args and args[0] == "az" else ["git", *args]
+        # "az" stays the logical argv[0] sentinel everywhere upstream (git/az dispatch here,
+        # PreviewRunner's mutating-argv gate, the injected test runners). Substitute the resolved
+        # path only at the spawn, after the sentinel has been read.
+        if args and args[0] == "az":
+            resolved = resolve_az()
+            if resolved is None:
+                return subprocess.CompletedProcess(args, 127, "", AZ_MISSING_MESSAGE)
+            command = [resolved, *args[1:]]
+        else:
+            command = ["git", *args]
         try:
             return subprocess.run(command, cwd=cwd, text=True, capture_output=True, check=False)
         except FileNotFoundError:

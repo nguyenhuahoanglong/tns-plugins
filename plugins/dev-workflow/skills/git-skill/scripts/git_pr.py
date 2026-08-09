@@ -166,6 +166,8 @@ class GitPr:
         return self.create_from_plan(repository, plan)
 
     def create_from_plan(self, repository: Path, plan: PrPlan) -> PrResult:
+        # "az" here is a logical sentinel, not a resolved executable: the runner dispatches on it
+        # (az vs git) and substitutes the absolute CLI path at the spawn. Keep it bare.
         args = ["az", "repos", "pr", "create", "--org", f"https://dev.azure.com/{plan.organization}",
                 "--project", plan.project, "--repository", plan.repository, "--source-branch", plan.source_branch,
                 "--target-branch", plan.target_branch, "--title", plan.title, "--description", plan.description]

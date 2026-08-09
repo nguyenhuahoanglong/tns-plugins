@@ -3,6 +3,8 @@
 Use `agent-prompts-planning.md` for read-only discovery/design and
 `agent-prompts-implementation.md` only after approval.
 
+Load this index only after SKILL.md explicit-invocation and code-development entry gates pass.
+
 Shared rules:
 
 - Pass plan path, never inline the full plan or source files; point agents to applicable `AGENTS.md`.
