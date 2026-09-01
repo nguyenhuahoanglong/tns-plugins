@@ -309,5 +309,39 @@ class TestCrossSection(unittest.TestCase):
         self.assertIn("placeholder/vague text detected", messages(text))
 
 
+class TestTemplateSelfConsistency(unittest.TestCase):
+    """The template is what agents copy, so its own example must satisfy the verifier's grammar."""
+
+    TEMPLATE = Path(__file__).parents[2] / "references" / "plan-template.md"
+
+    def _preflight_lines(self):
+        return [line.rstrip() for line in self.TEMPLATE.read_text(encoding="utf-8").splitlines()
+                if line.startswith("- PF-") or "derived path" in line]
+
+    def test_every_example_result_line_matches_the_verifier_grammar(self):
+        unmatched = [line for line in self._preflight_lines() if not VERIFY.RESULT_RE.match(line)]
+        self.assertEqual(unmatched, [], "template result lines the verifier cannot parse")
+
+    def test_example_autonomy_matches_its_own_aggregation(self):
+        text = self.TEMPLATE.read_text(encoding="utf-8")
+        states = {VERIFY.RESULT_RE.match(line).group("state") for line in self._preflight_lines()}
+        expected = ("verified-blocked" if "blocked" in states
+                    else "unverifiable-with-fallback" if "unverifiable" in states else "verified-ready")
+        self.assertIn(f"Autonomy: {expected}", text)
+
+    def test_example_unverifiable_result_carries_its_fallback_on_the_same_line(self):
+        for line in self._preflight_lines():
+            match = VERIFY.RESULT_RE.match(line)
+            if match.group("state") == "unverifiable":
+                self.assertIn("fallback:", match.group("detail").lower(), line)
+
+    def test_every_declared_example_probe_kind_is_in_the_closed_set(self):
+        preflight = VERIFY.section(self.TEMPLATE.read_text(encoding="utf-8"), "Preflight")
+        kinds = [cells[1] for cells in VERIFY.rows(preflight) if len(cells) == 5]
+        self.assertTrue(kinds)
+        for kind in kinds:
+            self.assertIn(kind, VERIFY.PROBE_KINDS)
+
+
 if __name__ == "__main__":
     unittest.main()

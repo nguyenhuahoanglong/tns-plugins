@@ -33,14 +33,16 @@ Code review reason: {non-empty decision reason}
 | PF-1 | command | `pac` | resolves on PATH | Task 2 |
 | PF-2 | auth | `pac-org` | non-interactive success | Task 2 |
 | PF-3 | node-deps | `src/pcf/package.json` | devDependencies installed | Task 2 |
+| PF-4 | manual | Dataverse MCP list-tables | returns rows | Task 2 |
 
 ### Preflight results
 Run: {ISO timestamp} scripts/preflight.py
 - PF-1 ready: {resolved absolute path}
 - PF-2 ready: {non-interactive check succeeded}
 - PF-3 ready: {all declared dependencies present}
-- derived path Task 1 `path/to/file`: ready
-Autonomy: verified-ready
+- PF-4 unverifiable: manual probe - Fallback: Task 2 stops and is marked blocked; never prompt.
+- derived path Task 1 `path/to/file` ready: file exists
+Autonomy: unverifiable-with-fallback
 
 ## Tasks
 
@@ -88,6 +90,10 @@ Autonomy: verified-ready
 | `complete` | Main agent verified Done-when |
 | `blocked` | Retry exhausted or preflight prerequisite unmet |
 ```
+
+Every result line reads `- <probe id> <state>: <detail>`, with the state before the colon; an
+`unverifiable` result carries its `Fallback:` on that same line. `Autonomy` follows the aggregation rule:
+blocked beats unverifiable beats ready.
 
 `Depth` appears only when `Unit tests: selected`; an absent `Depth` means `simplify`. `TDD reason`,
 `Existing-method baseline`, and `Scaffold` appear only at `Depth: TDD`, the latter two per `Mode`. `Mode`

@@ -52,8 +52,8 @@ mid-run.
   the user present and re-run, or descope the tasks named in `Blocks`. Never improvise credentials, never
   switch authentication mode.
 - **`unverifiable`** — the kind cannot prove it (`manual`, or an unreadable resource). Requires a
-  `Fallback:` clause naming exactly what happens if it turns out blocked at runtime, which is always: the
-  task stops and is marked `blocked`; never prompt, never improvise. The count is surfaced at approval so
+  `Fallback:` clause **on the same result line**, naming exactly what happens if it turns out blocked at
+  runtime, which is always: the task stops and is marked `blocked`; never prompt, never improvise. The count is surfaced at approval so
   the user consents to the residual risk.
 
 Aggregate to `Autonomy`: `verified-blocked` if any probe is blocked; otherwise
