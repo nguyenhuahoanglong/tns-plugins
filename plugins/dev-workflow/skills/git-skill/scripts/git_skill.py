@@ -243,6 +243,12 @@ def handle_branches(args: argparse.Namespace) -> CliResult:
 
 
 def handle_pr(args: argparse.Namespace) -> CliResult:
+    description = args.description
+    if args.description_file:
+        try:
+            description = Path(args.description_file).read_text(encoding="utf-8")
+        except (OSError, UnicodeDecodeError) as error:
+            return CliResult("ERROR", 1, "PR", f"Could not read description file: {error}")
     preview = args.preview or args.dry_run
     runner: Runner = PreviewRunner(_runner(args)) if preview else _runner(args)
     result = GitPr(runner).create(
@@ -250,7 +256,9 @@ def handle_pr(args: argparse.Namespace) -> CliResult:
         args.target_branch,
         allow_no_work_items=args.allow_no_work_items,
         preview=preview,
-        description=args.description,
+        description=description,
+        title=args.title,
+        work_item_ids=tuple(args.work_items) if args.work_items is not None else None,
     )
     return _core_result("PR", result, dry_run=preview)
 
@@ -315,7 +323,11 @@ def build_parser() -> argparse.ArgumentParser:
 
     pr = _add_command(subparsers, "pr", "Preview or create a pull request.", handle_pr)
     pr.add_argument("--target-branch", help="Target branch override.")
-    pr.add_argument("--description", help="Pull-request description override.")
+    pr.add_argument("--title", help="Pull-request title override.")
+    descriptions = pr.add_mutually_exclusive_group()
+    descriptions.add_argument("--description", help="Pull-request description override.")
+    descriptions.add_argument("--description-file", help="UTF-8 file containing the pull-request description.")
+    pr.add_argument("--work-items", nargs="+", help="Explicit positive Azure DevOps work-item IDs.")
     pr.add_argument("--allow-no-work-items", action="store_true", help="Permit no linked work items.")
     pr.add_argument("--preview", action="store_true", help="Preview without mutation.")
     pr.add_argument("--dry-run", action="store_true", help="Preview without mutation.")

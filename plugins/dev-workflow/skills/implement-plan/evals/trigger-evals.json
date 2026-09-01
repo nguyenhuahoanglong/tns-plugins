@@ -18,5 +18,9 @@
   {"query": "Execute the implementation plan we discussed yesterday", "should_trigger": false},
   {"query": "Plan and implement a null-check fix in src/cache.ts", "should_trigger": false},
   {"query": "Draft a PRD and documentation plan for the new warranty workflow", "should_trigger": false},
-  {"query": "Please improve our planning workflow so agents use fewer tokens", "should_trigger": false}
+  {"query": "Please improve our planning workflow so agents use fewer tokens", "should_trigger": false},
+  {"query": "/implement-plan harden and execute the plan we just wrote in plan mode", "should_trigger": true},
+  {"query": "$implement-plan --tdd --review adopt this plan-mode draft for the SSO recalculation fix", "should_trigger": true},
+  {"query": "Use implement-plan on the plan mode output for the PartScanner offline queue", "should_trigger": true},
+  {"query": "We are already in plan mode, just write the plan and stop", "should_trigger": false}
 ]

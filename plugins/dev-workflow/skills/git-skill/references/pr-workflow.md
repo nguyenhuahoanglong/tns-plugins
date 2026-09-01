@@ -25,6 +25,9 @@ merge, synchronize, or delete anything.
 ```text
 python -B "<skill-root>/scripts/git_skill.py" pr --repository "<repo>" --preview
 python -B "<skill-root>/scripts/git_skill.py" pr --repository "<repo>" --target-branch dev --description "Summary and test evidence"
+
+# Exact approved metadata. `--description` and `--description-file` are mutually exclusive.
+python -B "<skill-root>/scripts/git_skill.py" pr --repository "<repo>" --title "#1234 Exact title" --description-file "C:\review\body.md" --work-items 1234 5678 --preview
 ```
 
 The only PR flags are `--repository`, `--target-branch`, `--description`,
@@ -65,12 +68,10 @@ or `.github/PULL_REQUEST_TEMPLATE.md`, then `Merge <source> into <target>`.
 
 ## Mandatory post-create verification
 
-Creation returning a PR ID is not completion. Re-query the created PR's title,
-description, and linked work items with Azure CLI. If any differs, repair it,
-then re-query all three again; stop if the second query is missing, malformed,
-or still differs. The portable module's metadata routine follows that exact
-repair-and-re-query rule, but the public `pr` command currently creates only.
-Do not claim verification happened from the create result alone.
+Creation returning a PR ID is not completion. Re-query title, normalized
+description, target ref, and exact linked-work-item set once with Azure CLI.
+Any missing, malformed, or different value fails creation. Do not repair or
+silently truncate metadata, and do not claim verification from create output alone.
 
 ## Completion and cleanup boundaries
 
@@ -82,3 +83,4 @@ fails, delete neither branch. These completion helpers are not public `pr`
 flags, so perform them only through an approved workflow that preserves these
 stops. See [troubleshooting.md](troubleshooting.md) for failures and fallback
 boundaries.
+The command reads a UTF-8 description file as-is (apart from line-ending normalization during verification), validates a nonblank title, positive numeric work-item IDs, and a 4,000-character description limit before any Azure create call. Explicit `--work-items` replace commit-derived IDs. After creation it performs one read-only verification and returns `ERROR` for any title, body, target-ref, or exact link-set drift.

@@ -42,6 +42,14 @@ Do not use external global scripts, shell-profile functions, hardcoded cloud fol
 
 ## Changelog
 
+### 2026-08-24 — Date-aware review-only Yesterday
+
+- `run --review-only` now reads the saved Yesterday value when previewing a date
+  already present in the workbook. Previously it always read the newest Today cell,
+  so a same-day preview repeated the current task under both Yesterday and Today.
+- New-day previews still carry the newest Today block into Yesterday, and the preview
+  remains read-only.
+
 ### 2026-07-29 — Reliable portable runtime
 
 - Added setup, doctor, auth, run, status, and pending JSON command contracts rooted at `~/.ai/data/daily-report`.

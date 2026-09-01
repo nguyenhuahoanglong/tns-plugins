@@ -60,18 +60,20 @@ def normalize_branch(branch):
 
 
 def resolve_org(repo):
-    context_file = Path(repo) / ".docs" / "ado-context.md"
-    if context_file.is_file():
+    connection_file = Path(repo) / ".docs" / "connectors" / "ado" / "connection.md"
+    if connection_file.is_file():
         try:
-            text = context_file.read_text(encoding="utf-8", errors="replace")
+            text = connection_file.read_text(encoding="utf-8", errors="replace")
         except OSError:
             text = ""
-        match = re.search(r"\*\*Project URL\*\*:\s*(\S+)", text)
-        if match:
-            parsed = urllib.parse.urlparse(match.group(1))
-            parts = [p for p in parsed.path.split("/") if p]
-            if parsed.netloc and parts:
-                return f"{parsed.scheme}://{parsed.netloc}/{parts[0]}"
+        blocks = re.findall(r"```json\s*(.*?)\s*```", text, re.DOTALL)
+        if len(blocks) == 1:
+            try:
+                organization = json.loads(blocks[0]).get("organization")
+            except json.JSONDecodeError:
+                organization = None
+            if organization:
+                return f"https://dev.azure.com/{organization}"
 
     remote = git(repo, "remote", "get-url", "origin")
     patterns = [
@@ -174,7 +176,7 @@ def evaluate(scope_type, branch=None, repo=".", az_exe=None, runner=run):
             work_item_id=work_item_id,
             expected_type=expected_type,
             source=scope,
-            reason="Could not resolve ADO organization from .docs/ado-context.md or git remote",
+            reason="Could not resolve ADO organization from .docs/connectors/ado/connection.md or git remote",
         )
 
     item, error = fetch_work_item(resolved_az, org_url, work_item_id, runner=runner)

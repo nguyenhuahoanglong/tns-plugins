@@ -21,7 +21,7 @@ or `"status":"ERROR"`; retain that record when escalating.
 | Merge conflict | Stop, inspect `git status`, resolve deliberately, stage the resolved files, and complete or abort the merge. Do not request PR completion while conflicts remain. |
 | Stash apply conflict | Stop, inspect the conflict markers and `git status`, resolve and stage intentionally, then drop a stash only after verifying its changes are present. |
 | No PR work-item links | Add valid task IDs to the source-branch commit subjects, push the corrected history according to team policy, preview again, and create. Use `--allow-no-work-items` only for a deliberately unlinked PR. |
-| PR title, body, or links are wrong | Stop completion. Re-query all three, repair only the drift, and re-query all three again. A failed or malformed final query is a failure, not a warning. |
+| PR title, body, target, or links are wrong | Stop completion. Record verification drift and correct it only through a separately approved workflow; `pr` never repairs metadata. |
 | Auto-complete reports conflicts/failure | Do not sync or clean up. Resolve the PR conflict, wait for a mergeable state, then obtain explicit approval before retrying completion. |
 | Target synchronization fails | Do not delete the source branch. Restore a clean target checkout/pull first. |
 | Cleanup requested | Require explicit confirmation after completed PR status and successful target checkout/pull; then remove local source and remote source. Without confirmation, leave both intact. |
@@ -30,6 +30,6 @@ or `"status":"ERROR"`; retain that record when escalating.
 
 Use `pr --preview` and its structured result to diagnose planning. The public
 `pr` command supports planning and creation only; it has no flags for metadata
-repair, auto-complete, target synchronization, or branch deletion. Do not
+metadata correction, auto-complete, target synchronization, or branch deletion. Do not
 replace it with ad hoc destructive commands. Escalate when those follow-up
 operations are needed, carrying the PR ID and the final verification evidence.

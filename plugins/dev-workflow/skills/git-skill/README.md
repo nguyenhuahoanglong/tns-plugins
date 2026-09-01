@@ -20,6 +20,11 @@ Use `scripts/verify_output.py` with a CLI result JSON to check applicable reposi
 
 ## Changelog
 
+### 2026-08-31 - Exact PR metadata contract
+
+- Added `pr --title`, `--description-file`, and explicit `--work-items` support with pre-create validation.
+- Made post-create metadata verification strict and read-only, including target ref and exact linked work-item set.
+
 ### 2026-07-31 - Resolve the Azure CLI at the process boundary (Windows fix)
 - **Fixed:** `git_skill.py pr` could not create pull requests on Windows — every `az` call failed with `Executable not found: az`. On Windows the CLI is a batch shim (`az.cmd`) and `subprocess.run` uses CreateProcess, which does not apply PATHEXT, so a bare `"az"` argv[0] never resolves.
 - `SubprocessRunner.run` now resolves via `shutil.which("az")` (falling back to `az.cmd`) and spawns the absolute path. Fixed at the boundary rather than at the `pr create` argv site, so `pr show`, `pr update`, `work-item add`, and `work-item list` are all covered by one change.

@@ -13,10 +13,10 @@ SPEC.loader.exec_module(GATE)
 
 
 def repo_with_context(root):
-    docs = Path(root) / ".docs"
-    docs.mkdir()
-    (docs / "ado-context.md").write_text(
-        "**Project URL**: https://dev.azure.com/TestOrg/TestProject/_backlogs/backlog",
+    docs = Path(root) / ".docs" / "connectors" / "ado"
+    docs.mkdir(parents=True)
+    (docs / "connection.md").write_text(
+        '# ADO Connection\n\n```json\n{"schemaVersion":1,"provider":"azure-devops","organization":"TestOrg","project":"TestProject","team":"TestTeam","tenant":"tenant","auth":{"mode":"azure-cli"}}\n```\n',
         encoding="utf-8",
     )
 

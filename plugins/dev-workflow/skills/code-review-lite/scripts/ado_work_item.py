@@ -8,8 +8,8 @@ name > recent commit messages), fetches it via the `az boards` CLI, strips the
 HTML that ADO stores in Description / Acceptance Criteria, and emits a compact
 markdown block ready to inject into a reviewer agent prompt.
 
-Organization/project resolution: `{repo}/.docs/ado-context.md` ("Project URL:"
-line, maintained by the azdevops-context skill) > `git remote get-url origin`.
+Organization/project resolution: `{repo}/.docs/connectors/ado/connection.md`
+(maintained by the ado-context skill) > `git remote get-url origin`.
 
 Usage:
     python ado_work_item.py context       [--id N] [--pr N] [--repo PATH] [--no-parent] [--json]
@@ -96,21 +96,23 @@ def az_json(az_exe, args):
 # --- Organization / project resolution -------------------------------------
 
 def resolve_org(repo):
-    """Return (org_url, project) from .docs/ado-context.md or the git remote."""
-    context_file = Path(repo) / ".docs" / "ado-context.md"
-    if context_file.is_file():
+    """Return (org_url, project) from ADO connector or the git remote."""
+    connection_file = Path(repo) / ".docs" / "connectors" / "ado" / "connection.md"
+    if connection_file.is_file():
         try:
-            text = context_file.read_text(encoding="utf-8", errors="replace")
+            text = connection_file.read_text(encoding="utf-8", errors="replace")
         except OSError:
             text = ""
-        match = re.search(r"\*\*Project URL\*\*:\s*(\S+)", text)
-        if match:
-            parsed = urllib.parse.urlparse(match.group(1))
-            parts = [p for p in parsed.path.split("/") if p]
-            if parsed.netloc and parts:
-                org_url = f"{parsed.scheme}://{parsed.netloc}/{parts[0]}"
-                project = urllib.parse.unquote(parts[1]) if len(parts) > 1 else None
-                return org_url, project
+        blocks = re.findall(r"```json\s*(.*?)\s*```", text, re.DOTALL)
+        if len(blocks) == 1:
+            try:
+                data = json.loads(blocks[0])
+            except json.JSONDecodeError:
+                data = {}
+            organization = data.get("organization")
+            project = data.get("project")
+            if organization and project:
+                return f"https://dev.azure.com/{organization}", project
 
     remote = git(repo, "remote", "get-url", "origin")
     patterns = [
@@ -326,7 +328,7 @@ def cmd_context(args):
 
     org_url, _project = resolve_org(args.repo)
     if not org_url:
-        fail(2, "could not resolve ADO organization from .docs/ado-context.md "
+        fail(2, "could not resolve ADO organization from .docs/connectors/ado/connection.md "
                 "or the git remote 'origin'")
 
     work_item_id, source = (args.id, None) if args.id else (None, None)
@@ -355,7 +357,7 @@ def cmd_merge_preview(args):
 
     org_url, _project = resolve_org(args.repo)
     if not org_url:
-        fail(2, "could not resolve ADO organization from .docs/ado-context.md "
+        fail(2, "could not resolve ADO organization from .docs/connectors/ado/connection.md "
                 "or the git remote 'origin'")
 
     pr_data = _fetch_pr(az_exe, org_url, args.pr)
@@ -394,7 +396,7 @@ def cmd_pr_required(args):
         if args.json:
             print(json.dumps({"prId": args.pr, "resolved": False,
                               "reason": "could not resolve ADO organization"}))
-        fail(2, "could not resolve ADO organization from .docs/ado-context.md "
+        fail(2, "could not resolve ADO organization from .docs/connectors/ado/connection.md "
                 "or the git remote 'origin'")
 
     pr_data = _fetch_pr(az_exe, org_url, args.pr)

@@ -25,7 +25,7 @@
       "prompt": "Create a design backbone for work item 1461. Local developers cannot call the partner API, but every later workflow step must run.",
       "expected_output": "Fetches the work item, interviews to lock contracts and observable completion, finds existing partner adapter and composition seams, then designs explicit local-only deterministic hardcoded returns that cannot activate in production.",
       "expectations": [
-        "Uses azdevops-operations to resolve the work item instead of guessing",
+        "Uses ado-operations to resolve the work item instead of guessing",
         "Confirms requirement and approach decisions before repository design",
         "Reuses the existing adapter contract or provides evidence for changing it",
         "Includes real entrypoint and dependency wiring in the approved plan",

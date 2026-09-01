@@ -48,6 +48,16 @@
         "Requires branches action flags plus --confirm before deleting eligible local-only branches or clearing stashes",
         "Does not force-push, rewrite history, or delete remote branches without an explicit request"
       ]
+    },
+    {
+      "id": 5,
+      "prompt": "Preview a PR with this approved title, a UTF-8 review body file, and work items 1234 and 5678.",
+      "expected_output": "Uses pr --title, --description-file, --work-items, and --preview; it presents the exact metadata without creating a PR.",
+      "expectations": [
+        "Uses --description-file rather than copying its body into the command",
+        "Uses explicit work items instead of commit-derived IDs",
+        "Does not create or repair a PR during preview"
+      ]
     }
   ],
   "non_goals": [

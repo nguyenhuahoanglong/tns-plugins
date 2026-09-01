@@ -126,6 +126,34 @@ def test_review_report_reads_yesterday_without_mutating_workbook(tmp_path):
     assert book.read_bytes() == before
 
 
+def test_review_report_same_day_uses_saved_yesterday_not_current_today(tmp_path):
+    import datetime
+    import openpyxl
+    report_date = datetime.date(2026, 8, 24)
+    book = tmp_path / "DailyTask.xlsx"; workbook = openpyxl.Workbook(); sheet = workbook.active; sheet.title = "Daily Report"
+    sheet["A2"], sheet["B2"], sheet["C2"] = report_date, "- Previous work", "- Current work"
+    workbook.save(book)
+    config = {"excel": {"path": str(book), "sheet": "Daily Report"}}
+    before = book.read_bytes()
+    report = daily_report._review_report(config, ["Current work"], date=report_date)
+    assert report == "Yesterday\n- Previous work\nToday\n- Current work"
+    assert book.read_bytes() == before
+
+
+def test_review_report_next_day_carries_latest_today_without_mutation(tmp_path):
+    import datetime
+    import openpyxl
+    report_date = datetime.date(2026, 8, 24)
+    book = tmp_path / "DailyTask.xlsx"; workbook = openpyxl.Workbook(); sheet = workbook.active; sheet.title = "Daily Report"
+    sheet["A2"], sheet["B2"], sheet["C2"] = report_date - datetime.timedelta(days=1), "- Older work", "- Previous work"
+    workbook.save(book)
+    config = {"excel": {"path": str(book), "sheet": "Daily Report"}}
+    before = book.read_bytes()
+    report = daily_report._review_report(config, ["Current work"], date=report_date)
+    assert report == "Yesterday\n- Previous work\nToday\n- Current work"
+    assert book.read_bytes() == before
+
+
 def test_review_only_with_config_but_without_managed_runtime_is_non_mutating(tmp_path, monkeypatch):
     state = tmp_path / "state"; state.mkdir()
     config = state / "daily-report.config.json"; config.write_text('{"excel": {}}', encoding="utf-8")

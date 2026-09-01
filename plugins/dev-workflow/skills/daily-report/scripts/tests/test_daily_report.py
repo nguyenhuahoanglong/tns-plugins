@@ -110,6 +110,19 @@ def test_tc_081_review_only_escape_hatch_stops_before_all_mutations():
     assert result["status"] == daily_report.SUCCESS and result["code"] == "REVIEWED"
 
 
+def test_review_only_threads_requested_date_into_workbook_preview(monkeypatch):
+    captured = {}
+
+    def review_report(config, items, date=None):
+        captured["date"] = date
+        return "Yesterday\n- Previous work\nToday\n- Current work"
+
+    monkeypatch.setattr(daily_report, "_review_report", review_report)
+    result = daily_report.run(_config(), date=TODAY, review_only=True, dependencies=_deps([]))
+    assert captured["date"] == TODAY
+    assert result["report"] == "Yesterday\n- Previous work\nToday\n- Current work"
+
+
 # TC-082: Auth failure queues current work and never starts stale retries.
 # Steps: 1. Make auth preflight fail. 2. Run offline workflow. 3. Verify current queue precedes and blocks old pending.
 # Design: portable-git-daily-report-dev-workflow.md Task 13, AC-7, AC-10, AC-12.

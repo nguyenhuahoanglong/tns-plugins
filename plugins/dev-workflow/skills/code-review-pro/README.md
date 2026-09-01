@@ -89,7 +89,7 @@ actual launch runtime for the main agent instead of assuming one.
 - Added enforced **PR-only mode**: "review PR {id}" requires a resolvable PR (gated by `ado_work_item.py pr-required`, exit 4 = not found) and errors instead of silently falling back to branch/working scope.
 - PR scope now reviews the **merge preview** (source merged into target) via `ado_work_item.py merge-preview`, with server-merge → local-merge → source-head fallback tiers; always fetches remote first.
 - Added a **scope-drift** pass (code → requirement): every changed hunk must trace to a requirement or is flagged HIGH/MEDIUM "justify or revert". Flags for author judgment; never blocks merge.
-- Enriched requirements with **design-doc context** harvested via the repo `AGENTS.md` design-doc root and `.docs/ado-context.md`, as elaboration of the AC (not new binding criteria).
+- Enriched requirements with **design-doc context** harvested via repo `AGENTS.md` design-doc root and `.docs/connectors/ado/context.md`, as elaboration of AC (not new binding criteria).
 - Added `prepare_worktree_deps.py`: junctions unchanged-dependency `node_modules` into fresh worktrees (no implicit install) or signals `JS-SKIPPED` when deps changed; teardown removes only the junction so the source `node_modules` is never deleted.
 - Sidecar v2 gains additive fields `prOnlyMode`, `prMergePreview`, `mergePreviewStrategy`, `jsDepsStrategy`; verifier and tests assert them.
 

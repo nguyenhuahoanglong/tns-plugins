@@ -66,6 +66,9 @@ Read `references/best-practices.md`, then the relevant stack reference. For mock
 | PCF | `references/pcf-testing.md` | Existing Jest + RTL conventions |
 
 - Use AAA, deterministic inputs, and behavior-focused assertions.
+- Before writing a test body, name the production break it must catch. If the only answer is source text, a constant, private structure, or another intentional decision, redesign the test around observable behavior.
+- Derive expected values independently with literals or hand-checked fixtures; never compute both sides with the code under test or its helpers.
+- Exercise the owned boundary your code exposes. Reject source-text/change-detector tests and assertions of framework mechanics unless a narrow characterization test records a genuinely surprising upstream assumption.
 - Mock external boundaries, not internal implementation details.
 - Reconcile existing tests: leave correct coverage, update owned tests for approved changes, add only missing behavior, and flag contradictions for review.
 - Label each `Known Quirk` in both registry metadata and test header; it records current behavior, not correctness.
@@ -74,7 +77,7 @@ For spec-first work, write RED tests only after the approved gate and verify eac
 
 ## Verify Output and back-link
 
-For implemented targets, run the relevant suite and retain the recorded GREEN baseline. For spec-first work, verify compile-ready tests fail only for the expected missing behavior.
+For implemented targets, run the relevant suite and retain the recorded GREEN baseline. For spec-first work, verify compile-ready tests fail only for the expected missing behavior. Before completion, mentally mutate realistic branches, arguments, returns, validations, state changes, and side effects; every in-scope break must fail at least one test or remain recorded as an intentional gap.
 
 Then run:
 

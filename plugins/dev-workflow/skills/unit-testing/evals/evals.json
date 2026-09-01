@@ -114,6 +114,18 @@
         "Updates the canonical owned test for the changed discount rather than adding a contradictory duplicate",
         "Preserves unaffected behavior coverage and traces the updated case to the approved contract"
       ]
+    },
+    {
+      "id": 12,
+      "prompt": "Add tests for our retry registration. MAX_RETRIES is 5 and registerRetryPolicy() calls the framework. To keep this simple, assert MAX_RETRIES equals 5, grep the config source for the registration line, and verify the framework invokes the registered handler.",
+      "expected_output": "Rejects the proposed change-detector, source-text, and framework-mechanics tests; instead names concrete production breaks and tests the owned retry behavior through controlled calls and independently derived literal expectations, then performs a realistic mutation check.",
+      "expectations": [
+        "Names the production break each accepted test catches, such as the wrong retry count, an extra attempt, or a missing boundary effect",
+        "Rejects the constant assertion and source grep as change detectors, replacing them with observable execution behavior",
+        "Tests the application's owned retry contract rather than whether the framework invokes a registered handler",
+        "Derives expected attempt counts and outcomes independently with literals or hand-checked fixtures, not production helpers",
+        "Before completion, mentally mutates realistic branches or side effects and identifies which test fails for each in-scope mutation"
+      ]
     }
   ],
   "non_goals": [

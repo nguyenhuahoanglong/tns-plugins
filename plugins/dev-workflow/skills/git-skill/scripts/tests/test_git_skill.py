@@ -177,17 +177,35 @@ def test_TC_040_Should_ForwardParsedArgumentsToGitCore_When_CoreCommandRuns(argv
 # TC-041: PR mapping — setup: replace GitPr with a boundary fake; action: request preview/create;
 # verification: CLI forwards target, description, no-work-item, and preview intent exactly once.
 def test_TC_041_Should_ForwardParsedArgumentsToGitPr_When_PrCommandRuns(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    calls: list[tuple[Path, str | None, bool, bool, str | None]] = []
+    calls: list[tuple[Path, str | None, bool, bool, str | None, str | None, tuple[str, ...] | None]] = []
 
     class FakePr:
         def __init__(self, runner: RecordingRunner) -> None: pass
-        def create(self, repository: Path, target_branch: str | None = None, *, allow_no_work_items: bool = False, preview: bool = False, description: str | None = None):
-            calls.append((repository, target_branch, allow_no_work_items, preview, description))
+        def create(self, repository: Path, target_branch: str | None = None, *, allow_no_work_items: bool = False, preview: bool = False, description: str | None = None, title: str | None = None, work_item_ids: tuple[str, ...] | None = None):
+            calls.append((repository, target_branch, allow_no_work_items, preview, description, title, work_item_ids))
             return type("Result", (), {"ok": True, "preview": preview, "error": "", "__dict__": {}})()
 
     monkeypatch.setattr(git_skill, "GitPr", FakePr)
     assert git_skill.main(["pr", "--target-branch", "dev", "--description", "Contract", "--allow-no-work-items", "--preview", "--repository", str(tmp_path)], runner=RecordingRunner()) == 0
-    assert calls == [(tmp_path, "dev", True, True, "Contract")]
+    assert calls == [(tmp_path, "dev", True, True, "Contract", None, None)]
+
+
+def test_pr_forwards_exact_title_file_body_and_explicit_work_items(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    body = tmp_path / "body.md"
+    body.write_bytes(b"line one\r\nline two")
+    calls = []
+
+    class FakePr:
+        def __init__(self, runner): pass
+        def create(self, repository, target_branch=None, **kwargs):
+            calls.append((repository, target_branch, kwargs))
+            return type("Result", (), {"ok": True, "preview": True, "error": "", "__dict__": {}})()
+
+    monkeypatch.setattr(git_skill, "GitPr", FakePr)
+    assert git_skill.main(["pr", "--title", "Exact", "--description-file", str(body), "--work-items", "12", "34", "--preview", "--repository", str(tmp_path)], runner=RecordingRunner()) == 0
+    assert calls[0][2]["description"] == "line one\nline two"
+    assert calls[0][2]["title"] == "Exact"
+    assert calls[0][2]["work_item_ids"] == ("12", "34")
 
 
 # TC-042: Verifier result schema — setup: supply a complete CLI result; action: verify it;

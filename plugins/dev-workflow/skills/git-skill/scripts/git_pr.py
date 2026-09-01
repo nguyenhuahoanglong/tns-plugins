@@ -132,7 +132,8 @@ class GitPr:
                 return None, content
         return None, None
 
-    def plan(self, repository: Path, target_branch: str | None = None, *, description: str | None = None) -> PrPlan:
+    def plan(self, repository: Path, target_branch: str | None = None, *, description: str | None = None,
+             title: str | None = None, work_item_ids: tuple[str, ...] | None = None) -> PrPlan:
         remote = self._run(repository, "remote", "get-url", "origin")
         info = parse_azure_devops_remote(remote.stdout) if self._ok(remote) else None
         branch = self._run(repository, "rev-parse", "--abbrev-ref", "HEAD")
@@ -150,13 +151,18 @@ class GitPr:
         review, template = self._repository_description(repository, source)
         return PrPlan(
             info.organization if info else "", info.project if info else "", info.repository if info else "",
-            source, target, comparison, format_pr_title(source),
-            resolve_description(explicit=description, review=review, template=template, fallback=fallback), task_ids,
+            source, target, comparison, title if title is not None else format_pr_title(source),
+            resolve_description(explicit=description, review=review, template=template, fallback=fallback),
+            work_item_ids if work_item_ids is not None else task_ids,
         )
 
     def create(self, repository: Path, target_branch: str | None = None, *, allow_no_work_items: bool = False,
-               preview: bool = False, description: str | None = None) -> PrResult:
-        plan = self.plan(repository, target_branch, description=description)
+               preview: bool = False, description: str | None = None, title: str | None = None,
+               work_item_ids: tuple[str, ...] | None = None) -> PrResult:
+        plan = self.plan(repository, target_branch, description=description, title=title, work_item_ids=work_item_ids)
+        validation_error = self._validate_plan(plan)
+        if validation_error:
+            return PrResult(False, plan=plan, error=validation_error)
         if not plan.work_item_ids and not allow_no_work_items:
             return PrResult(False, plan=plan, error="No task work item IDs found in source-branch commit subjects")
         if preview:
@@ -164,6 +170,16 @@ class GitPr:
         if not all((plan.organization, plan.project, plan.repository)):
             return PrResult(False, plan=plan, error="Could not parse Azure DevOps information from origin remote")
         return self.create_from_plan(repository, plan)
+
+    @staticmethod
+    def _validate_plan(plan: PrPlan) -> str:
+        if not plan.title.strip():
+            return "Pull-request title must not be blank"
+        if len(plan.description) > 4000:
+            return "Pull-request description must be 4000 characters or fewer"
+        if any(not re.fullmatch(r"[1-9]\d*", item) for item in plan.work_item_ids):
+            return "Work-item IDs must be positive numeric values"
+        return ""
 
     def create_from_plan(self, repository: Path, plan: PrPlan) -> PrResult:
         # "az" here is a logical sentinel, not a resolved executable: the runner dispatches on it
@@ -178,10 +194,16 @@ class GitPr:
         data = self._json(result)
         if not self._ok(result) or not isinstance(data, dict) or not data.get("pullRequestId"):
             return PrResult(False, plan=plan, error=(result.stderr.strip() or "PR create did not return a pull request ID"))
-        return PrResult(True, plan=plan, pull_request_id=int(data["pullRequestId"]))
+        pull_request_id = int(data["pullRequestId"])
+        verified = self.verify_metadata(
+            repository, pull_request_id, f"https://dev.azure.com/{plan.organization}", plan.title,
+            plan.description, plan.target_branch, plan.work_item_ids,
+        )
+        return PrResult(verified.ok, plan=plan, pull_request_id=pull_request_id, error=verified.error)
 
     def verify_metadata(self, repository: Path, pull_request_id: int, organization_url: str, expected_title: str,
-                        expected_description: str, expected_work_item_ids: tuple[str, ...]) -> PrResult:
+                        expected_description: str, expected_target_branch: str,
+                        expected_work_item_ids: tuple[str, ...]) -> PrResult:
         identifier = str(pull_request_id)
         show_args = ("az", "repos", "pr", "show", "--id", identifier, "--org", organization_url, "--output", "json")
         links_args = ("az", "repos", "pr", "work-item", "list", "--id", identifier, "--org", organization_url, "--output", "json")
@@ -189,27 +211,15 @@ class GitPr:
         data, linked = self._json(show), self._json(links)
         if not self._ok(show) or not self._ok(links) or not isinstance(data, dict) or not isinstance(linked, list):
             return PrResult(False, pull_request_id=pull_request_id, error="Could not query PR metadata")
-        if data.get("title", "").strip() != expected_title.strip():
-            updated = self._run(repository, "az", "repos", "pr", "update", "--id", identifier, "--org", organization_url, "--title", expected_title, "--output", "none")
-            if not self._ok(updated): return PrResult(False, pull_request_id=pull_request_id, error=updated.stderr.strip())
-        if data.get("description", "").strip() != expected_description.strip():
-            updated = self._run(repository, "az", "repos", "pr", "update", "--id", identifier, "--org", organization_url, "--description", expected_description, "--output", "none")
-            if not self._ok(updated): return PrResult(False, pull_request_id=pull_request_id, error=updated.stderr.strip())
+        actual_target = str(data.get("targetRefName", ""))
+        expected_target = f"refs/heads/{expected_target_branch}"
+        actual_description = str(data.get("description", "")).replace("\r\n", "\n").replace("\r", "\n")
+        wanted_description = expected_description.replace("\r\n", "\n").replace("\r", "\n")
         present = {str(item.get("id")) for item in linked if isinstance(item, dict) and item.get("id") is not None}
-        missing = [item for item in expected_work_item_ids if item not in present]
-        if missing:
-            added = self._run(repository, "az", "repos", "pr", "work-item", "add", "--id", identifier, "--org", organization_url, "--work-items", *missing, "--output", "none")
-            if not self._ok(added): return PrResult(False, pull_request_id=pull_request_id, error=added.stderr.strip())
-        # Mutations succeeded; a second read is the only trustworthy confirmation.
-        final_show, final_links = self._run(repository, *show_args), self._run(repository, *links_args)
-        final_data, final_linked = self._json(final_show), self._json(final_links)
-        final_ids = {str(item.get("id")) for item in final_linked} if isinstance(final_linked, list) else set()
-        valid = (self._ok(final_show) and self._ok(final_links) and isinstance(final_data, dict)
-                 and isinstance(final_linked, list)
-                 and final_data.get("title", "").strip() == expected_title.strip()
-                 and final_data.get("description", "").strip() == expected_description.strip()
-                 and final_ids == set(expected_work_item_ids))
-        return PrResult(valid, pull_request_id=pull_request_id, error="" if valid else "PR metadata repair verification failed")
+        valid = (data.get("title", "") == expected_title and actual_description == wanted_description
+                 and actual_target == expected_target and present == set(expected_work_item_ids))
+        return PrResult(valid, pull_request_id=pull_request_id,
+                        error="" if valid else "PR metadata verification failed after creation")
 
     def auto_merge(self, repository: Path, pull_request_id: int, organization_url: str, target_branch: str,
                    source_branch: str) -> PrResult:

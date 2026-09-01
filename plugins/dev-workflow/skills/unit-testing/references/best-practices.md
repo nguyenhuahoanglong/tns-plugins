@@ -5,6 +5,9 @@ this reference supplies judgment.
 
 ## Write behavior-focused tests
 
+- Before writing the body, name the production change that should fail the
+  test and why that change is a bug. Useful targets include a wrong branch,
+  argument, return, boundary result, validation, or missing side effect.
 - Assert observable outputs, errors, rendered state, persisted state, or
   meaningful boundary effects; do not assert private implementation shape.
 - Keep one logical behavior per test. Multiple assertions are fine when they
@@ -15,6 +18,26 @@ this reference supplies judgment.
   boundaries instead of relying on real time, generated IDs, or randomness.
 - Name the behavior and condition: C# `Should_<Behavior>_When_<Condition>` or
   a readable JS/TS sentence inside a unit-focused `describe`.
+
+## Keep tests falsifiable
+
+- Derive expected values independently with literals or hand-checked fixtures.
+  Do not reuse the code under test, its builder, or its helpers to calculate
+  the expected result; mirrored logic can agree with the same bug.
+- Reject source-text tests. Grepping a script, skill, prompt, or configuration
+  proves only that text exists; run the artifact against controlled inputs and
+  assert its output, side effects, or exit code. Human-facing prose earns no
+  automated test.
+- Reject change detectors that only pin a constant, exact wording, or private
+  structure. Assert the consumer-visible behavior that depends on the decision,
+  such as the number of retries and the absence of an extra attempt.
+- Test the boundary owned by the production code: the route it registers,
+  payload it emits, query it builds, or state it changes. Framework mechanics
+  belong to the framework maintainers. Use one narrow characterization test
+  only when a surprising upstream assumption is itself a real integration risk.
+
+If no realistic production bug would fail the proposed test, redesign it
+around observable behavior or omit it. Coverage alone does not justify a test.
 
 ## Cover behavior and risk
 
@@ -61,7 +84,10 @@ rules live in `existing-behavior.md`; this replaces legacy-only handling.
    pass. Treat a new red test as evidence to investigate.
 4. Keep characterization pins load-bearing: a failing pin means current
    behavior changed and needs confirmation before any baseline update.
-5. After a GREEN run, back-link the owned test in the registry and retain
+5. Mentally mutate realistic branches, arguments, returns, validations, state
+   changes, and side effects. Each in-scope mutation must fail at least one test
+   or remain visible as an intentional uncovered gap.
+6. After a GREEN run, back-link the owned test in the registry and retain
    uncovered gaps with reasons.
 
 Avoid assertions on irrelevant logs, call order, or mock plumbing; giant shared

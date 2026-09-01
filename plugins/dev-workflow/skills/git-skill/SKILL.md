@@ -55,7 +55,7 @@ The branch ID identifies the parent story; commit subjects identify the child ta
 
 ## PR rules and confirmations
 
-Use `pr`, not raw Azure CLI PR creation. It resolves the target, extracts `#<task-id>` values from commit subjects, generates the title from the branch ID, selects the description, creates or previews the PR, and verifies/repairs metadata.
+Use `pr`, not raw Azure CLI PR creation. It resolves the target, extracts `#<task-id>` values from commit subjects, generates the title from the branch ID, selects the description, creates or previews the PR, and strictly verifies metadata without repair.
 
 - A PR without task IDs stops unless `--allow-no-work-items` is explicitly requested.
 - The story ID belongs in the title; task IDs from commits are the work-item links.
@@ -64,6 +64,8 @@ Use `pr`, not raw Azure CLI PR creation. It resolves the target, extracts `#<tas
 - Branch deletion or stash clearing requires the matching action flag and `--confirm`; do not force-push, rewrite history, or delete remote branches without an explicit request.
 
 For failure diagnosis and supported recovery, read `references/troubleshooting.md`. For PR behavior details, read `references/pr-workflow.md`.
+
+For PR creation, use `--title`, `--description` or `--description-file`, and `--work-items` when the approved metadata must be exact. Preview first; it shows the exact planned values without an Azure write. The CLI validates title, description length, description-file readability, and positive work-item IDs before creation, then read-only verifies the created title, normalized body, target ref, and exact work-item set. It does not repair drift.
 
 ## Verify Output
 

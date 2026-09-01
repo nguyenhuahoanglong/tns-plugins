@@ -1,12 +1,17 @@
-# Web API advanced — `$expand` on N:N and `$apply` aggregation
+# Web API advanced — in-process `$expand` on N:N and `$apply` aggregation
 
+**When to use these `urllib` examples — and when not to.** For a **one-shot** N:N read or aggregation, prefer a managed path: `client.query.fetchxml()` (aggregates + link-entity, pure SDK) or `dataverse api request` (with `--context "app=dataverse-skills/<ver>;skill=dv-query;agent=<agent>"` for attribution). Reach for the raw `urllib` examples below **only** when the call is one step inside a larger **in-process Python loop** — paging thousands of rows via `@odata.nextLink`, or `$apply` results you post-process client-side — where per-call process spawn or subprocess plumbing would be clumsy. This is the sole legitimate reason to hand-roll HTTP.
 
-> **Note:** These raw Web API examples fetch a single page only. If results exceed one page (~5000 records), you must follow `@odata.nextLink` in a loop to get all records. For most N:N and aggregation queries, a single page is sufficient.
+**Telemetry:** these urllib examples use `get_plugin_headers(skill, get_token())` — the **telemetry-carrying** way to call the Web API by hand. It stamps the same `app`/`skill`/`agent` attribution that `get_client(skill)` (SDK) and `--context` (CLI) do. **Never** use bare `get_token()` — it drops attribution.
+
+> **Note:** These raw Web API examples fetch a single page only. If results exceed one page (~5000 records), follow `@odata.nextLink` in a loop to get all records.
+
+> **Raw create responses:** a hand-rolled or `dataverse api` **POST create** returns **HTTP 204** with the new record id in the **`OData-EntityId` response header** (e.g. `.../accounts(<guid>)`), not a JSON body — parse the header, don't expect a body. With `dataverse api request`, pass `-i`/`--include` to surface response headers (otherwise it prints only the body, which is empty for a 204). (This is a raw-HTTP detail only; SDK `client.records.create` and MCP `create_record` return the id directly, so prefer them for creates.)
 
 ```python
 import os, sys, json, urllib.request
 sys.path.insert(0, os.path.join(os.getcwd(), "scripts"))
-from auth import get_token, load_env  # get_token() is correct here — SDK cannot do this
+from auth import get_token, get_plugin_headers, load_env  # get_token + get_plugin_headers — SDK cannot do this
 
 load_env()
 env = os.environ["DATAVERSE_URL"].rstrip("/")
@@ -16,10 +21,9 @@ token = get_token()
 url = (f"{env}/api/data/v9.2/new_tickets"
        f"?$select=new_name"
        f"&$expand=new_ticket_kbarticle($select=new_title)")
-req = urllib.request.Request(url, headers={
-    "Authorization": f"Bearer {token}",
-    "OData-MaxVersion": "4.0", "OData-Version": "4.0", "Accept": "application/json",
-})
+headers = get_plugin_headers("dv-query", token)
+headers.update({"OData-MaxVersion": "4.0", "OData-Version": "4.0", "Accept": "application/json"})
+req = urllib.request.Request(url, headers=headers)
 with urllib.request.urlopen(req, timeout=150) as resp:
     data = json.loads(resp.read())
     for ticket in data["value"]:
@@ -45,19 +49,18 @@ with urllib.request.urlopen(req, timeout=150) as resp:
 ```python
 import os, sys, json, urllib.request
 sys.path.insert(0, os.path.join(os.getcwd(), "scripts"))
-from auth import get_token, load_env  # get_token() is correct here — SDK does not support $apply
+from auth import get_token, get_plugin_headers, load_env  # get_token + get_plugin_headers — SDK does not support $apply
 
 load_env()
 env = os.environ["DATAVERSE_URL"].rstrip("/")
 token = get_token()
+_base_headers = get_plugin_headers("dv-query", token)
+_base_headers.update({"OData-MaxVersion": "4.0", "OData-Version": "4.0", "Accept": "application/json"})
 
 def apply_query(entity_set, apply_expr):
     """Run a $apply aggregation query. Returns list of result dicts."""
     url = f"{env}/api/data/v9.2/{entity_set}?$apply={apply_expr}"
-    req = urllib.request.Request(url, headers={
-        "Authorization": f"Bearer {token}",
-        "OData-MaxVersion": "4.0", "OData-Version": "4.0", "Accept": "application/json",
-    })
+    req = urllib.request.Request(url, headers=_base_headers.copy())
     with urllib.request.urlopen(req, timeout=150) as resp:
         return json.loads(resp.read()).get("value", [])
 
@@ -77,16 +80,16 @@ for r in top:
 
 **When `$apply` won't work** (cross-table questions, complex transforms):
 
-`$apply` only works within a single entity set. For cross-table aggregation, use `client.dataframe.get()` with minimal `$select` on each table, then `pd.merge()`. The merge itself is sub-second; the bottleneck is network transfer, which `$select` minimizes:
+`$apply` only works within a single entity set. For cross-table aggregation, prefer a server-side `client.query.sql()` JOIN or `client.query.fetchxml()` link-entity; when SQL can't express it, pull each table via the builder's `.execute().to_dataframe()` with minimal `select`, then `pd.merge()`. The merge itself is sub-second; the bottleneck is network transfer, which `select` minimizes:
 
 ```python
 import pandas as pd
 
 # Only the columns needed — always pass select= on large tables
-df_a = client.dataframe.get("prefix_tablea",
-    select=["prefix_keycolumn", "prefix_metric"])
-df_b = client.dataframe.get("prefix_tableb",
-    select=["prefix_keycolumn", "prefix_dimension"])
+df_a = client.query.builder("prefix_tablea") \
+    .select("prefix_keycolumn", "prefix_metric").execute().to_dataframe()
+df_b = client.query.builder("prefix_tableb") \
+    .select("prefix_keycolumn", "prefix_dimension").execute().to_dataframe()
 
 merged = pd.merge(df_a, df_b, on="prefix_keycolumn")
 top = merged.groupby("prefix_dimension")["prefix_metric"].sum().nlargest(10)
@@ -95,5 +98,5 @@ print(top)
 
 **Performance rules for client-side processing:**
 - Always use `$select` — fetching all columns on 100K rows transfers 10-20x more data than needed
-- Use `client.dataframe.get()`, not raw HTTP page iteration
+- Use the builder's `.execute().to_dataframe()`, not raw HTTP page iteration
 - pandas `merge` + `groupby` on 100K-300K rows takes seconds — the bottleneck is network transfer, not Python processing

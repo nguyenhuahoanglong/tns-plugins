@@ -10,6 +10,7 @@ Creates traceable, deterministic unit and component tests for C#/.NET, React/Typ
 - **Duplicate or split tests:** canonical ownership reuses the same subject, module, fixture, and project convention; ambiguity stops for direction.
 - **Framework guessing:** the detector reports the project context and instruction candidates before test analysis.
 - **Coverage theatre:** coverage identifies gaps, while behavior/risk inventory drives what must be covered and records intentionally uncovered reasons.
+- **Tautological tests:** each test names a production break, derives expectations independently, and protects owned behavior rather than source text, constants, or framework mechanics.
 - **Untraceable tests:** registry metadata and test headers link QA-readable cases to owned tests across frameworks.
 - **Repeated approval:** a direct request retains the test-case approval gate, while approved `implement-plan` and `design-backbone` artifacts satisfy it once.
 
@@ -22,6 +23,10 @@ Creates traceable, deterministic unit and component tests for C#/.NET, React/Typ
 - **Scope = unit + component only:** E2E/Playwright stays with `qa-engineer` and `browser-skill`.
 
 ## Changelog
+
+### 2026-08-09 - Falsifiable, boundary-owned tests
+- Added a pre-body gate that requires every test to name the production break it catches and derive expected values independently.
+- Rejected source-text and change-detector tests, kept assertions on owned production boundaries instead of framework mechanics, and added a completion-time mutation check for realistic branches and side effects.
 
 ### 2026-07-27 - First-class existing behavior workflow
 - Replaced the previous narrow decision path with four explicit target modes, including `Existing Behavior Preservation` and `Existing Behavior Change`.

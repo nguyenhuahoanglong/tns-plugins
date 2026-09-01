@@ -62,14 +62,17 @@ def _report(items):
     return _standup_report(today="\n".join(_bullet(item) for item in items if str(item or "").strip()))
 
 
-def _review_report(config, items):
-    """Read yesterday from the workbook without creating or modifying anything."""
+def _review_report(config, items, date=None):
+    """Read the target day's yesterday value without modifying the workbook."""
     yesterday = ""
     try:
         import openpyxl
+        from update_dailytask import _as_date
         workbook = openpyxl.load_workbook(config["excel"]["path"], read_only=True, data_only=False)
         sheet = workbook[config["excel"]["sheet"]]
-        yesterday = str(sheet["C2"].value or "")
+        report_date = date or dt.date.today()
+        source_cell = "B2" if _as_date(sheet["A2"].value) == report_date else "C2"
+        yesterday = str(sheet[source_cell].value or "")
     except (OSError, KeyError, ImportError):
         pass
     return _standup_report(
@@ -178,7 +181,7 @@ def run(config, context: RuntimeContext | None = None, *, date=None, additions=(
     except Exception as error:
         return _result(FAILED, "GATHER_FAILED", steps=steps, recovery="Check Azure DevOps configuration and sign-in.", message=str(error))
     if review_only:
-        return _result(SUCCESS, "REVIEWED", report=_review_report(config, items), steps=steps + [{"name": "review", "status": "PASS", "action": "PREVIEW"}], mutated=False,
+        return _result(SUCCESS, "REVIEWED", report=_review_report(config, items, date=day), steps=steps + [{"name": "review", "status": "PASS", "action": "PREVIEW"}], mutated=False,
                        verified_at=dt.datetime.now(dt.timezone.utc).isoformat())
     if not items:
         return _result(PARTIAL, "NO_TASKS", report=report, steps=steps, recovery="Add work with --add or review Azure DevOps tasks.")

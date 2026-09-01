@@ -29,7 +29,7 @@ Backbone is not a file generator. New files, methods, and abstractions require e
 - `brainstorming` for broader pre-design exploration.
 - `unit-testing` when the user selects spec-first readiness and design-completion tests.
 - `implement-plan` when user wants complete detail implementation after backbone approval.
-- `azdevops-operations` for resolving work-item inputs.
+- `ado-operations` for resolving work-item inputs.
 
 ## Changelog
 

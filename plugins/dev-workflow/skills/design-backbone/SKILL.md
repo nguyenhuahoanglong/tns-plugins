@@ -20,7 +20,7 @@ Create a senior-owned executable backbone that constrains where junior developer
 
 ## Phase 0 — Resolve source and local rules
 
-Read project `AGENTS.md`, authoritative design documents, work items, and linked artifacts in full. For numeric Azure DevOps IDs, use `azdevops-operations`. If sources conflict or are ambiguous, stop and ask which source wins.
+Read project `AGENTS.md`, authoritative design documents, work items, and linked artifacts in full. For numeric Azure DevOps IDs, use `ado-operations`. If sources conflict or are ambiguous, stop and ask which source wins.
 
 Summarize goal, scope, non-goals, constraints, assumptions, and unresolved decisions. Do not continue until the user confirms understanding.
 

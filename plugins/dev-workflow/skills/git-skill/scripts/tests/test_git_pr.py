@@ -303,7 +303,7 @@ def test_TC_025_Should_ChooseExplicitThenReviewThenTemplateThenFallback_When_Bui
 # Design: Task 2, AC-3.
 def test_TC_026_Should_SendCompleteAzureCliArgv_When_CreatingPr() -> None:
     pr = _portable_pr()
-    runner = RecordingRunner({("az", "repos", "pr", "create", "--org", "https://dev.azure.com/Contoso", "--project", "Fleet", "--repository", "Vehicle.Api", "--source-branch", "US/1878-pr-metadata", "--target-branch", "master", "--title", "#1878 pr metadata", "--description", "body", "--work-items", "1907", "1908", "--output", "json"): ProcessResult(stdout='{"pullRequestId": 42}')})
+    runner = RecordingRunner({("az", "repos", "pr", "create", "--org", "https://dev.azure.com/Contoso", "--project", "Fleet", "--repository", "Vehicle.Api", "--source-branch", "US/1878-pr-metadata", "--target-branch", "master", "--title", "#1878 pr metadata", "--description", "body", "--work-items", "1907", "1908", "--output", "json"): ProcessResult(stdout='{"pullRequestId": 42}'), ("az", "repos", "pr", "show", "--id", "42", "--org", "https://dev.azure.com/Contoso", "--output", "json"): ProcessResult(stdout='{"title":"#1878 pr metadata","description":"body","targetRefName":"refs/heads/master"}'), ("az", "repos", "pr", "work-item", "list", "--id", "42", "--org", "https://dev.azure.com/Contoso", "--output", "json"): ProcessResult(stdout='[{"id":1907},{"id":1908}]')})
     plan = pr.PrPlan("Contoso", "Fleet", "Vehicle.Api", "US/1878-pr-metadata", "master", "origin/master", "#1878 pr metadata", "body", ("1907", "1908"))
 
     result = pr.GitPr(runner).create_from_plan(Path("repo"), plan)
@@ -313,39 +313,35 @@ def test_TC_026_Should_SendCompleteAzureCliArgv_When_CreatingPr() -> None:
     assert runner.calls[0][0] == ["az", "repos", "pr", "create", "--org", "https://dev.azure.com/Contoso", "--project", "Fleet", "--repository", "Vehicle.Api", "--source-branch", "US/1878-pr-metadata", "--target-branch", "master", "--title", "#1878 pr metadata", "--description", "body", "--work-items", "1907", "1908", "--output", "json"]
 
 
-# TC-027: Repair title, description, and only missing linked work items after creation.
+# TC-027: Fail title, description, or linked-work-item drift without repair.
 # Steps:
 # 1. Provide a created PR with legacy title, empty description, and one missing task link.
-# 2. Verify and repair its metadata through the recording boundary.
-# 3. Provide corrected title, body, and work-item responses on the mandatory re-query.
-# 4. Verify title/body update and a single missing-work-item repair are requested.
+# 2. Verify metadata through the recording boundary.
+# 3. Confirm one read-only query per surface.
+# 4. Verify no update or link-repair command is requested.
 # Design: Task 2, AC-3.
-def test_TC_027_Should_RepairIncompleteMetadata_When_VerificationFindsDrift() -> None:
+def test_TC_027_Should_FailWithoutRepair_When_VerificationFindsDrift() -> None:
     pr = _portable_pr()
     show = ("az", "repos", "pr", "show", "--id", "42", "--org", "https://dev.azure.com/Contoso", "--output", "json")
     work_items = ("az", "repos", "pr", "work-item", "list", "--id", "42", "--org", "https://dev.azure.com/Contoso", "--output", "json")
     runner = SequencedRecordingRunner(
         {
             show: [
-                ProcessResult(stdout='{"title":"Merge feature into master","description":""}'),
-                ProcessResult(stdout='{"title":"#1878 pr metadata","description":"body"}'),
+                ProcessResult(stdout='{"title":"Merge feature into master","description":"","targetRefName":"refs/heads/master"}'),
             ],
             work_items: [
                 ProcessResult(stdout="[{\"id\":1907}]"),
-                ProcessResult(stdout="[{\"id\":1907},{\"id\":1908}]"),
             ],
         }
     )
 
-    result = pr.GitPr(runner).verify_metadata(Path("repo"), 42, "https://dev.azure.com/Contoso", "#1878 pr metadata", "body", ("1907", "1908"))
+    result = pr.GitPr(runner).verify_metadata(Path("repo"), 42, "https://dev.azure.com/Contoso", "#1878 pr metadata", "body", "master", ("1907", "1908"))
 
     commands = [args for args, _ in runner.calls]
-    assert result.ok is True
-    assert ["az", "repos", "pr", "update", "--id", "42", "--org", "https://dev.azure.com/Contoso", "--title", "#1878 pr metadata", "--output", "none"] in commands
-    assert ["az", "repos", "pr", "update", "--id", "42", "--org", "https://dev.azure.com/Contoso", "--description", "body", "--output", "none"] in commands
-    assert ["az", "repos", "pr", "work-item", "add", "--id", "42", "--org", "https://dev.azure.com/Contoso", "--work-items", "1908", "--output", "none"] in commands
-    assert commands.count(list(show)) == 2
-    assert commands.count(list(work_items)) == 2
+    assert result.ok is False
+    assert not any(command[:4] == ["az", "repos", "pr", "update"] or command[:5] == ["az", "repos", "pr", "work-item", "add"] for command in commands)
+    assert commands.count(list(show)) == 1
+    assert commands.count(list(work_items)) == 1
 
 
 # TC-028: Stop optional auto-merge on conflicts or merge failure.
@@ -414,11 +410,11 @@ def test_TC_030_Should_QueryAndParseOriginRemote_When_PlanningPr() -> None:
     assert ["remote", "get-url", "origin"] in [args for args, _ in runner.calls]
 
 
-# TC-031: Re-query repaired PR metadata and fail if it remains wrong.
+# TC-031: Fail metadata drift after one strict verification.
 # Steps:
-# 1. Provide a PR whose title, body, and work-item links remain incomplete after repair requests.
-# 2. Verify and repair its metadata through the recording boundary.
-# 3. Verify title/body/work-item state is queried again and the outcome reports failure.
+# 1. Provide a PR whose title, body, target, and work-item links differ.
+# 2. Verify its metadata through the recording boundary.
+# 3. Verify each surface is queried once and the outcome reports failure.
 # Design: Task 2, AC-3 and AC-12.
 def test_TC_031_Should_FailMetadataVerification_When_RequeryStillFindsDrift() -> None:
     pr = _portable_pr()
@@ -438,21 +434,21 @@ def test_TC_031_Should_FailMetadataVerification_When_RequeryStillFindsDrift() ->
     )
 
     result = pr.GitPr(runner).verify_metadata(
-        Path("repo"), 42, "https://dev.azure.com/Contoso", "#1878 pr metadata", "body", ("1907",)
+        Path("repo"), 42, "https://dev.azure.com/Contoso", "#1878 pr metadata", "body", "master", ("1907",)
     )
 
     commands = [args for args, _ in runner.calls]
     assert result.ok is False
-    assert result.error == "PR metadata repair verification failed"
-    assert commands.count(list(show)) == 2
-    assert commands.count(list(work_items)) == 2
+    assert result.error == "PR metadata verification failed after creation"
+    assert commands.count(list(show)) == 1
+    assert commands.count(list(work_items)) == 1
 
 
-# TC-035: Re-query repaired PR metadata and fail if final metadata cannot be parsed.
+# TC-035: Fail when strict metadata verification cannot parse its response.
 # Steps:
-# 1. Provide a PR with metadata drift that causes title, body, and work-item repairs.
-# 2. Return empty or malformed metadata responses on the required post-repair re-query.
-# 3. Verify repair commands were requested but verification reports failure.
+# 1. Provide empty or malformed metadata responses.
+# 2. Run one read-only verification.
+# 3. Verify no repair command is requested and verification reports failure.
 # Design: Task 2, AC-3 and AC-12.
 @pytest.mark.parametrize("final_metadata", ["", "not json"])
 def test_TC_035_Should_FailMetadataVerification_When_RequeryIsUnavailableOrUnparseable(final_metadata: str) -> None:
@@ -473,17 +469,13 @@ def test_TC_035_Should_FailMetadataVerification_When_RequeryIsUnavailableOrUnpar
     )
 
     result = pr.GitPr(runner).verify_metadata(
-        Path("repo"), 42, "https://dev.azure.com/Contoso", "#1878 pr metadata", "body", ("1907",)
+        Path("repo"), 42, "https://dev.azure.com/Contoso", "#1878 pr metadata", "body", "master", ("1907",)
     )
 
     commands = [args for args, _ in runner.calls]
     assert result.ok is False
-    assert result.error == "PR metadata repair verification failed"
-    assert ["az", "repos", "pr", "update", "--id", "42", "--org", "https://dev.azure.com/Contoso", "--title", "#1878 pr metadata", "--output", "none"] in commands
-    assert ["az", "repos", "pr", "update", "--id", "42", "--org", "https://dev.azure.com/Contoso", "--description", "body", "--output", "none"] in commands
-    assert ["az", "repos", "pr", "work-item", "add", "--id", "42", "--org", "https://dev.azure.com/Contoso", "--work-items", "1907", "--output", "none"] in commands
-    assert commands.count(list(show)) == 2
-    assert commands.count(list(work_items)) == 2
+    assert result.error == "PR metadata verification failed after creation"
+    assert not any(command[:4] == ["az", "repos", "pr", "update"] or command[:5] == ["az", "repos", "pr", "work-item", "add"] for command in commands)
 
 
 # TC-045: Use an explicit description before repository-backed sources.

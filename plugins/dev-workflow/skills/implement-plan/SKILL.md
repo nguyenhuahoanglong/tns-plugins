@@ -5,8 +5,9 @@ description: "Gated code-development workflow. Use only when user explicitly run
 
 # Implement Plan
 
-Plan, approve, delegate, verify code changes. Main agent owns design, plan status, and evidence; agents
-own only their allowlisted implementation files.
+Harden a plan into an unattended-executable contract, then delegate and verify code changes. Runs
+alongside the host tool's plan mode: the host plans, this skill guarantees the plan can run. Main agent
+owns the contract, plan status, and evidence; agents own only their allowlisted implementation files.
 
 ## Entry gate
 
@@ -19,65 +20,74 @@ route the request normally. Supporting non-code files never establish eligibilit
 
 ## Hard rules
 
-1. Before approval, work is read-only except the plan. Main agent never writes production logic after
+1. **This skill prescribes the contract, not the planning method.** No interview script, no question bank,
+   no explorer or architect counts, no exploration scaling — the host's plan mode owns all of that. Cold
+   invocation without plan mode stays fully supported: gather what the contract requires by ordinary means.
+2. Before approval, work is read-only except the plan. Main agent never writes production logic after
    approval, except approved compile-ready TDD scaffolds without logic and trivial verification fixes.
    Explicit approval in the current request counts for an unchanged existing plan; ask again only after
    creating or materially revising the plan.
-2. Resolve output before discovery: retain existing plan path; explicit `.backlog/<feature>` requirement
-   writes `.backlog/<feature>/plan.md`; all other input writes nearest-root `.plans/<feature>.md`.
-3. Recommendations advise; only explicit user `Yes` selects TDD/review. Confirm or normalize old-modern
-   auto-assessment selections before execution. Keep legacy requested/not-requested as user decisions.
+3. Resolve the plan path before anything else, per `references/plan-contract.md`. A host-injected plan path
+   is the only writable file while plan mode is in force.
+4. Only an invocation flag (`--tdd`, `--review`, `--no-tdd`, `--no-review`) or an explicit user `Yes`
+   selects TDD or review.
+5. **Autonomy boundary.** The guarantee covers execution through build and test verification. The only
+   sanctioned interaction points are `code-review-lite` escalation, which pauses by design, and reporting a
+   `blocked` task. Implementers never ask the user anything.
 
-## Phase 0 — understand
+## Phase 1 — adopt
 
-Read applicable `AGENTS.md`, requirements, standards, build/test configuration, and critical source.
-Use 0–3 read-only explorers: zero for known isolated scope, one for normal discovery, two or three for
-uncertain or multi-area work. Personally validate critical evidence, then assess quality. For recommended
-risky workflows, state trigger/evidence, workflow/regression risk, and effort; ask only the affected opt-in.
+Detect a host-injected plan path and resolve the canonical path. Adopt the plan the host produced, an
+existing plan file, or draft one by ordinary means. Read applicable `AGENTS.md`, requirements, standards,
+and build/test configuration, and personally read the files each task will touch. Record consent from flags
+when present; otherwise ask once, after the plan is drafted, per `references/plan-contract.md`.
 
-## Phase 1 — design and approve
+## Phase 2 — harden
 
-Use zero architects for trivial one-file work, one for normal work, and up to three perspectives for
-complex/multi-area work. Reconcile one design. Write isolated feature-slice tasks with exact task fields,
-mechanical Done-when, dependencies, and dependency waves. Assign one implementer per independent,
-dependency-ready slice, keep coupled files together, and cap concurrent implementers at three. Run one
-fresh-eyes plan quick-check for complex scope or three or more risky tasks.
+Write the plan to the contract in `references/plan-contract.md` using `references/plan-template.md`. Author
+`## Preflight` for every external prerequisite; file probes are derived from `Files:`. Run
+`python scripts/preflight.py <plan-path>`, transcribe its results and `Autonomy` into the plan, then run
+`python scripts/verify_output.py <plan-path>` and fix every FAIL. A blocked probe is a valid recorded
+result here, not a contract violation.
 
-Top Depth records the Context choice; risky user-approved tasks may use TDD while routine tasks simplify.
-Run `python scripts/verify_output.py <plan-path>` and fix every FAIL. Stop for approval only when the plan
-was created or materially revised; an explicitly approved unchanged plan proceeds.
+## Phase 3 — approve
 
-## Phase 2 — implement
+Stop for approval only when the plan was created or materially revised; an explicitly approved unchanged
+plan proceeds. The gate is zero FAIL and zero BLOCK. `Autonomy: verified-blocked` cannot be approved —
+hand the plan over naming each blocked probe and what fixes it, resolve it with the user present, and
+re-run preflight. Surface the `unverifiable` count so the user consents to the residual risk.
 
-Dispatch only through the prompt references, recording working-tree-aware status plus scoped diff/file
-hashes before each writable dispatch and comparing them after. Main agent alone updates task Status.
+## Phase 4 — execute
 
-- Existing-method TDD: baseline GREEN, characterization GREEN, changed-behavior assertion RED, then GREEN.
-- Simple-new TDD: compile-ready named signatures/control-flow wiring only, assertion RED, detailed GREEN.
-- Complex-backbone: pause the same task for unchanged `design-backbone`, honor its independent decisions
-  and approvals, verify handoff, resume the task, and do not duplicate tests.
-- `qa-engineer` uses `unit-testing` traceability/test registry rules. One fresh blocker retry carries the
-  decision and prior progress; a second blocker marks the task `blocked`.
+In this order: promote the host draft to the canonical path, re-run preflight, then transcribe results into
+the canonical file. Dispatch only through `references/agent-prompts.md`, recording working-tree-aware status
+plus scoped diff and file hashes before each writable dispatch and comparing them after. Assign one
+implementer per dependency-ready slice and cap concurrency at three. Main agent alone updates task Status,
+and accepts DONE only after checking diff, file scope, and Done-when evidence. `qa-engineer` uses
+`unit-testing` traceability and test-registry rules. One fresh blocker retry carries the decision and prior
+progress; a second blocker marks the task `blocked`.
 
-## Phase 3 — verify
+## Phase 5 — verify
 
 Verify each Done-when, scoped diff, file scope, build, and existing suite. For selected review, invoke
 `code-review-lite` with `Escalation Policy: ask` and Global Constraints verbatim; send all must-fix items
-to one fresh implementer, re-verify/re-review, and cap at two loops. Skipped review is never offered,
+to one fresh implementer, re-verify and re-review, and cap at two loops. Skipped review is never offered,
 run, or reported. Tick ACs only from evidence and rerun the verifier after status updates.
 
-## Phase 4 — report
+## Phase 6 — report
 
-Report plan path, files changed, task/AC status, build/test evidence, manual follow-ups, and review verdict
-only when selected. Update or offer supporting docs only when an AC, project rule, or verified code impact
-requires them.
+Report plan path, files changed, task/AC status, build/test evidence, the preflight summary, manual
+follow-ups, and the review verdict only when selected. Update or offer supporting docs only when an AC,
+project rule, or verified code impact requires them.
 
 ## References
 
-- Decisions/interview: `references/quality-assessment.md`, `references/interview-guide.md`
-- Task modes/design: `references/definition-criteria.md`, `references/plan-analysis.md`
-- Agent dispatch: `references/agent-prompts.md`; schema: `references/plan-template.md`
+- Contract, paths, consent, actionability: `references/plan-contract.md`
+- Plan schema: `references/plan-template.md`
+- Preflight probes and gates: `references/autonomy-preflight.md`
+- Post-approval dispatch: `references/agent-prompts.md`
 
 ## Verify Output
 
-Run `python scripts/verify_output.py <plan-path>` before approval and after final updates; zero FAIL.
+Run `python scripts/preflight.py <plan-path>` and `python scripts/verify_output.py <plan-path>` before
+approval and after final updates; zero FAIL, and zero BLOCK before approval.
