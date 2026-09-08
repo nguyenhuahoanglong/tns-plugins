@@ -1,12 +1,12 @@
 ---
 name: code-review-lite
 description: "Adaptive, attested production-code review. Use for quick reviews, pre-merge checks, deterministic evidence, and Pro escalation."
-version: 4.1.2
+version: 5.0.0
 ---
 
 # Code Review Lite
 
-Read `references/workflow.md` and `references/report-template.md`. This is v4.1.2.
+Read `references/workflow.md` and `references/report-template.md`. This is v5.0.0.
 
 ## Invocation
 
@@ -40,8 +40,8 @@ Accept optional `Escalation Policy: auto|ask`; omitted means `ask`. Record wheth
    `use-unit-testing`; do not create tests automatically.
 6. For every Lite route, a branch `FAIL` starts no semantic agents, sets `Selected Specialist` to
    `None`, and marks every triggered family unreviewed. A build/test failure, timeout, or gap runs
-   Requirement Validator only, sets `Selected Specialist` to `None`, and marks every triggered
-   family unreviewed. Otherwise, bounded Lite after a declined ask dispatches Requirement Validator
+   Code Reviewer only, sets `Selected Specialist` to `None`, and marks every triggered
+   family unreviewed. Otherwise, bounded Lite after a declined ask dispatches Code Reviewer
    plus exactly one highest-priority specialist: Security Reviewer > Philosophy Reviewer >
    Performance Reviewer > Standard Reviewer; every other triggered family is unreviewed.
    Single/zero-family Lite uses `not-needed`.
@@ -52,13 +52,13 @@ Accept optional `Escalation Policy: auto|ask`; omitted means `ask`. Record wheth
 |---|---|---|
 | No Production Code | docs/tests/excluded only | 0 |
 | Code Tiny | <=3 production files, <=100 lines, no risk | 0 |
-| Lite | production review with <=1 specialist | Requirement + optional specialist |
+| Lite | production review with <=1 specialist | Code Reviewer baseline + optional specialist |
 | Pro escalation | >1 family with explicit-user `auto` or accepted `ask` | code-review-pro only |
-| Bounded Lite | >1 family with declined `ask` | Requirement + one priority specialist when gates pass |
+| Bounded Lite | >1 family with declined `ask` | Code Reviewer baseline + one priority specialist when gates pass |
 
 Preserve the existing branch/build rules. `FAIL` is Critical; environment, timeout, and JS skipped
 are explicit gaps. For every Lite route, branch failure starts no semantic agents; build/test
-failure, timeout, or gap runs Requirement Validator only. Gates are scripts, never agents.
+failure, timeout, or gap runs Code Reviewer only. Gates are scripts, never agents.
 
 ## Escalation decision table
 
@@ -83,7 +83,7 @@ Write `.CodeReview/{safe-branch}.lite.md` and collision-safe
 `.CodeReview/.{safe-branch}.lite.review-meta.json`. The report fields are `Escalation Policy`,
 `Escalation Policy Provenance`, `Escalation Decision`, `Selected Specialist`, and `Unreviewed Risk Families`; the matching sidecar
 keys are `escalationPolicy`, `escalationPolicyProvenance`, `escalationDecision`, `selectedSpecialist`, and
-`unreviewedRiskFamilies`. The sidecar uses `recordVersion: 3`, `skillVersion: 4.1.2`, exact
+`unreviewedRiskFamilies`. The sidecar uses `recordVersion: 3`, `skillVersion: 5.0.0`, exact
 runtime/session values, scope/test evidence, SHA-256 references, production allowlist, and
 build/semantic-agent evidence. Its `selectedSpecialist` value must be exactly `Security Reviewer`,
 `Philosophy Reviewer`, `Performance Reviewer`, `Standard Reviewer`, or `None`. Use the template

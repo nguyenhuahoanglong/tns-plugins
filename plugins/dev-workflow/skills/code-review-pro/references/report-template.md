@@ -1,6 +1,6 @@
 ---
 name: report-template
-description: Strict v3 report and sidecar layout for runtime, scope, tests, routing, semantic review, and findings
+description: Strict v4 report and sidecar layout for runtime, scope, tests, routing, semantic review, and findings
 ---
 
 # Report Template
@@ -14,7 +14,7 @@ Use these fields exactly once. `Main Runtime` is exactly `{runtimeAttestation.mo
 ```markdown
 # Code Review: {title}
 
-**Skill**: code-review-pro v3.0.2
+**Skill**: code-review-pro v4.0.0
 **Review Profile**: No-production-code | Tiny | Pro
 **Main Runtime**: {modelId} / {effort} ({trustLevel})
 **Agents Triggered**: {pipe-separated exact actor records, or None}
@@ -36,10 +36,10 @@ Join actor records with ` | ` and never put a pipe inside one record. Use:
 - `Main(Tiny all-lens)`
 - `Branch Work Item Gate(haiku / default; branch work item convention)`
 - `Build Validator[{repo}](haiku / default; code build)`
-- `Requirement Validator(opus / default; {work-item|regression-only})`
-- `{Specialist} Reviewer(sonnet / default; {trigger})`
+- `Code Reviewer(opus / default; {work-item|regression-only})`
+- `{Specialist} Reviewer(opus / default; {trigger})`
 
-Skipped records use `{Actor}({reason})`. No-production-code triggers no semantic/build actor; an applicable Branch Work Item Gate is allowed. Tiny triggers Main plus one Build Validator per repository. Pro triggers one Build Validator per repository, one Requirement Validator, and exactly the classified specialists.
+Skipped records use `{Actor}({reason})`. No-production-code triggers no semantic/build actor; an applicable Branch Work Item Gate is allowed. Tiny triggers Main plus one Build Validator per repository. Pro triggers one Build Validator per repository, one Code Reviewer, and exactly the classified specialists.
 
 ## Required Evidence Sections
 

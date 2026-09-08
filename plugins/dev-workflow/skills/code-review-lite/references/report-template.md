@@ -1,11 +1,11 @@
 ---
 name: report-template
-description: Exact v4.1.2 Lite report and record-v3 evidence contract
+description: Exact v5.0.0 Lite report and record-v3 evidence contract
 ---
 
 # Report Template
 
-Use `.CodeReview/{safe-branch}.lite.md`; Pro escalation produces no Lite report. Use v4.1.2 fields exactly.
+Use `.CodeReview/{safe-branch}.lite.md`; Pro escalation produces no Lite report. Use v5.0.0 fields exactly.
 
 ```markdown
 # Code Review (Lite): {title}
@@ -14,7 +14,7 @@ Use `.CodeReview/{safe-branch}.lite.md`; Pro escalation produces no Lite report.
 **Source**: {source}
 **Target**: {target}
 **Files Reviewed**: {count}
-**Skill**: code-review-lite v4.1.2
+**Skill**: code-review-lite v5.0.0
 **Review Profile**: No Production Code | Code Tiny | Lite
 **Main Runtime**: {exact attested modelId} / {exact attested effort} ({trustLevel})
 **Context Manifest**: {absolute ephemeral path | n/a}
@@ -34,14 +34,14 @@ Add a reminder line only when `Trust` is not `verified` or `Recommendation` is `
 > Reminder: runtime not verified as recommended ({trustLevel}{, reasonCode}); for higher-confidence review switch to Claude Opus (or Sonnet 5+) at high thinking and re-run.
 ```
 
-The sidecar contains `recordVersion: 3`, `skillName: code-review-lite`, `skillVersion: 4.1.2`,
+The sidecar contains `recordVersion: 3`, `skillName: code-review-lite`, `skillVersion: 5.0.0`,
 `reviewProfile`, the complete runtime attestation (including `trustLevel` and, when present,
 `reasonCode`), its exact `{status, sessionStatus,
 overrideRecorded}` session projection, `productionAllowlist`, deterministic build/semantic-agent
 evidence, and artifact `path`/`sha256`. The report runtime must equal the attestation and sidecar.
 Existing sessions require `overrideRecorded: true`; fresh sessions require `false`.
 
-Apply this v4.1.2 decision table before creating a Lite artifact:
+Apply this v5.0.0 decision table before creating a Lite artifact:
 
 | Triggered families | Policy / response | Outcome | Lite fields |
 |---|---|---|---|
@@ -86,7 +86,7 @@ user; only explicit-user `auto` routes immediately to Pro. For one/zero family L
 multi-family ask, preserve trigger order for `Unreviewed Risk Families`; successful bounded Lite
 selects exactly one persisted value by Security Reviewer > Philosophy Reviewer > Performance
 Reviewer > Standard Reviewer. For every Lite route, branch FAIL selects `None` and starts no
-semantic agents; build/test fail, timeout, or gap selects `None`, runs only Requirement Validator,
+semantic agents; build/test fail, timeout, or gap selects `None`, runs only Code Reviewer,
 and leaves every triggered family unreviewed. Pro auto/ask-accepted paths write neither Lite report
 nor sidecar.
 
@@ -99,8 +99,8 @@ Test evidence uses `executions[]` and retains every run across repositories. Eac
 repo, command, status, exit code, and passed/failed/skipped counts. No Production Code retains its
 report, sidecar, runtime/scope/test artifacts, and a `not-applicable` test artifact, but has no
 worktree, context, build/test execution, semantic agents, or findings. Code Tiny uses zero semantic
-children. Lite runs Requirement Validator and at most one specialist only after gates; branch FAIL
-runs no semantic agents, while test/build failure, timeout, or gap leaves Requirement Validator
+children. Lite runs Code Reviewer and at most one specialist only after gates; branch FAIL
+runs no semantic agents, while test/build failure, timeout, or gap leaves Code Reviewer
 only. Missing direct tests for changed
 symbols adds exactly:
 

@@ -1,6 +1,6 @@
 ---
 name: workflow
-description: v4.1.2 runtime, scope, test, escalation, and isolated-agent workflow
+description: v5.0.0 runtime, scope, test, escalation, and isolated-agent workflow
 ---
 
 # Workflow
@@ -57,8 +57,8 @@ failed tests; a failure has nonzero exit and positive failed count; a timeout ha
 zero counts. Empty direct tests for changed symbols require the exact advisory `use-unit-testing`,
 not a defect. The advisory never suppresses a selected specialist. For every Lite route, branch
 `FAIL` starts no semantic agents, selects `None`, and leaves every triggered family unreviewed;
-build/test failure, timeout, or gap dispatches Requirement Validator only, selects `None`, and
-leaves every triggered family unreviewed. Otherwise dispatch Requirement Validator plus exactly
+build/test failure, timeout, or gap dispatches Code Reviewer only, selects `None`, and
+leaves every triggered family unreviewed. Otherwise dispatch Code Reviewer plus exactly
 one priority specialist: Security Reviewer > Philosophy Reviewer > Performance Reviewer > Standard
 Reviewer. Single/zero-family Lite has decision `not-needed`.
 
@@ -74,12 +74,12 @@ Preflight path: {absolute-preflight-path}
 Preflight token: {token}
 ```
 
-Use `Task(subagent_type="requirement-validator", prompt="...", description="...")` and
+Use `Task(subagent_type="code-reviewer", prompt="...", description="...")` and
 `Task(subagent_type="code-reviewer", prompt="...", description="...")`; children must not use git, edit, nest agents, or create
 findings outside the allowlist. Keep prompt cache/context ephemeral.
 
 Write `.CodeReview/.{safe-branch}.lite.review-meta.json` with `recordVersion: 3`,
-`skillVersion: 4.1.2`, exact attested runtime, session override, production allowlist, build and semantic-agent
+`skillVersion: 5.0.0`, exact attested runtime, session override, production allowlist, build and semantic-agent
 evidence, and absolute runtime/scope/test artifact references with SHA-256 hashes. Add
 `escalationPolicy`, `escalationPolicyProvenance`, `escalationDecision`, `selectedSpecialist`, and `unreviewedRiskFamilies`, mirrored
 by report fields `Escalation Policy`, `Escalation Policy Provenance`, `Escalation Decision`, `Selected Specialist`, and `Unreviewed

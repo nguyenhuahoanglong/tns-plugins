@@ -53,7 +53,7 @@ Autonomy: verified-ready"""
 - ACs: AC-1"""
     assignment = assignment if assignment is not None else (
         "\n| Wave | Task(s) | Agent | Verified by main agent |\n|---|---|---|---|\n"
-        "| 1 | Task 1 | qa-engineer then code-implementer | RED then GREEN plus diff |")
+        "| 1 | Task 1 | code-implementer | RED then GREEN plus diff |")
     review_line = "- Code review: `code-review-lite` over changed files, `Escalation Policy: ask`\n" if review == "selected" else ""
     verification = verification if verification is not None else (
         "\n- Build: `npm run build`\n- Existing tests: `npm test`\n" + review_line)
@@ -280,10 +280,32 @@ class TestPreflightContract(unittest.TestCase):
 
 
 class TestCrossSection(unittest.TestCase):
-    def test_tdd_requires_a_qa_engineer_assignment(self):
+    def test_tdd_requires_a_code_implementer_assignment(self):
         text = plan(assignment="\n| Wave | Task(s) | Agent | Verified by main agent |\n|---|---|---|---|\n"
-                               "| 1 | Task 1 | code-implementer | diff plus Done-when evidence |")
-        self.assertIn("TDD requires qa-engineer assignment", messages(text))
+                               "| 1 | Task 1 | advisor | assessment only |")
+        self.assertIn("TDD Task 1 requires code-implementer assignment", messages(text))
+
+    def test_tdd_rejects_qa_engineer_as_unit_test_owner(self):
+        text = plan(assignment="\n| Wave | Task(s) | Agent | Verified by main agent |\n|---|---|---|---|\n"
+                               "| 1 | Task 1 | qa-engineer then code-implementer | RED then GREEN plus diff |")
+        self.assertIn("TDD Task 1 must not assign qa-engineer", messages(text))
+
+    def test_tdd_allows_separate_qa_e2e_assignment(self):
+        text = plan(assignment="\n| Wave | Task(s) | Agent | Verified by main agent |\n|---|---|---|---|\n"
+                               "| 1 | Task 1 | code-implementer | RED then GREEN plus diff |\n"
+                               "| 2 | E2E verification | qa-engineer | requirement trace plus E2E result |")
+        self.assertNotIn("FAIL", levels(text), messages(text))
+
+    def test_tdd_rejects_qa_task_row_when_other_implementer_row_exists(self):
+        text = plan(assignment="\n| Wave | Task(s) | Agent | Verified by main agent |\n|---|---|---|---|\n"
+                               "| 1 | Task 1 | qa-engineer | TDD tests |\n"
+                               "| 2 | Task 2 | code-implementer | diff |")
+        self.assertIn("TDD Task 1 must not assign qa-engineer", messages(text))
+
+    def test_negative_qa_prose_does_not_change_tdd_assignment(self):
+        text = plan(assignment="\n| Wave | Task(s) | Agent | Verified by main agent |\n|---|---|---|---|\n"
+                               "| 1 | Task 1 | code-implementer | qa-engineer does not own unit tests |")
+        self.assertNotIn("FAIL", levels(text), messages(text))
 
     def test_verification_requires_build_and_tests(self):
         text = plan(verification="\n- Manual/static checks: read the diff\n")

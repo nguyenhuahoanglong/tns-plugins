@@ -1,6 +1,6 @@
 ---
 name: followup-review
-description: Strict v3 follow-up detection, delta reclassification, finding carry-forward, and sidecar schema
+description: Strict v4 follow-up detection, delta reclassification, finding carry-forward, and sidecar schema
 ---
 
 # Follow-up Review
@@ -9,7 +9,7 @@ Follow-ups use the same runtime, scope, test, classifier, actor, and verifier co
 
 ## Detection
 
-Require the report and sidecar. Accept only a parsed `recordVersion: 3`, `skillName: code-review-pro`, `skillVersion: 3.0.2` record with all retained provenance and three contained, hash-bound artifact references. A missing/invalid/pre-v3 record requires fresh full-scope classification; never upgrade a legacy record in place.
+Require the report and sidecar. Accept only a parsed `recordVersion: 4`, `skillName: code-review-pro`, `skillVersion: 4.0.0` record with all retained provenance and three contained, hash-bound artifact references. A missing/invalid/pre-v4 record requires fresh full-scope classification; never upgrade a legacy record in place.
 
 Recompute the normalized scoped-diff SHA-256:
 
@@ -26,19 +26,19 @@ After running the runtime preflight (advisory) and session classification, diff 
 
 - No-production-code: branch gate when applicable, no worktree/build/test/semantic actor/finding.
 - Tiny: one Build Validator per repository, then Tiny main all-lens review.
-- Pro: one Build Validator per repository, Requirement Validator, then only classified specialists.
+- Pro: one Build Validator per repository, Code Reviewer, then only classified specialists.
 
 Re-evaluate requirement context if it changed or regression-only mode can now resolve a direct item. For each prior finding, re-read its production path and mark Resolved, Partial, Unresolved, or Regressed. Remove resolved findings, carry unresolved/partial findings with stable slugs, and allocate new slugs only for new causes.
 
-## Record v3
+## Record v4
 
 This abridged shape lists every required field. Artifact `path` values are contained relative paths beside the sidecar; `sha256` is the digest of the referenced bytes.
 
 ```json
 {
-  "recordVersion": 3,
+  "recordVersion": 4,
   "skillName": "code-review-pro",
-  "skillVersion": "3.0.2",
+  "skillVersion": "4.0.0",
   "reviewProfile": "Pro",
   "reviewKind": "follow-up",
   "iteration": 2,
@@ -52,7 +52,7 @@ This abridged shape lists every required field. Artifact `path` values are conta
     "trustLevel": "verified",
     "build": "haiku / default",
     "requirement": "opus / default",
-    "specialists": "sonnet / default"
+    "specialists": "opus / default"
   },
   "classifier": {
     "filesChanged": 4,
@@ -86,8 +86,8 @@ This abridged shape lists every required field. Artifact `path` values are conta
   "triggered": [
     "Branch Work Item Gate(haiku / default; branch work item convention)",
     "Build Validator[repo](haiku / default; code build)",
-    "Requirement Validator(opus / default; work-item)",
-    "Philosophy Reviewer(sonnet / default; api-contract)"
+    "Code Reviewer(opus / default; work-item)",
+    "Philosophy Reviewer(opus / default; api-contract)"
   ],
   "skipped": [
     "Security Reviewer(no security trigger)",

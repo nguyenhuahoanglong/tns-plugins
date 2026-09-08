@@ -8,16 +8,16 @@ import sys
 from pathlib import Path
 
 LEGACY_SKILL = "code-review-lite v3.0.0"
-SKILL = "code-review-lite v4.1.1"
+SKILL = "code-review-lite v5.0.0"
 PROFILES = {"Docs Tiny", "Code Tiny", "Lite", "No Production Code"}
 SEMANTIC_AGENTS = {
-    "Requirement Validator",
+    "Code Reviewer",
     "Security Reviewer",
     "Performance Reviewer",
     "Philosophy Reviewer",
     "Standard Reviewer",
 }
-SPECIALISTS = SEMANTIC_AGENTS - {"Requirement Validator"}
+SPECIALISTS = SEMANTIC_AGENTS - {"Code Reviewer"}
 SPECIALIST_PRIORITY = (
     "Security Reviewer",
     "Philosophy Reviewer",
@@ -240,15 +240,15 @@ def validate_escalation_contract(text, sidecar, tests, profile):
     if not entries:
         expected_selected = "None"
         expected_unreviewed = "None"
-        expected_agents = ["Requirement Validator"] if profile == "Lite" and not branch_failed else []
+        expected_agents = ["Code Reviewer"] if profile == "Lite" and not branch_failed else []
     elif branch_failed or blocked:
         expected_selected = "None"
         expected_unreviewed = " | ".join(entries)
-        expected_agents = [] if branch_failed else ["Requirement Validator"]
+        expected_agents = [] if branch_failed else ["Code Reviewer"]
     else:
         expected_selected = next(reviewer for reviewer in SPECIALIST_PRIORITY if any(entry.startswith(f"{reviewer}=") for entry in entries))
         expected_unreviewed = " | ".join(entry for entry in entries if not entry.startswith(f"{expected_selected}=")) or "None"
-        expected_agents = ["Requirement Validator", expected_selected]
+        expected_agents = ["Code Reviewer", expected_selected]
 
     add(results, selected == expected_selected, "Selected Specialist follows gate outcome and priority")
     add(results, unreviewed == expected_unreviewed, "Unreviewed Risk Families preserves the required ordered residual list")
@@ -569,7 +569,7 @@ def evaluate_v4(path, text, expected_profile=None, sidecar_override=None):
         "Runtime attestation identifies a current cross-checked host session",
     )
     add(results, sidecar.get("skillName") == "code-review-lite", "Lite metadata skillName is code-review-lite")
-    add(results, sidecar.get("skillVersion") == "4.1.1", "Lite metadata skillVersion is 4.1.1")
+    add(results, sidecar.get("skillVersion") == "5.0.0", "Lite metadata skillVersion is 5.0.0")
     add(results, sidecar.get("reviewProfile") == profile, "Lite metadata reviewProfile matches report")
     add(results, side_runtime == runtime, "Lite metadata runtime matches attestation")
     add(results, field(text, "Main Runtime") == exact_runtime, "Report runtime matches attested runtime")
@@ -686,7 +686,7 @@ def evaluate_v4(path, text, expected_profile=None, sidecar_override=None):
     else:
         add(results, bullet(text, "Unit-Test Advisory") is None, "Unit-test advisory appears only for changed symbols without direct tests")
     if status in {"fail", "timeout", "gap"}:
-        add(results, triggered == ["Requirement Validator"], "Test failure or gap routes Requirement Validator only")
+        add(results, triggered == ["Code Reviewer"], "Test failure or gap routes Code Reviewer only")
         test_gate = bullet(text, "Test Gate") or ""
         add(
             results,
@@ -941,8 +941,8 @@ def evaluate(
         else:
             add(
                 results,
-                triggered.count("Requirement Validator") == 1,
-                "Lite triggers the mandatory Requirement Validator",
+                triggered.count("Code Reviewer") == 1,
+                "Lite triggers the mandatory Code Reviewer",
             )
             add(results, len(specialists) <= 1, "Lite triggers at most one named specialist")
             add(
@@ -953,17 +953,17 @@ def evaluate(
             if build_has_failure:
                 add(
                     results,
-                    triggered == ["Requirement Validator"],
-                    "Lite build failure triggers Requirement Validator only",
+                    triggered == ["Code Reviewer"],
+                    "Lite build failure triggers Code Reviewer only",
                 )
             elif build_has_gap:
                 add(
                     results,
-                    triggered == ["Requirement Validator"],
-                    "Lite build gap triggers Requirement Validator only",
+                    triggered == ["Code Reviewer"],
+                    "Lite build gap triggers Code Reviewer only",
                 )
             else:
-                expected_agents = ["Requirement Validator", *classified]
+                expected_agents = ["Code Reviewer", *classified]
                 add(
                     results,
                     sorted(triggered) == sorted(expected_agents)

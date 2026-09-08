@@ -1,5 +1,9 @@
 # Implement Plan
 
+## 2026-09-08 migration note
+
+Unit/component TDD ownership moved to `code-implementer`; QA remains separate E2E work. Assignment parsing reads only exact Task and Agent table cells, so prose cannot change ownership. Verification: 80 unittest cases passed.
+
 ## Purpose
 
 Explicitly invoked code-development workflow that runs **alongside** the host tool's plan mode. The host
@@ -70,7 +74,9 @@ task; implementers never prompt the user, and `NEEDS_CONTEXT` returns to the mai
 dispatch carries an exact allowlist and destructive-operation bans; the main agent compares a
 working-tree-aware scoped baseline, alone updates status, and accepts DONE only after diff, file scope, and
 Done-when evidence. Implementers map to independent dependency-ready slices, coupled files stay together,
-and concurrency caps at three. `qa-engineer` follows `unit-testing` traceability and test-registry rules.
+and concurrency caps at three. `code-implementer` follows `unit-testing` traceability and test-registry rules;
+`qa-engineer` remains requirements-based E2E work only. One optional advisor pass may inform the existing
+single blocker retry; it adds no retry or approval bypass.
 Selected review uses `code-review-lite` with `Escalation Policy: ask`, receives Global Constraints verbatim,
 and has at most two rework loops.
 

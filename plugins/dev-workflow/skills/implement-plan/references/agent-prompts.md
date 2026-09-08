@@ -26,20 +26,29 @@ work exceeds the allowlist or any prohibited operation seems needed, stop and re
 Do not edit plan status. Return changed files, commands/results, and Done-when evidence.
 ```
 
-## QA engineer (TDD only)
+## Code implementer — test-only TDD stage
 
 ```text
-Create assertion-level tests for Task {N} at {plan-path}; use project framework and unit-testing
+Use Task(subagent_type="code-implementer", prompt="...", description="..."). Create assertion-level unit/component tests for Task {N} at {plan-path}; use project framework and unit-testing
 traceability/test-registry rules. Existing-method: baseline GREEN, characterization GREEN, changed RED.
 Simple-new: verify compile-ready named signatures/control-flow scaffold without business logic, then RED.
 Do not implement production logic or edit the plan.
 {mandatory writable-dispatch footer}
 ```
 
+## QA engineer — E2E only
+
+```text
+Use Task(subagent_type="qa-engineer", prompt="...", description="..."). Create requirements-based test cases before E2E execution; read
+only requirement/design/public-contract sources and authorized E2E assets. Do not receive, read, or edit
+production code or unit/component tests. Run only authorized browser/API checks and report requirement trace.
+{mandatory writable-dispatch footer}
+```
+
 ## Implementer
 
 ```text
-Implement Task {N}: {task-name}; project: {project-root}; plan: {plan-path}. Read Goal, Global
+Use Task(subagent_type="code-implementer", prompt="...", description="..."). Implement Task {N}: {task-name}; project: {project-root}; plan: {plan-path}. Read Goal, Global
 Constraints, your task, and scoped tests. Follow its Mode, Depth, and Done-when. Run scoped verification.
 Never ask the user anything; the plan is your only source of decisions.
 Statuses: DONE; DONE_WITH_CONCERNS (criteria met, list risks); NEEDS_CONTEXT (state the missing fact and
@@ -73,6 +82,11 @@ twice. Skipped review has no dispatch, no offer, and no verdict.
 ## Supporting docs
 
 Update or offer supporting docs only when an AC, project rule, or verified code impact requires them. Keep
-each affected document with its owning code task when practical. If a separate final sync is needed, use
-one cheap agent per independent documentation file with the final diff-stat, request surgical updates, then
-append the mandatory footer.
+each affected document with its owning code task when practical. If a separate final sync is worthwhile, use
+`Task(subagent_type="document-writer", prompt="...", description="...")` for one coherent documentation artifact with final diff-stat, request
+surgical updates, then append mandatory footer.
+
+## Hard blocker advice
+
+Before one existing fresh blocker retry, main may call `Task(subagent_type="advisor", prompt="...", description="...")` with blocked task,
+constraints, evidence, and attempts. Advisor returns recommendation only; it does not edit, approve, or add retries.

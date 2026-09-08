@@ -38,6 +38,7 @@ Role grants and self-elevate are destructive (they change security posture and a
 - PAC CLI installed and authenticated (`pac auth create`)
 - System Administrator role in target environment (or Global/PP/D365 Admin for self-elevate)
 - Active auth profile: `pac auth list`
+- **Headless / restricted-egress hosts**: SDK handles role / user / business-unit ops; service principal for PAC-only ops; verify egress with `python scripts/auth.py --check`. See `dv-connect/references/headless-hosts.md`.
 
 ---
 

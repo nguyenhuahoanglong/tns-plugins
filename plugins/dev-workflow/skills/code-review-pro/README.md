@@ -1,8 +1,12 @@
 # Code Review Pro
 
+## 2026-09-08 migration note
+
+Pro 4.0.0 uses `Code Reviewer` baseline plus only triggered risk-focused instances. Record version is 4; legacy reports require fresh classification. Verification: 235 tests passed.
+
 ## Purpose
 
-Adaptive evidence-driven production-code review for PRs, branches, staged changes, and follow-up iterations. Version 3.0.2 attests runtime/session evidence advisorily (never blocking), classifies No-production-code, Tiny, or Pro scope, and binds reports to deterministic artifacts.
+Adaptive evidence-driven production-code review for PRs, branches, staged changes, and follow-up iterations. Version 4.0.0 attests runtime/session evidence advisorily (never blocking), classifies No-production-code, Tiny, or Pro scope, and binds reports to deterministic artifacts.
 
 ## Pain Points
 
@@ -20,11 +24,11 @@ Adaptive evidence-driven production-code review for PRs, branches, staged change
 
 - No-production-code: terminal evidence-only outcome; no worktree, build/test, semantic agents, or findings.
 - Tiny: at most 3 files and 100 changed lines with no risk triggers; one Build Validator per repo, then main-agent all-lens review.
-- Pro: Build Validator per repo, Requirement Validator always, and only risk-triggered specialists.
+- Pro: Build Validator per repo, Code Reviewer always, and only risk-triggered specialists.
 
 ### Requirement contract
 
-Direct task/acceptance criteria are binding. Parent items supply context but do not broaden scope. Without a work item, Requirement Validator switches to regression-only mode and compares base versus new behavior across symbols, callers, consumers, events, state, tests, and unrelated behavior.
+Direct task/acceptance criteria are binding. Parent items supply context but do not broaden scope. Without a work item, Code Reviewer switches to regression-only mode and compares base versus new behavior across symbols, callers, consumers, events, state, tests, and unrelated behavior.
 
 ### Isolation and provenance
 
@@ -33,30 +37,30 @@ Worktrees live under each repo at `.CodeReview/.worktrees/{safe-branch}`. Build 
 ### Runtime routing
 
 Agent metadata owns cross-tool model selection. Build Validator uses the `fast` intent (Claude
-Haiku; Codex Luna/low), Requirement Validator uses `deep` (Claude Opus; Codex Sol/high), and named
+Haiku; Codex Luna/low), Code Reviewer uses `deep` (Claude Opus; Codex Sol/high), and named
 specialists use `standard` (Claude Sonnet; Codex Terra/medium). Reports and sidecars record the
 actual launch runtime for the main agent instead of assuming one.
 
 ## Changelog
 
-### 2026-07-22 - v3.0.2 advisory runtime preflight
+### 2026-07-22 - v4.0.0 advisory runtime preflight
 
 - Runtime preflight is now advisory and never hard-blocks: unverifiable or below-recommended runtime records a `trustLevel` (`verified|self-reported|unknown`) and reminds the user to switch to a recommended model + high thinking, then continues. Fixes hard-stops under GitHub Copilot VS Code and Claude CLI without a status line.
 - Capability is enforced by tier (sonnet+), not raw generation, so flagship Claude Opus 4.8 is no longer rejected (`claude.minimumGeneration` `[5]`→`[4]`).
 - Reports/sidecars carry `trustLevel`; self-report is accepted only as labeled, untrusted metadata.
 
-### 2026-07-22 - v3.0.1 Lite escalation provenance
+### 2026-07-22 - v4.0.0 Lite escalation provenance
 
-- Added direct-user versus Lite-escalation invocation provenance to reports and record-v3 sidecars.
+- Added direct-user versus Lite-escalation invocation provenance to reports and record-v4 sidecars.
 - Reject Lite-originated Pro artifacts without `user-confirmed` or explicit-user `auto` consent.
 
-### 2026-07-21 - v3 runtime, scope, and test evidence
+### 2026-07-21 - v4 runtime, scope, and test evidence
 
 - Require shared runtime/session preflight before repository reads; existing sessions need an explicit recorded override.
 - Restrict semantic review and findings to manifest `productionFiles`; tests/docs are evidence-only and generated/vendor/binary paths are excluded.
 - Persist deterministic test discovery/execution and the exact `use-unit-testing` advisory for missing direct tests.
 - Require `executions[]` for multi-repo runs; failed/timeout runs remain valid blocking evidence only when their status, exit code, counts, report, and `testGate` agree.
-- Upgrade reports/sidecars and verifier to strict v3-only hash-bound artifacts while retaining branch, classifier, actor, PR, dependency, and follow-up guards.
+- Upgrade reports/sidecars and verifier to strict v4-only hash-bound artifacts while retaining branch, classifier, actor, PR, dependency, and follow-up guards.
 
 ### 2026-07-11 - GPT-5.6 intent routing
 
@@ -72,7 +76,7 @@ actual launch runtime for the main agent instead of assuming one.
 - Fixed `branch_work_item_gate.py`: dropped the `--fields` argument to `az boards work-item show` (rejected by newer az-devops with "expand parameter can not be used with the fields parameter"), reading work-item type/title/state from the returned `fields` object — this was producing a false gate FAIL on every review.
 - Fixed a false build FAIL: a project whose deps could not be made usable (`skip-build` or `install-failed`) is reported `JS-SKIPPED ({reason})`, and the Build Validator is never dispatched with that project's JS build command — an environment gap is never reported as a code failure.
 - Build Validator reports `NOT RUN (environment)` when the approved build command's own tool is missing (e.g. absent from `node_modules/.bin`), and caps Errors/Warnings output at 10 verbatim entries plus `(+N more)`.
-- Token optimization (Balanced tier): full-context diff narrowed from `-U50` to `-U20` (children read full files from the worktree when a hunk needs more context); added `references/agents/_shared-contract.md` holding the preflight and finding-output contract shared by Requirement Validator and the four specialists, trimming each role prompt to its lens-specific content; Synthesize re-verifies only Critical/High findings, accepting Medium/Low on cited evidence; standards exemplar discovery moved from 2-3 per changed file to 2-3 per repo/stack.
+- Token optimization (Balanced tier): full-context diff narrowed from `-U50` to `-U20` (children read full files from the worktree when a hunk needs more context); added `references/agents/_shared-contract.md` holding the preflight and finding-output contract shared by Code Reviewer and the four specialists, trimming each role prompt to its lens-specific content; Synthesize re-verifies only Critical/High findings, accepting Medium/Low on cited evidence; standards exemplar discovery moved from 2-3 per changed file to 2-3 per repo/stack.
 
 ### 2026-07-07 - v2.1.2 branch gate warning mode
 
@@ -103,7 +107,7 @@ actual launch runtime for the main agent instead of assuming one.
 
 - Added Docs-only, Tiny, and Pro classifier with strict Tiny thresholds and risk exclusions.
 - Replaced fixed specialist fan-out with Pro-only, risk-triggered specialists.
-- Made Requirement Validator mandatory for Pro; added regression-only mode when no work item exists.
+- Made Code Reviewer mandatory for Pro; added regression-only mode when no work item exists.
 - Added exact cross-tool runtime routing; Codex uses Build `gpt-5.4-mini/low`, Requirement inherited/high, and specialists inherited/medium.
 - Added profile/trigger announcements, exact report provenance fields, v2 sidecar schema, and same-classifier follow-ups.
 - Moved worktrees repo-local and added Build Validator child-read preflight.

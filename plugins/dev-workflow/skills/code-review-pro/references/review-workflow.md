@@ -39,7 +39,7 @@ Before classifier or worktree creation, run `review_harness scope-manifest` over
 
 For production scope, run `discover-tests` from changed symbols, then one deterministic `test-gate` command per reviewed repository. Persist a single test artifact with `discovery` and non-empty `executions[]`. Each execution records unique `repo`, command argv, `pass | fail | timeout`, exit code, duration, passed/failed/skipped counts, bounded stdout/stderr, and truncation state. Missing direct tests require non-empty `changedSymbols`, empty `directTests`, and exactly `advisory: use-unit-testing`; the advisory is not a finding. A failed/timeout execution is structurally valid only when the artifact status is `blocked`, report Test Evidence is `BLOCKED`, and sidecar `testGate` is `{status: BLOCKED, blocking: true}`.
 
-Hash each runtime/scope/test artifact and record only a contained relative `path` plus lowercase SHA-256 in the v3 sidecar. Never replace or rewrite an artifact after computing its digest.
+Hash each runtime/scope/test artifact and record only a contained relative `path` plus lowercase SHA-256 in the v4 sidecar. Never replace or rewrite an artifact after computing its digest.
 
 ## 4. Gather Context
 
@@ -97,7 +97,7 @@ Pass `--require-bin` with the exact tool the approved build command invokes (e.g
 
 **Critical orchestration rule**: a project whose deps could not be made usable (script result `skip-build` or `install-failed`) gets build row `JS-SKIPPED ({reason})` with reason `deps changed` | `no lockfile` | `install failed`, and the Build Validator is **not** dispatched with that project's JS build command. An environment gap must never be reported as a build FAIL. A project whose strategy is `install` succeeded and is safe to build normally — its PASS reflects freshly installed dependencies, not stale ones.
 
-Agents receive absolute paths for worktree, diff, role prompt, standards, prior report, and changed files. Requirement Validator and the four specialist reviewers also receive `references/agents/_shared-contract.md` alongside their role prompt.
+Agents receive absolute paths for worktree, diff, role prompt, standards, prior report, and changed files. Code Reviewer and the four specialist reviewers also receive `references/agents/_shared-contract.md` alongside their role prompt.
 
 ## 6. Branch Work Item Gate
 
@@ -107,7 +107,7 @@ For PR and branch scope, run this gate in parallel with the first Build Validato
 python <skill-dir>/scripts/branch_work_item_gate.py --scope-type {scopeType} --branch "{sourceBranch}" --repo "{repo}"
 ```
 
-For staged, working, and files scope, run it with the same command and record `SKIPPED`. The script validates branch format `{slug}/{work-item-id}` with optional `-{text}` and calls `az boards work-item show` to ensure the ID exists and its `System.WorkItemType` is `User Story`, `Bug`, or `Issue`. `WARN` means the ID/type is valid but the branch prefix is non-standard or mismatched; continue review. `FAIL` blocks Requirement Validator and specialists; synthesize a report with completed build results and a CRITICAL Must Fix.
+For staged, working, and files scope, run it with the same command and record `SKIPPED`. The script validates branch format `{slug}/{work-item-id}` with optional `-{text}` and calls `az boards work-item show` to ensure the ID exists and its `System.WorkItemType` is `User Story`, `Bug`, or `Issue`. `WARN` means the ID/type is valid but the branch prefix is non-standard or mismatched; continue review. `FAIL` blocks Code Reviewer and specialists; synthesize a report with completed build results and a CRITICAL Must Fix.
 
 ## 7. Child-Read Preflight
 
@@ -115,7 +115,7 @@ Create `{worktree}/.code-review-preflight` with a random review token. Include i
 
 Every child must read the sentinel first and emit `Child Read: PASS {token}` before analysis. Missing/unreadable/mismatched token emits `Child Read: FAIL` and stops that child. Do not accept output lacking the exact PASS. Semantic children also receive the persistent diff, production allowlist, evidence paths, scope-manifest path, and test-evidence path; they run no git command and may target findings only at allowlisted production paths.
 
-The first child per repo is its Build Validator. Repair/retry any failed Build child before dispatching Requirement or specialists. Later children repeat the same preflight; a failed preflight is infrastructure failure, not an intentional skip.
+The first child per repo is its Build Validator. Repair/retry any failed Build child before dispatching Code Reviewer baseline or risk-focused instances. Later children repeat the same preflight; a failed preflight is infrastructure failure, not an intentional skip.
 
 ## 8. Cleanup
 
@@ -129,6 +129,6 @@ Run unconditionally after synthesis/verification or infrastructure failure:
    ```
 4. Remove only those exact worktrees through `git worktree remove --force`.
 5. Prune worktree metadata.
-6. Delete temporary review diff artifacts only after verification; keep report, v3 sidecar, and hash-bound evidence artifacts.
+6. Delete temporary review diff artifacts only after verification; keep report, v4 sidecar, and hash-bound evidence artifacts.
 
 Never recursively delete a computed path before containment and registered-worktree checks pass.

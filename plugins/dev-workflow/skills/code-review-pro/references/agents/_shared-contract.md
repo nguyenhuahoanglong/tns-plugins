@@ -1,6 +1,6 @@
 ---
 name: shared-contract
-description: Shared preflight and finding-output contract for the security, performance, philosophy, standard, and requirement-validator agents
+description: Shared preflight and finding-output contract for the security, performance, philosophy, standard, and code-reviewer agents
 ---
 
 # Shared Agent Contract

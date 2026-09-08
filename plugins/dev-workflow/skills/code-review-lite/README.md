@@ -1,8 +1,12 @@
 # Code Review Lite
 
+## 2026-09-08 migration note
+
+Lite 5.0.0 uses `Code Reviewer` baseline plus at most one risk-focused instance of same role. Record version stays 3; escalation and deterministic gate order remain. Verification: 189 tests plus 7 subtests passed.
+
 ## Purpose
 
-Adaptive, low-cost production-code review for quick checks and pre-merge validation. Version 4.1.2
+Adaptive, low-cost production-code review for quick checks and pre-merge validation. Version 5.0.0
 advisorily attests the host runtime/session (never blocking) before repository reads, partitions production from evidence-only
 and excluded files, verifies tests deterministically, and supports controlled multi-specialist
 escalation to Pro.
@@ -25,9 +29,9 @@ escalation to Pro.
 |---|---|
 | No Production Code | Retain report, record-v3 sidecar, and runtime/scope/not-applicable test evidence; execute no review work |
 | Code Tiny | Deterministic branch/build/test gates; main code review; zero semantic children |
-| Lite | Deterministic gates; mandatory deep Requirement Validator plus at most one specialist |
+| Lite | Deterministic gates; mandatory deep Code Reviewer plus at most one specialist |
 | Pro escalation | More than one family with explicit-user `auto`, or an accepted `ask`, routes to `code-review-pro`; write no Lite report or sidecar |
-| Bounded Lite | A declined `ask` runs gates, Requirement Validator, and at most one priority specialist when gates pass |
+| Bounded Lite | A declined `ask` runs gates, Code Reviewer, and at most one priority specialist when gates pass |
 
 Tiny means at most 3 files and 100 changed lines, with no elevated shared behavior, API, schema, auth, dependency, async/lifecycle, state, or configuration risk.
 
@@ -62,7 +66,7 @@ main workflow as unreviewed, never injected into the selected role.
 Shared runtime/session preflight runs before repository reads and is re-evaluated against the
 packaged runtime policy during report verification. Branch, build, and test gates are local
 deterministic scripts and have no model runtime. Semantic agent
-metadata owns cross-tool routing: Requirement Validator uses `deep` (Claude Opus; Codex Sol/high),
+metadata owns cross-tool routing: Code Reviewer uses `deep` (Claude Opus; Codex Sol/high),
 and named specialists use `standard` (Claude Sonnet; Codex Terra/medium). Lite launches fresh,
 isolated children from a compact context manifest; reports keep known runtime fields and use
 `not exposed` only for unavailable provider token/cache counters.
@@ -82,13 +86,13 @@ Validator. In either case, `Selected Specialist` is `None` and every triggered f
 
 ## Changelog
 
-### 2026-07-22 - v4.1.2 advisory runtime preflight
+### 2026-07-22 - v5.0.0 advisory runtime preflight
 
 - Runtime preflight is now advisory and never hard-blocks: unverifiable or below-recommended runtime records a `trustLevel` (`verified|self-reported|unknown`) and reminds the user to switch to a recommended model + high thinking, then continues. Fixes hard-stops under GitHub Copilot VS Code and Claude CLI without a status line.
 - Capability is enforced by tier (sonnet+), not raw generation, so flagship Claude Opus 4.8 is no longer rejected.
 - Self-report is accepted only as labeled, untrusted metadata; the switch-to-recommended reminder is the safeguard.
 
-### 2026-07-22 - v4.1.1 consent-first escalation
+### 2026-07-22 - v5.0.0 consent-first escalation
 
 - Omitted escalation policy now means `ask`; only explicit user-authored `auto` may escalate immediately.
 - Added escalation-policy provenance to reports and record-v3 sidecars.
@@ -112,7 +116,7 @@ Validator. In either case, `Selected Specialist` is `None` and every triggered f
 ### 2026-07-13 - v3.0.0 deterministic gates and isolated semantic review
 
 - Replaced Lite's model Build Validator with deterministic `build_gate.py` while preserving dependency preparation and `JS-SKIPPED` handling.
-- Made Docs Tiny and Code Tiny zero-semantic-child profiles; Lite always runs the deep Requirement Validator and runs at most one specialist, concurrently after passing builds.
+- Made Docs Tiny and Code Tiny zero-semantic-child profiles; Lite always runs the deep Code Reviewer and runs at most one specialist, concurrently after passing builds.
 - Added the compact review-context manifest, isolated dispatch placeholders, separate gate/agent reporting, numeric-or-`not exposed` usage counters, and behavior-preservation/collateral-impact evidence.
 - Kept branch-failure stop behavior and multi-specialist escalation to `code-review-pro` unchanged.
 
@@ -159,7 +163,7 @@ Validator. In either case, `Selected Specialist` is `None` and every triggered f
 
 - Added strict Tiny eligibility: `<=3` files, `<=100` changed lines, and no elevated risk category.
 - Added zero-agent Docs Tiny and main-agent Code Tiny profiles.
-- Replaced fixed Critical/Quality reviewers with a dedicated Requirement Validator and at most one named risk-triggered specialist.
+- Replaced fixed Critical/Quality reviewers with a dedicated Code Reviewer and at most one named risk-triggered specialist.
 - Added automatic escalation to `code-review-pro` when multiple specialist families trigger.
 - Defined exact child runtime profiles and required trigger/skip visibility in reports.
 - Moved worktrees under `.CodeReview/.worktrees/` and added child-read preflight.

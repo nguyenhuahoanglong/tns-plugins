@@ -12,7 +12,7 @@ Check all in parallel. Install any that are missing.
 | .NET SDK | `dotnet --version` | `winget install Microsoft.DotNet.SDK.9` |
 | Python 3 | `python --version` | `winget install Python.Python.3.12` |
 | Node.js | `node --version` | `winget install OpenJS.NodeJS.LTS` |
-| Dataverse CLI | `npm list -g @microsoft/dataverse` (shows `@microsoft/dataverse@<version>` if installed; `(empty)` if not) | `npm install -g @microsoft/dataverse@latest` (always upgrades to latest — mirrors `pip install --upgrade` for the Python SDK) |
+| Dataverse CLI | `npm list -g @microsoft/dataverse` (shows `@microsoft/dataverse@<version>` if installed; `(empty)` if not) | `npm install -g @microsoft/dataverse@latest` (install **only if missing**; do NOT re-run on every connect -- upgrade explicitly. Each `@latest` fetch hits the npm registry, which managed-device policy blocks with a security prompt) |
 | Git | `git --version` | `winget install Git.Git` |
 
 After any `winget` install, the new tool may not be in PATH until the shell is restarted. If a tool is not found immediately after install, ask the user to close and reopen the terminal (if running in Claude Code, remind them to resume the session correctly: "Remember to **use `claude --continue` to resume the session** without losing context"), then proceed.
@@ -57,9 +57,30 @@ pip install --upgrade azure-identity requests PowerPlatform-Dataverse-Client pan
 - GitHub CLI: download from https://cli.github.com
 - Azure CLI: download from https://aka.ms/installazurecliwindows
 
+### Corporate-managed / restricted devices: package registry
+
+On corporate-managed devices, direct access to the public npm registry (and sometimes PyPI) may be blocked by device policy. Symptom: repeated **"This content is blocked by your IT admin"** / npm-URL-block popups during `npm install` or `npx` -- which `dv-connect` (`npm install -g @microsoft/dataverse`) and the MCP proxy (`npx @microsoft/dataverse mcp`) invoke. The install runs once at connect; the MCP proxy's `npx @latest` runs when the stdio server launches (about once per session, not per tool call).
+
+The plugin never overrides your registry — it honors your `.npmrc`. The fix is device-level: point npm at your organization's approved internal feed.
+
+1. Check what npm is using:
+   ```
+   npm config get registry
+   ```
+2. If it shows the public `registry.npmjs.org` and your org blocks it, set your organization's approved (internal) feed instead — get the exact URL from your IT / package-management policy notice:
+   ```
+   npm config set registry <your-org-approved-feed-url>
+   ```
+   Also remove any explicit `registry=https://registry.npmjs.org/` line from `~/.npmrc` that shadows the managed default.
+3. `npx` follows npm's registry config; if it still resolves stale, clear its cache (`npm-cache/_npx`) and retry.
+
+Install the Dataverse CLI **once** (when missing) and upgrade **explicitly** when you want a newer version. Each `npm install` / `npx @latest` resolution hits the npm registry, which managed-device policy blocks with a security prompt; point npm at your org's approved feed (steps above) so the one-time install/upgrade and the MCP proxy's per-session `npx @latest` both resolve silently. (The Dataverse CLI no longer runs a per-command npm version check -- that separate per-command popup source, tracked in issue #115, was removed. The only remaining registry touches are this install/upgrade and the once-per-session MCP proxy launch.)
+
 ---
 
 ## Authentication
+
+> **Capability-constrained hosts** — such as ChatGPT Work Mode, Codex cloud, CI, or headless Linux without D-Bus/keyring (including many SSH/container environments): the Dataverse CLI and PAC CLI interactive sign-ins fail on headless Linux — they persist their MSAL cache through libsecret/gnome-keyring over D-Bus, which the container lacks. Even `--accept-cleartext-caching` still crashes on the .NET cache lock (`System.InvalidOperationException: Process has exited at Microsoft.Identity.Client.Extensions.Msal.CrossPlatLock`), so the profile never saves. Use the Python SDK device-code path (`scripts/auth.py`) instead — it persists a plaintext cache with no keyring. Full guidance: [headless-hosts.md](headless-hosts.md).
 
 > **Multi-environment note:** Pro developers typically work across multiple environments (dev, test, staging, prod) and maintain one named PAC auth profile per environment. Before any environment operation, always run `pac auth list` + `pac org who` to confirm which profile is active, and ask the user which environment they intend to target. Never assume the currently active profile is correct.
 
@@ -92,6 +113,11 @@ pac auth create \
 ```
 
 This requires a service principal in your dev tenant. Once created, record `CLIENT_ID`, `CLIENT_SECRET`, and `TENANT_ID` in `.env`. With service principal auth, no browser is ever needed.
+
+For certificate-based SDK authentication, set `CLIENT_ID` and
+`CLIENT_CERTIFICATE_PATH` instead of `CLIENT_SECRET`. Optionally set
+`CLIENT_CERTIFICATE_PASSWORD` for an encrypted PFX and
+`CLIENT_SEND_CERTIFICATE_CHAIN=1` for SNI authentication.
 
 **Interactive user auth (corporate tenant or if no service principal yet)**
 

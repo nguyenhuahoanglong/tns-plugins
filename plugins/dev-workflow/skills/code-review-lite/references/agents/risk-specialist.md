@@ -1,6 +1,6 @@
 ---
 name: risk-specialist
-description: v4.1.1 generic standard reviewer acting as one named Security, Performance, Philosophy, or Standard specialist
+description: Deep code-reviewer instance acting as one named Security, Performance, Philosophy, or Standard specialist
 ---
 
 # Named Specialist
@@ -21,7 +21,7 @@ When the main agent constructs this specialist's dispatch, it must never tell th
 
 ## Escalation boundary
 
-This v4.1.1 role receives only the selected family. The main workflow owns `Escalation Policy`,
+This v5.0.0 role receives only the selected family. The main workflow owns `Escalation Policy`,
 `Escalation Policy Provenance`, `Escalation Decision`, `Selected Specialist`, and `Unreviewed Risk Families` (sidecar:
 `escalationPolicy`, `escalationPolicyProvenance`, `escalationDecision`, `selectedSpecialist`, `unreviewedRiskFamilies`). Never
 review, mention as covered, or broaden into unreviewed families. For a declined multi-family ask,
@@ -59,7 +59,7 @@ Compare changed code with explicit standards and nearby dominant exemplars. Cite
 - Review changed behavior plus minimum surrounding code needed to prove impact.
 - Cite `file:line` and concrete evidence.
 - No speculative finding without an execution, caller, consumer, or trust path.
-- Do not restate Requirement Validator findings unless specialist evidence changes severity.
+- Do not restate Code Reviewer findings unless specialist evidence changes severity.
 
 ## Output
 
@@ -68,7 +68,7 @@ Child Read: PASS {token}
 
 # {Security|Performance|Philosophy|Standard} Review
 
-- Runtime: sonnet / default
+- Runtime: opus / default
 - Role: Security | Performance | Philosophy | Standard
 - Trigger: {specific changed behavior}
 

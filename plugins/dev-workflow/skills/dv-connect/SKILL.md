@@ -5,17 +5,19 @@ description: One-step setup for a Dataverse environment — installs tools, auth
 
 # Skill: Connect
 
-One-step connection to Dataverse. Handles tool installation, authentication, environment selection, workspace initialization, MCP configuration, and verification — all idempotently. Each step checks if it's already done and skips if so.
+One-step, idempotent Dataverse connection. Each step checks if it's already done and skips.
 
-> **Environment-First Rule** — All metadata (solutions, columns, tables, forms, views) and plugin registrations are created **in the Dynamics environment** via API or scripts, then pulled into the repo. Never write or edit solution XML by hand to create new components.
+> **Environment-First Rule** — All metadata and plugin registrations are created **in the environment** via API/scripts, then pulled into the repo. Never hand-write solution XML to create components.
 
-**Execute every step in order.** Do not skip ahead, even if a later step appears more relevant to the user's immediate goal. **Exception:** Step 0 below can short-circuit the entire flow if the workspace is already set up.
+**Execute steps in order; do not skip ahead.** **Exception:** Step 0 can short-circuit the flow if the workspace is already set up.
+
+> **Host entry test (FIRST — before Step 0).** A **local Windows/macOS host is capable by default, whichever agent drives it** — it can run the CLIs, use persistent credentials, and host local MCP servers; an approval/sandbox gate isn't a constraint, and a **missing CLI = install it**. **Constrained only when** a runtime **can't start**, auth **can't persist**, or the host is explicitly **ChatGPT Work Mode / Codex cloud / CI / no-keyring Linux** (deterministic table: [headless-hosts.md](references/headless-hosts.md)). **Constrained →** install **only** Python + pip deps, `.env`, `scripts/auth.py`, verify `python scripts/auth.py --check`, **skip** CLI / PAC / MCP. **Capable →** normal flow below.
 
 ---
 
 ## Step 0: Detect existing setup (run this first)
 
-Before touching anything, check whether this workspace is already connected to a Dataverse environment. This matters a lot on `claude --continue` or any re-run — repeating it on an already-configured workspace overwrites `.env`, re-registers MCP, and wastes time.
+Before touching anything, check whether this workspace is already connected to a Dataverse environment. Repeating setup on an already-configured workspace overwrites `.env`, re-registers MCP, and wastes time.
 
 Run these checks in order. If **all four pass**, skip straight to Step 7 (final verification) and stop there.
 
@@ -24,9 +26,7 @@ Run these checks in order. If **all four pass**, skip straight to Step 7 (final 
 3. **Both auth surfaces match `.env`** — `dataverse auth who` shows a profile whose `Environment Url` matches `DATAVERSE_URL`, AND `pac org who` against a PAC profile for the same URL succeeds. (DV CLI auth covers Connect / Data / Query / Metadata / MCP / Python; PAC auth covers `dv-solution` and `dv-admin`. Both are front-loaded at connect time so neither prompts later.)
 4. **Python SDK is importable and current** — `python -c "from PowerPlatform.Dataverse.client import DataverseClient; import pandas; from importlib.metadata import version; v=version('PowerPlatform-Dataverse-Client'); assert int(v.split('.')[0])>=1, f'SDK {v} is outdated, need >=1.0.0'"` exits 0
 
-**If all pass:** Tell the user you detected an existing setup, list what you found (URL, profile name, MCP server name), then jump to Step 7. Do not rewrite `.env`, do not re-register MCP, do not re-run `pip install`.
-
-> Example: "Detected existing Dataverse setup at `{DATAVERSE_URL}` (auth profile: `{PROFILE}`, MCP server: `dataverse-{orgid}`). Running verification only."
+**If all pass:** Refresh `DATAVERSE_PLUGIN_VERSION` in `.env` if it's stale, confirm the detected setup (URL, profile, MCP server), and jump to Step 7. Do not otherwise rewrite `.env`, re-register MCP, or re-run `pip install`.
 
 **If any check fails:** Proceed through the normal flow (Steps 1–7), but still use each step's own skip condition. A partially-configured workspace doesn't need a full redo — e.g., if only `.env` and MCP are missing but tools and auth are fine, start at Step 2 or Step 3.
 
@@ -34,15 +34,15 @@ Run these checks in order. If **all four pass**, skip straight to Step 7 (final 
 
 ## Step 1: Ensure tools are installed
 
-Check each tool independently — **do not use fail-fast parallel execution.** If one tool check fails, continue checking the others so you can report all missing tools at once. See [tools-setup.md](references/tools-setup.md) for installation commands and platform-specific notes.
+Check each tool independently -- report all missing tools at once. See [tools-setup.md](references/tools-setup.md) for install commands.
 
 | Tool | Check |
 |---|---|
 | Python 3 | `python --version` |
 | Git | `git --version` |
 | Node.js | `node --version` |
-| PAC CLI | `pac` (prints version banner; note: `pac --version` is not a valid command and returns a non-zero exit code) (see [tools-setup.md](references/tools-setup.md) for Windows path discovery if not in PATH) |
-| Dataverse CLI | `npm list -g @microsoft/dataverse` (prints `@microsoft/dataverse@<version>` if installed globally; prints `(empty)` if not) |
+| PAC CLI | `pac` (prints version banner; `pac --version` is not valid) (see [tools-setup.md](references/tools-setup.md) if not in PATH) |
+| Dataverse CLI | `npm list -g @microsoft/dataverse` |
 | .NET SDK | `dotnet --version` |
 | Azure CLI | `az --version` |
 
@@ -50,14 +50,18 @@ Check each tool independently — **do not use fail-fast parallel execution.** I
 
 If any tool is missing, install it (see [tools-setup.md](references/tools-setup.md)), then verify. If `winget` installs a tool but it's not in PATH, ask the user to restart the terminal.
 
-After Python is confirmed:
+After Python is confirmed, check if deps are already present before installing:
+```
+python -c "from PowerPlatform.Dataverse.client import DataverseClient; import azure.identity, msal, msal_extensions, requests, pandas; print('OK')"
+```
+If it prints `OK`, skip pip. Otherwise:
 ```
 pip install --upgrade azure-identity requests PowerPlatform-Dataverse-Client pandas msal msal-extensions
 ```
 
-`msal` + `msal-extensions` let `scripts/auth.py` reuse the `dataverse auth create` cache \u2014 one sign-in for CLI, MCP, Python.
+`msal` + `msal-extensions` let `scripts/auth.py` reuse the `dataverse auth create` cache -- one sign-in for CLI, MCP, Python.
 
-After Node.js is confirmed, install or upgrade the Dataverse CLI to the latest version (run on each connect to keep it current):
+After Node.js is confirmed, install the Dataverse CLI **only if missing** (do not re-run on every connect -- on managed devices each `@latest` fetch can trigger npm-registry security prompts; see [tools-setup.md](references/tools-setup.md)):
 ```
 npm install -g @microsoft/dataverse@latest
 ```
@@ -89,7 +93,7 @@ pac auth list   # PAC profiles are still useful for env discovery / pac org list
 **If no DV CLI profile exists (or it points at the wrong environment):**
 - Ask: "Do you want to connect to an existing environment or create a new one?"
 
-**Before selecting, check for tenant/region mismatch.** If the target environment URL uses a different region (e.g., `crm10.dynamics.com` = APAC) than the currently authenticated account's environments, create a new profile for the correct tenant rather than trying to reuse the old one:
+**Before selecting, check for tenant/region mismatch.** If the target URL uses a different region than the authenticated account's environments, create a new profile for the correct tenant rather than reuse the old one:
 
 ```
 dataverse auth create --environment <url>          # interactive (WAM broker on Windows → no browser tab)
@@ -125,7 +129,7 @@ curl -sI https://<org>.crm.dynamics.com/api/data/v9.2/ \
 
 ### Step 2b: Front-load PAC CLI auth for the same environment
 
-PAC uses its own AAD app, so a separate sign-in is required for `dv-solution` and `dv-admin`. Do it now — user signs in twice back-to-back, no later surprises.
+PAC uses its own AAD app, so a separate sign-in is required for `dv-solution` and `dv-admin` — do it now.
 
 ```
 pac auth list                                       # skip if a profile for $DATAVERSE_URL exists
@@ -143,7 +147,7 @@ Present authentication options:
 
 > How would you like to authenticate with Dataverse?
 > 1. **Interactive login (recommended)** — Sign in via browser. No app registration needed. Token stays cached across sessions.
-> 2. **Service principal (for CI/CD)** — Uses CLIENT_ID and CLIENT_SECRET from an Azure app registration.
+> 2. **CI/CD service principal** — Use `CLIENT_SECRET` or `CLIENT_CERTIFICATE_PATH`.
 
 Write `.env` directly — do not instruct the user to create it:
 
@@ -177,8 +181,6 @@ with open(".env", "w") as f:
         f.write(f"CLIENT_SECRET={client_secret}\n")
 ```
 
-> **Multi-environment repos:** If the team deploys to multiple environments from the same repo, each developer's `.env` represents their current target. Consider `.env.dev`, `.env.staging`, etc., with a pattern like `cp .env.dev .env` to switch targets.
-
 Ensure `.env` is in `.gitignore`:
 
 ```python
@@ -186,7 +188,7 @@ import os
 
 GITIGNORE_ENTRIES = [
     ".env", ".vscode/settings.json", ".claude/mcp_settings.json",
-    ".token_cache.bin", "*.snk", "__pycache__/", "*.pyc",
+    ".token_cache.bin", ".dataverse/", "*.snk", "__pycache__/", "*.pyc",
     "solutions/*.zip", "plugins/**/bin/", "plugins/**/obj/",
 ]
 gitignore = open(".gitignore").read() if os.path.exists(".gitignore") else ""
@@ -224,15 +226,16 @@ Copy `templates/CLAUDE.md` to the repo root if it doesn't exist. Replace placeho
 ```
 dataverse auth who
 pac org who
-python scripts/auth.py
+python scripts/auth.py --check
 ```
 
-All three must resolve the same user/environment. They prove the DV CLI cache, the PAC profile (Step 2b), and Python's silent reuse of the DV CLI cache are all wired.
+`--check` makes a **real data-plane call** (not just a token) — the only proof the org is actually reachable; a token can be minted while the org domain is blocked. All must resolve the same user/environment, proving the DV CLI cache, the PAC profile (Step 2b), and Python's reuse of the shared cache are wired.
 
 **If any fail:**
 - `dataverse auth who` fails → re-run Step 2.
 - `pac org who` fails → re-run Step 2b.
-- `python scripts/auth.py` prints a device-code URL → browser/WAM cache has no Python-reusable token (both exercises hit this). **Auto-fix:** re-run `dataverse auth create --environment <url> --deviceCode`, then re-run `python scripts/auth.py`. If it *still* prompts, check `pip show msal msal-extensions` — `auth.py` needs both to read the shared cache.
+- `python scripts/auth.py --check` prints a device-code URL → browser/WAM cache has no Python-reusable token. **Auto-fix:** re-run `dataverse auth create --environment <url> --deviceCode`, then retry. If it *still* prompts, check `pip show msal msal-extensions`. **Headless hosts** (ChatGPT / Codex cloud / CI): `dataverse auth create` can't persist here — don't loop (see [headless-hosts.md](references/headless-hosts.md)).
+- `python scripts/auth.py --check` prints `NOT REACHABLE` with a connection/timeout error → the org domain is blocked by network egress, not auth. Do NOT report success or a count — see [headless-hosts.md](references/headless-hosts.md) remediation.
 - Other Python error → check SDK install and `.env`.
 
 Before metadata work, also confirm the account has the `prvCreateEntity` customization privilege — see [tools-setup.md](references/tools-setup.md#privilege-preflight).
@@ -254,7 +257,7 @@ If MCP is not configured, follow [mcp-configuration.md](references/mcp-configura
 5. Register the MCP server per host (see the per-host blocks below)
 6. Handle admin consent and allowlist — prefer `dataverse mcp allow <MCP_CLIENT_ID>` over the portal (one-time per tenant/environment)
 
-**Plugin attribution for MCP:** This plugin uses the **stdio proxy** transport (`npx @microsoft/dataverse mcp <url>`) — the CLI runs as a local subprocess and proxies requests to the Dataverse MCP HTTP endpoint. When registering it, include `DATAVERSE_OPERATION_CONTEXT` in the env block so the CLI appends it to its User-Agent on outbound requests to `/api/mcp`. Build the value from `.env`:
+**Plugin attribution for MCP:** This plugin uses the **stdio proxy** transport (`npx @microsoft/dataverse mcp <url>`). When registering it, include `DATAVERSE_OPERATION_CONTEXT` in the env block so the CLI appends it to its User-Agent on requests to `/api/mcp`. Build the value from `.env`:
 
 ```
 DATAVERSE_OPERATION_CONTEXT=app=dataverse-skills/{DATAVERSE_PLUGIN_VERSION};skill=mcp-direct;agent={DATAVERSE_PLUGIN_AGENT}
@@ -271,12 +274,12 @@ For Claude Code (`claude mcp add -t stdio`), pass it via `-e DATAVERSE_OPERATION
 > ✅ Dataverse MCP server registered. Restart Claude Code to enable MCP tools.
 > Remember to **use `claude --continue` to resume the session** without losing context.
 >
-> **On restart, a browser window will open** asking you to sign in to your Dataverse environment. This is the MCP proxy authenticating on your behalf — sign in with the same account you used for `dataverse auth create` (or your active DV CLI profile, e.g., `{username}`). This only happens once; the token is cached for future sessions, and `dataverse auth create` populates the same cache so the popup is skipped if you've already run it.
+> On restart, a browser window may open to sign in to your Dataverse environment (the MCP proxy authenticating on your behalf). See [mcp-configuration.md](references/mcp-configuration.md) for details.
 
 **For Cursor:** Write the JSON config, then:
 > ✅ Dataverse MCP server `dataverse-{orgid}` configured in `~/.cursor/mcp.json`. **Reload the Cursor window** (Ctrl+Shift+P → "Developer: Reload Window") for the new MCP server to appear under Settings → Tools & MCPs.
 >
-> On first use, the `npx @microsoft/dataverse` proxy starts a device-code sign-in in your browser. Sign in with the same account you used for `dataverse auth create`; the token is cached in your OS credential store for future sessions. If you've already run `dataverse auth create`, the proxy reuses that cache silently — no device code.
+> On first use the `npx @microsoft/dataverse` proxy signs in via browser device code, then reuses the shared cache silently. See [mcp-configuration.md](references/mcp-configuration.md).
 
 **For Codex:** Write the TOML config to `~/.codex/config.toml`. Codex loads MCP tools only at startup, so don't claim they're callable until the user restarts. Tell the user:
 > ✅ Dataverse MCP server `dataverse-{orgid}` configured in `~/.codex/config.toml`. **Restart Codex** (CLI) or reload the Codex IDE to load the MCP tools.

@@ -72,7 +72,7 @@ Autonomy: unverifiable-with-fallback
 | Wave | Task(s) | Agent | Verified by main agent |
 |---|---|---|---|
 | 1 | Task 1 | code-implementer | diff plus Done-when evidence |
-| 2 | Task 2 | qa-engineer then code-implementer | RED then GREEN plus diff |
+| 2 | Task 2 | code-implementer | RED then GREEN plus diff |
 
 ## Verification
 

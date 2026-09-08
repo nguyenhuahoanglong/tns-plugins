@@ -140,14 +140,14 @@ def write_legacy_rejection_case(root, profile, classifier, triggered, requiremen
 
 ALL_CHILDREN = [
     "Build Validator(docs-only)",
-    "Requirement Validator(docs-only)",
+    "Code Reviewer(docs-only)",
     "Security Reviewer(docs-only)",
     "Performance Reviewer(docs-only)",
     "Philosophy Reviewer(docs-only)",
     "Standard Reviewer(docs-only)",
 ]
 TINY_SKIPS = [
-    "Requirement Validator(Tiny)",
+    "Code Reviewer(Tiny)",
     "Security Reviewer(Tiny)",
     "Performance Reviewer(Tiny)",
     "Philosophy Reviewer(Tiny)",
@@ -356,7 +356,7 @@ class VerifyOutputTests(unittest.TestCase):
 
 
 def _write_json_with_sha256(root, name, payload):
-    """Write one deterministic evidence artifact and return its v3 reference."""
+    """Write one deterministic evidence artifact and return its v4 reference."""
     root.mkdir(parents=True, exist_ok=True)
     artifact = root / name
     artifact.write_text(json.dumps(payload, sort_keys=True), encoding="utf-8")
@@ -370,7 +370,7 @@ def write_v3_case(tmp_path, *, profile="Tiny", findings=None, agents=None,
                   runtime_status="pass", session_status="fresh",
                   override_recorded=False, direct_tests=None,
                   advisory=None, execution_status="pass"):
-    """Create an independently hash-bound v3 report package using real files."""
+    """Create an independently hash-bound v4 report package using real files."""
     # Arrange
     findings = findings or []
     agents = agents or ["Main(Tiny all-lens)"]
@@ -431,9 +431,9 @@ def write_v3_case(tmp_path, *, profile="Tiny", findings=None, agents=None,
     advisory_line = "" if not advisory else "\n- Advisory: use-unit-testing"
     report.write_text(
         "\n".join([
-            "# Code Review: v3 contract",
+            "# Code Review: v4 contract",
             "",
-            "**Skill**: code-review-pro v3.0.1",
+            "**Skill**: code-review-pro v4.0.0",
             f"**Review Profile**: {profile}",
             f"**Main Runtime**: {main_runtime}",
             f"**Agents Triggered**: {' | '.join(agents) if agents else 'None'}",
@@ -466,7 +466,7 @@ def write_v3_case(tmp_path, *, profile="Tiny", findings=None, agents=None,
             "### Scope Drift",
             "- **Scope Drift**: None",
             "## Summary",
-            "v3 contract fixture.",
+            "v4 contract fixture.",
             "## Detailed Findings",
             *[f"- Must Fix: {item['file']}:1 — contract finding" for item in findings],
             advisory_line,
@@ -475,9 +475,9 @@ def write_v3_case(tmp_path, *, profile="Tiny", findings=None, agents=None,
     )
     sidecar = tmp_path / ".feature.review-meta.json"
     sidecar.write_text(json.dumps({
-        "recordVersion": 3,
+        "recordVersion": 4,
         "skillName": "code-review-pro",
-        "skillVersion": "3.0.1",
+        "skillVersion": "4.0.0",
         "invocation": {"source": "direct-user", "liteConsent": "n/a"},
         "reviewProfile": profile,
         "runtimeAttestation": references["runtimeAttestation"],
@@ -496,7 +496,7 @@ def write_v3_case(tmp_path, *, profile="Tiny", findings=None, agents=None,
         "reviewedFiles": scope["productionFiles"],
         "findings": findings,
         "triggered": agents,
-        # Retained v2 provenance values ensure a red test isolates the v3 contract.
+        # Retained v2 provenance values ensure a red test isolates the v4 contract.
         "reviewKind": "initial",
         "classifier": {"filesChanged": 1, "changedLines": 1, "scopeStatus": "no-production-code" if profile == "No-production-code" else "pass", "riskTriggers": [], "specialistTriggers": {}},
         "branchWorkItemGate": {"status": "SKIPPED", "branch": "None", "prefix": "None", "workItemId": "None", "expectedType": "None", "actualType": "None", "title": "None", "state": "None", "source": "working", "reason": "Scope has no created PR or branch to validate"},
@@ -530,10 +530,10 @@ def _assert_v3_contract_failure(report, sidecar, phrase):
 
 
 def test_tc_201_dod_23_accepts_hash_bound_v3_runtime_scope_and_test_evidence(tmp_path):
-    """TC-201: accept a complete trusted v3 review package.
+    """TC-201: accept a complete trusted v4 review package.
 
     Steps: 1. Create runtime, scope, and test evidence. 2. Bind each artifact by SHA-256.
-    3. Verify the v3 report package is accepted. Design: Task 2 DoD-2.3/DoD-2.4.
+    3. Verify the v4 report package is accepted. Design: Task 2 DoD-2.3/DoD-2.4.
     """
     report, sidecar = write_strict_v3_case(tmp_path)
     assert not _v3_failures(report, sidecar)
@@ -706,7 +706,7 @@ def write_strict_v3_case(tmp_path, *, profile="Tiny", run_statuses=("pass",),
                          direct_tests=None, advisory=None, findings=None,
                          blocking_validations=None, session_status="fresh",
                          override_recorded=False):
-    """Create a complete v3 package including retained provenance and multi-run evidence."""
+    """Create a complete v4 package including retained provenance and multi-run evidence."""
     # Arrange
     findings = [] if findings is None else findings
     blocking_validations = [] if blocking_validations is None else blocking_validations
@@ -721,7 +721,7 @@ def write_strict_v3_case(tmp_path, *, profile="Tiny", run_statuses=("pass",),
     elif profile == "Pro":
         agents = [
             *[f"Build Validator[{repo}](gpt-5.6-luna / low; code build)" for repo in repo_names],
-            "Requirement Validator(gpt-5.6-sol / high; work-item)",
+            "Code Reviewer(gpt-5.6-sol / high; work-item)",
             "Security Reviewer(gpt-5.6-terra / medium; auth-security-boundary)",
         ]
         skipped = [
@@ -801,7 +801,7 @@ def write_strict_v3_case(tmp_path, *, profile="Tiny", run_statuses=("pass",),
 
     data = json.loads(sidecar.read_text(encoding="utf-8"))
     data.update({
-        "skillVersion": "3.0.1",
+        "skillVersion": "4.0.0",
         "invocation": {"source": "direct-user", "liteConsent": "n/a"},
         "classifier": {
             "filesChanged": len(scope_files),
@@ -838,9 +838,9 @@ def write_strict_v3_case(tmp_path, *, profile="Tiny", run_statuses=("pass",),
         *[f"- Must Fix: {item['gate']} — {item['reason']}" for item in blocking_validations],
     ] or ["None."]
     report.write_text("\n".join([
-        "# Code Review: strict v3 contract",
+        "# Code Review: strict v4 contract",
         "",
-        "**Skill**: code-review-pro v3.0.1",
+        "**Skill**: code-review-pro v4.0.0",
         f"**Review Profile**: {profile}",
         "**Main Runtime**: gpt-5.6-terra / medium",
         f"**Agents Triggered**: {' | '.join(agents) if agents else 'None'}",
@@ -882,7 +882,7 @@ def write_strict_v3_case(tmp_path, *, profile="Tiny", run_statuses=("pass",),
         "### Scope Drift",
         "- **Scope Drift**: None",
         "## Summary",
-        "Strict v3 package.",
+        "Strict v4 package.",
         "## Detailed Findings",
         *must_fix,
     ]), encoding="utf-8")
@@ -913,7 +913,7 @@ def _configure_strict_v3_branch_gate_stop(report, sidecar, *, profile="Pro"):
     data["skipped"] = [
         *([f"Main(Tiny all-lens; {reason})"] if profile == "Tiny" else []),
         *[f"Build Validator[{repo}]({reason})" for repo in repos],
-        f"Requirement Validator({reason})",
+        f"Code Reviewer({reason})",
         *[f"{name} Reviewer({reason})" for name in ("Security", "Performance", "Philosophy", "Standard")],
     ]
     data["blockingValidations"] = [{
@@ -990,7 +990,7 @@ def test_tc_226_pro_branch_gate_fail_stops_dispatch_and_accepts_blocking_validat
     assert data["triggered"] == [
         "Branch Work Item Gate(gpt-5.6-luna / low; branch work item convention)",
     ]
-    assert any(actor.startswith("Requirement Validator(branch work item gate failed)") for actor in data["skipped"])
+    assert any(actor.startswith("Code Reviewer(branch work item gate failed)") for actor in data["skipped"])
     assert data["blockingValidations"] == [{
         "gate": "Branch Work Item Gate",
         "reason": "ADO work item type does not match branch prefix",
@@ -1012,9 +1012,9 @@ def test_tc_227_pro_branch_gate_fail_requires_blocking_validation(tmp_path):
 
 @pytest.mark.parametrize("gate_status", ["PASS", "SKIPPED"])
 def test_tc_228_pro_nonfailing_branch_gate_requires_requirement_validator(tmp_path, gate_status):
-    """TC-228: Pro keeps its normal Requirement Validator contract unless the branch gate fails.
+    """TC-228: Pro keeps its normal Code Reviewer contract unless the branch gate fails.
 
-    Steps: 1. Create a Pro package with a passing or skipped branch gate. 2. Remove the Requirement Validator.
+    Steps: 1. Create a Pro package with a passing or skipped branch gate. 2. Remove the Code Reviewer.
     3. Verify rejection. Design: final Pro verifier regression findings.
     """
     report, sidecar = write_strict_v3_case(tmp_path, profile="Pro")
@@ -1026,11 +1026,11 @@ def test_tc_228_pro_nonfailing_branch_gate_requires_requirement_validator(tmp_pa
         _set_report_section_bullet(report, "## Branch Work Item Gate", "Status", "PASS")
     data = json.loads(sidecar.read_text(encoding="utf-8"))
     data["triggered"] = [
-        actor for actor in data["triggered"] if not actor.startswith("Requirement Validator(")
+        actor for actor in data["triggered"] if not actor.startswith("Code Reviewer(")
     ]
     sidecar.write_text(json.dumps(data), encoding="utf-8")
     _set_report_field(report, "Agents Triggered", " | ".join(data["triggered"]))
-    _assert_v3_contract_failure(report, sidecar, "Pro triggers dedicated Requirement Validator")
+    _assert_v3_contract_failure(report, sidecar, "Pro triggers dedicated Code Reviewer")
 
 
 @pytest.mark.parametrize("field", [
@@ -1038,7 +1038,7 @@ def test_tc_228_pro_nonfailing_branch_gate_requires_requirement_validator(tmp_pa
     "crossChecks", "freshness", "sessionStatus", "overrideRecorded",
 ])
 def test_tc_229_runtime_attestation_requires_every_lite_parity_field(tmp_path, field):
-    """TC-229: Pro requires the full v3 runtime-attestation schema used by Lite.
+    """TC-229: Pro requires the full v4 runtime-attestation schema used by Lite.
 
     Steps: 1. Create a hash-bound Pro package. 2. Remove one required runtime field and rebind its hash.
     3. Verify the verifier rejects the otherwise trusted artifact. Design: final Pro verifier regression findings.
@@ -1107,7 +1107,7 @@ def test_tc_232_tiny_branch_gate_fail_stops_all_dispatch_and_accepts_blocker(tmp
 @pytest.mark.parametrize("mutation, expected", [
     ("main", "Branch Work Item Gate failure skips Tiny main review"),
     ("build", "Branch Work Item Gate failure skips every Build Validator"),
-    ("requirement", "Branch Work Item Gate failure skips Requirement Validator"),
+    ("requirement", "Branch Work Item Gate failure skips Code Reviewer"),
     ("security", "Branch Work Item Gate failure skips Security Reviewer"),
     ("performance", "Branch Work Item Gate failure skips Performance Reviewer"),
     ("philosophy", "Branch Work Item Gate failure skips Philosophy Reviewer"),
@@ -1129,7 +1129,7 @@ def test_tc_233_tiny_branch_gate_fail_requires_all_skips_and_blocker(tmp_path, m
         prefix = {
             "main": "Main(",
             "build": "Build Validator[",
-            "requirement": "Requirement Validator(",
+            "requirement": "Code Reviewer(",
             "security": "Security Reviewer(",
             "performance": "Performance Reviewer(",
             "philosophy": "Philosophy Reviewer(",
@@ -1206,7 +1206,7 @@ def _update_sidecar(sidecar, **updates):
 
 @pytest.mark.parametrize("record_version, skill_version", [(1, "1.0.0"), (2, "2.2.0")])
 def test_tc_211_dod_24_rejects_every_pre_v3_report_and_sidecar(tmp_path, record_version, skill_version):
-    """TC-211: only code-review-pro v3.0.1 with recordVersion 3 is accepted.
+    """TC-211: only code-review-pro v4.0.0 with recordVersion 4 is accepted.
 
     Steps: 1. Create a legacy report and sidecar. 2. Verify the verifier rejects the legacy contract.
     Design: Task 2 DoD-2.4.
@@ -1225,7 +1225,7 @@ def test_tc_211_dod_24_rejects_every_pre_v3_report_and_sidecar(tmp_path, record_
 
 
 def test_tc_212_dod_24_cli_removes_expected_runtime_and_requires_v3_sidecar(tmp_path, capsys):
-    """TC-212: CLI derives runtime from mandatory v3 evidence, never an optional launch argument.
+    """TC-212: CLI derives runtime from mandatory v4 evidence, never an optional launch argument.
 
     Steps: 1. Inspect API and CLI help. 2. Verify no expected-runtime parameter. 3. Verify inferred and explicit sidecars.
     Design: Task 2 DoD-2.4.
@@ -1254,7 +1254,7 @@ def test_tc_212_dod_24_cli_removes_expected_runtime_and_requires_v3_sidecar(tmp_
 def test_tc_213_dod_24_v3_retains_provenance_pr_dependency_and_followup_validation(tmp_path, field, invalid, expected):
     """TC-213: artifact success never bypasses retained provenance validation.
 
-    Steps: 1. Create a valid v3 package. 2. Corrupt one retained field. 3. Verify its legacy guard still fails.
+    Steps: 1. Create a valid v4 package. 2. Corrupt one retained field. 3. Verify its legacy guard still fails.
     Design: Task 2 DoD-2.4.
     """
     report, sidecar = write_strict_v3_case(tmp_path)
@@ -1263,7 +1263,7 @@ def test_tc_213_dod_24_v3_retains_provenance_pr_dependency_and_followup_validati
 
 
 def test_tc_214_dod_22_v3_retains_branch_classifier_actor_and_child_runtime_validation(tmp_path):
-    """TC-214: v3 retains branch, classifier, actor parity, and child-runtime checks.
+    """TC-214: v4 retains branch, classifier, actor parity, and child-runtime checks.
 
     Steps: 1. Create a valid package. 2. Corrupt retained records. 3. Verify every retained guard reports failure.
     Design: Task 2 DoD-2.2/DoD-2.4.
@@ -1279,7 +1279,7 @@ def test_tc_214_dod_22_v3_retains_branch_classifier_actor_and_child_runtime_vali
     failures = _v3_failures(report, sidecar)
     assert "Branch Work Item Gate report fields match sidecar" in failures
     assert "report Files Changed matches sidecar classifier" in failures
-    assert "sidecar runtime contains populated v3 child roles" in failures
+    assert "sidecar runtime contains populated v4 child roles" in failures
     assert "Triggered report records match sidecar" in failures
     assert "Skipped report records match sidecar" in failures
 
@@ -1426,9 +1426,9 @@ def test_tc_221_dod_22_matches_report_findings_but_allows_nonfile_gate_blockers(
     "## Detailed Findings",
 ])
 def test_tc_222_dod_23_requires_every_v3_report_section(tmp_path, heading):
-    """TC-222: v3 reports expose runtime, scope, tests, gates, semantic review, and findings.
+    """TC-222: v4 reports expose runtime, scope, tests, gates, semantic review, and findings.
 
-    Steps: 1. Create a complete v3 report. 2. Remove one required section. 3. Verify rejection.
+    Steps: 1. Create a complete v4 report. 2. Remove one required section. 3. Verify rejection.
     Design: Task 2 DoD-2.3/DoD-2.4.
     """
     report, sidecar = write_strict_v3_case(tmp_path)
@@ -1442,9 +1442,9 @@ def test_tc_222_dod_23_requires_every_v3_report_section(tmp_path, heading):
     ({"jsDepsStrategy": "skip"}, "Build Status table contains JS-SKIPPED row"),
 ])
 def test_tc_223_dod_24_v3_retains_pr_only_merge_preview_and_dependency_routing(tmp_path, updates, expected):
-    """TC-223: v3 retains PR-only, merge-preview, and skipped-dependency routing guards.
+    """TC-223: v4 retains PR-only, merge-preview, and skipped-dependency routing guards.
 
-    Steps: 1. Create a valid v3 package. 2. Introduce invalid PR or dependency routing. 3. Verify rejection.
+    Steps: 1. Create a valid v4 package. 2. Introduce invalid PR or dependency routing. 3. Verify rejection.
     Design: Task 2 DoD-2.4.
     """
     report, sidecar = write_strict_v3_case(tmp_path)

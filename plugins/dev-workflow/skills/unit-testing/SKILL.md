@@ -7,7 +7,7 @@ description: Create traceable unit and component tests for new, changed, or exis
 
 ## Overview
 
-Produce traceable, deterministic, framework-native unit and component tests. Cover the unit and component layers only; browser E2E belongs to `qa-engineer` and `browser-skill`.
+Produce traceable, deterministic, framework-native unit and component tests. `code-implementer` owns test-file writes and production implementation; browser E2E belongs to `qa-engineer` and `browser-skill`.
 
 Classify the target before writing tests:
 
@@ -73,7 +73,7 @@ Read `references/best-practices.md`, then the relevant stack reference. For mock
 - Reconcile existing tests: leave correct coverage, update owned tests for approved changes, add only missing behavior, and flag contradictions for review.
 - Label each `Known Quirk` in both registry metadata and test header; it records current behavior, not correctness.
 
-For spec-first work, write RED tests only after the approved gate and verify each fails for the expected assertion reason. Never modify production files.
+For spec-first or `test-only` invocation, `code-implementer` writes only authorized test/registry assets. Write RED tests only after approved gate and verify each fails for expected assertion reason. Never modify production files during this stage.
 
 ## Verify Output and back-link
 

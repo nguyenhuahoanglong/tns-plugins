@@ -63,9 +63,11 @@ In this order: promote the host draft to the canonical path, re-run preflight, t
 the canonical file. Dispatch only through `references/agent-prompts.md`, recording working-tree-aware status
 plus scoped diff and file hashes before each writable dispatch and comparing them after. Assign one
 implementer per dependency-ready slice and cap concurrency at three. Main agent alone updates task Status,
-and accepts DONE only after checking diff, file scope, and Done-when evidence. `qa-engineer` uses
-`unit-testing` traceability and test-registry rules. One fresh blocker retry carries the decision and prior
-progress; a second blocker marks the task `blocked`.
+and accepts DONE only after checking diff, file scope, and Done-when evidence. `code-implementer` owns
+unit/component tests through `unit-testing` traceability and test-registry rules; `qa-engineer` is separate
+requirements-based E2E work only. For one hard blocker with evidence, main may request
+`Task(subagent_type="advisor", prompt="...", description="...")` before existing fresh retry; advice adds no retry or approval bypass. One
+fresh blocker retry carries decision and prior progress; a second blocker marks task `blocked`.
 
 ## Phase 5 — verify
 
@@ -77,8 +79,8 @@ run, or reported. Tick ACs only from evidence and rerun the verifier after statu
 ## Phase 6 — report
 
 Report plan path, files changed, task/AC status, build/test evidence, the preflight summary, manual
-follow-ups, and the review verdict only when selected. Update or offer supporting docs only when an AC,
-project rule, or verified code impact requires them.
+follow-ups, and the review verdict only when selected. Use `Task(subagent_type="document-writer", prompt="...", description="...")` only when an
+AC, project rule, or verified code impact makes a separate communication artifact worthwhile.
 
 ## References
 

@@ -1,7 +1,7 @@
 ---
 name: code-review-pro
 description: Adaptive production-code review for PRs, branches, staged changes, and follow-ups. Use when runtime-attested Tiny or Pro validation and a verified report are required.
-version: 3.0.2
+version: 4.0.0
 ---
 
 # Code Review Pro
@@ -38,13 +38,13 @@ For production scope, discover direct/affected tests from changed symbols, persi
 
 Read `references/adaptive-classifier.md`. Choose **Tiny** only for <=3 production files, <=100 changed lines, and no risk trigger; otherwise choose **Pro**. Classifier counts exclude evidence/excluded paths.
 
-Run branch validation where applicable. For Tiny, run one Build Validator per repo and then main all-lens review. For Pro, run Build Validator(s), Requirement Validator, and only recorded risk specialists. A branch gate failure stops later semantic dispatch; a build failure is blocking evidence but Requirement validation may still run if production code is readable.
+Run branch validation where applicable. For Tiny, run one Build Validator per repo and then main all-lens review. For Pro, run Build Validator(s), Code Reviewer, and only recorded risk specialists. A branch gate failure stops later semantic dispatch; a build failure is blocking evidence but baseline Code Reviewer may still run if production code is readable.
 
 Every semantic dispatch receives: persistent diff path, production allowlist, evidence paths, manifest path, test-evidence path, and role prompt. An out-of-allowlist finding is invalid and must be removed. Use `references/agents/_shared-contract.md`; child agents do no git commands.
 
 ### 3. Synthesize
 
-Read `references/report-template.md` and `references/analysis-framework.md`. Write `.CodeReview/{safe-branch}.md` and v3 `.CodeReview/.{safe-branch}.review-meta.json`. The sidecar contains `recordVersion: 3`, `invocation: {source, liteConsent}`, retained provenance, exact `runtimeAttestation`, `scopeManifest`, and `testEvidence` references (`path`, `sha256`), scope lists, reviewed production files, test routing, validation blockers, and finding objects.
+Read `references/report-template.md` and `references/analysis-framework.md`. Write `.CodeReview/{safe-branch}.md` and v4 `.CodeReview/.{safe-branch}.review-meta.json`. The sidecar contains `recordVersion: 4`, `invocation: {source, liteConsent}`, retained provenance, exact `runtimeAttestation`, `scopeManifest`, and `testEvidence` references (`path`, `sha256`), scope lists, reviewed production files, test routing, validation blockers, and finding objects.
 
 ## Verify Output
 

@@ -32,7 +32,7 @@ Missing direct tests alone are never a finding. Record exactly `use-unit-testing
 
 ## Requirement Priority
 
-Requirement Validator runs at high reasoning because correctness and behavior preservation outrank specialist style concerns. During synthesis:
+Code Reviewer runs at high reasoning because correctness and behavior preservation outrank specialist style concerns. During synthesis:
 
 - Re-check every Requirement CRITICAL/HIGH against direct AC or regression evidence.
 - Re-run caller/consumer/event/state searches before accepting a regression.

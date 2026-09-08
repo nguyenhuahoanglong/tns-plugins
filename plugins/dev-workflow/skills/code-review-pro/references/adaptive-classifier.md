@@ -50,7 +50,7 @@ Also record `large-change` when thresholds fail and `uncertain-impact` when impa
 
 ## Specialist Triggers
 
-Requirement Validator is not a specialist and always runs in Pro.
+Code Reviewer is not a specialist and always runs in Pro.
 
 | Specialist | Trigger when diff affects |
 |---|---|
@@ -59,7 +59,7 @@ Requirement Validator is not a specialist and always runs in Pro.
 | Philosophy Reviewer | `shared-behavior`, `api-contract`, `schema-data-contract`, `state-management`, or `config-runtime` with architecture/ownership/abstraction impact |
 | Standard Reviewer | explicit standards-sensitive change, new pattern/folder/language construct, build/config convention, or dominant-exemplar divergence risk |
 
-Size alone (`large-change`) triggers no specialist. Requirement Validator covers correctness/regression; spawn a specialist only when its own row has evidence.
+Size alone (`large-change`) triggers no specialist. Code Reviewer covers correctness/regression; spawn a specialist only when its own row has evidence.
 
 ## Announcement Contract
 

@@ -22,7 +22,7 @@ from verify_output import evaluate  # noqa: E402
 
 
 RUNTIMES = {
-    "Requirement Validator": "gpt-5.6-sol / high",
+    "Code Reviewer": "gpt-5.6-sol / high",
     "Security Reviewer": "gpt-5.6-terra / medium",
     "Performance Reviewer": "gpt-5.6-terra / medium",
     "Philosophy Reviewer": "gpt-5.6-terra / medium",
@@ -334,7 +334,7 @@ class VerifyOutputV4GateTests(unittest.TestCase):
             path.write_text(
                 path.read_text(encoding="utf-8").replace(
                     "### Triggered\n- None",
-                    "### Triggered\n- Requirement Validator (`gpt-5.6-sol / high`) - invalid",
+                    "### Triggered\n- Code Reviewer (`gpt-5.6-sol / high`) - invalid",
                 ),
                 encoding="utf-8",
             )
@@ -369,7 +369,7 @@ class VerifyOutputV4GateTests(unittest.TestCase):
             path = write_report(
                 root,
                 "Lite",
-                triggered=["Requirement Validator", "Performance Reviewer"],
+                triggered=["Code Reviewer", "Performance Reviewer"],
             )
             self.assert_valid(path, "Lite")
 
@@ -378,7 +378,7 @@ class VerifyOutputV4GateTests(unittest.TestCase):
             path = write_report(
                 root,
                 "Lite",
-                triggered=["Requirement Validator"],
+                triggered=["Code Reviewer"],
                 specialist_triggers="None",
             )
             self.assert_valid(path, "Lite")
@@ -388,7 +388,7 @@ class VerifyOutputV4GateTests(unittest.TestCase):
             path = write_report(
                 root,
                 "Lite",
-                triggered=["Requirement Validator"],
+                triggered=["Code Reviewer"],
             )
             self.assert_contract_failure(
                 path,
@@ -409,7 +409,7 @@ class VerifyOutputV4GateTests(unittest.TestCase):
                 root,
                 "Lite",
                 triggered=[
-                    "Requirement Validator",
+                    "Code Reviewer",
                     "Performance Reviewer",
                     "Security Reviewer",
                 ],
@@ -426,7 +426,7 @@ class VerifyOutputV4GateTests(unittest.TestCase):
             path = write_report(
                 root,
                 "Lite",
-                triggered=["Requirement Validator", "Security Reviewer"],
+                triggered=["Code Reviewer", "Security Reviewer"],
             )
             self.assert_contract_failure(
                 path, "Lite", "Semantic agents match the bounded escalation route"
@@ -443,7 +443,7 @@ class VerifyOutputV4GateTests(unittest.TestCase):
                 root,
                 "Lite",
                 branch_status="FAIL",
-                triggered=["Requirement Validator"],
+                triggered=["Code Reviewer"],
             )
             self.assert_contract_failure(
                 path, "Lite", "Semantic agents match the bounded escalation route"
@@ -459,7 +459,7 @@ class VerifyOutputV4GateTests(unittest.TestCase):
                 root,
                 "Lite",
                 build_rows=failed_build,
-                triggered=["Requirement Validator"],
+                triggered=["Code Reviewer"],
             )
             self.assert_valid(path, "Lite")
 
@@ -473,7 +473,7 @@ class VerifyOutputV4GateTests(unittest.TestCase):
                 root,
                 "Lite",
                 build_rows=failed_build,
-                triggered=["Requirement Validator", "Performance Reviewer"],
+                triggered=["Code Reviewer", "Performance Reviewer"],
             )
             self.assert_contract_failure(
                 path, "Lite", "Semantic agents match the bounded escalation route"
@@ -493,7 +493,7 @@ class VerifyOutputV4GateTests(unittest.TestCase):
                     build_rows=[(
                         "repo", status, "python -m unittest", exit_code, "0", "0", reason,
                     )],
-                    triggered=["Requirement Validator"],
+                    triggered=["Code Reviewer"],
                 )
                 self.assert_valid(path, "Lite")
 
@@ -506,7 +506,7 @@ class VerifyOutputV4GateTests(unittest.TestCase):
                     "repo", "NOT RUN (environment)", "python -m unittest", "n/a", "0", "0",
                     "tool missing",
                 )],
-                triggered=["Requirement Validator", "Performance Reviewer"],
+                triggered=["Code Reviewer", "Performance Reviewer"],
             )
             self.assert_contract_failure(
                 path, "Lite", "Semantic agents match the bounded escalation route"
@@ -544,7 +544,7 @@ class VerifyOutputV4GateTests(unittest.TestCase):
             path = write_report(
                 root,
                 "Lite",
-                triggered=["Requirement Validator", "Performance Reviewer"],
+                triggered=["Code Reviewer", "Performance Reviewer"],
             )
             self.assert_valid(path, "Lite")
 
@@ -563,7 +563,7 @@ class VerifyOutputV4GateTests(unittest.TestCase):
                 root,
                 "Lite",
                 build_rows=[invalid],
-                triggered=["Requirement Validator", "Performance Reviewer"],
+                triggered=["Code Reviewer", "Performance Reviewer"],
             )
             self.assert_contract_failure(
                 path, "Lite", "Build gate rows contain valid deterministic values"
@@ -585,8 +585,8 @@ class VerifyOutputV4GateTests(unittest.TestCase):
     def test_agent_usage_accepts_zero_and_not_exposed(self):
         with tempfile.TemporaryDirectory() as root:
             usage = [(
-                "Requirement Validator",
-                RUNTIMES["Requirement Validator"],
+                "Code Reviewer",
+                RUNTIMES["Code Reviewer"],
                 "isolated manifest",
                 "0",
                 "not exposed",
@@ -596,7 +596,7 @@ class VerifyOutputV4GateTests(unittest.TestCase):
             path = write_report(
                 root,
                 "Lite",
-                triggered=["Requirement Validator"],
+                triggered=["Code Reviewer"],
                 usage_rows=usage,
                 specialist_triggers="None",
             )
@@ -607,8 +607,8 @@ class VerifyOutputV4GateTests(unittest.TestCase):
         for value in invalid_values:
             with self.subTest(value=value), tempfile.TemporaryDirectory() as root:
                 usage = [(
-                    "Requirement Validator",
-                    RUNTIMES["Requirement Validator"],
+                    "Code Reviewer",
+                    RUNTIMES["Code Reviewer"],
                     "isolated manifest",
                     value,
                     "0",
@@ -618,7 +618,7 @@ class VerifyOutputV4GateTests(unittest.TestCase):
                 path = write_report(
                     root,
                     "Lite",
-                    triggered=["Requirement Validator"],
+                    triggered=["Code Reviewer"],
                     usage_rows=usage,
                     specialist_triggers="None",
                 )
@@ -633,7 +633,7 @@ class VerifyOutputV4GateTests(unittest.TestCase):
             path = write_report(
                 root,
                 "Lite",
-                triggered=["Requirement Validator"],
+                triggered=["Code Reviewer"],
                 usage_rows=[],
                 specialist_triggers="None",
             )
@@ -663,7 +663,7 @@ class VerifyOutputV4GateTests(unittest.TestCase):
             path = write_report(
                 root,
                 "Lite",
-                triggered=["Requirement Validator"],
+                triggered=["Code Reviewer"],
                 specialist_triggers="None",
                 include_behavior=False,
             )
@@ -678,7 +678,7 @@ class VerifyOutputV4GateTests(unittest.TestCase):
             path = write_report(
                 root,
                 "Lite",
-                triggered=["Requirement Validator"],
+                triggered=["Code Reviewer"],
                 specialist_triggers="None",
                 include_collateral=False,
             )
@@ -691,7 +691,7 @@ class VerifyOutputV4GateTests(unittest.TestCase):
             path = write_report(
                 root,
                 "Lite",
-                triggered=["Requirement Validator"],
+                triggered=["Code Reviewer"],
                 specialist_triggers="None",
                 include_scope_drift=False,
             )
@@ -702,7 +702,7 @@ class VerifyOutputV4GateTests(unittest.TestCase):
             path = write_report(
                 root,
                 "Lite",
-                triggered=["Requirement Validator", "Performance Reviewer"],
+                triggered=["Code Reviewer", "Performance Reviewer"],
                 include_requirement_row=False,
             )
             self.assert_contract_failure(
@@ -716,14 +716,14 @@ class VerifyOutputV4GateTests(unittest.TestCase):
             path = write_report(
                 root,
                 "Lite",
-                triggered=["Requirement Validator", "Performance Reviewer"],
+                triggered=["Code Reviewer", "Performance Reviewer"],
             )
             path.write_text(
-                path.read_text(encoding="utf-8").replace("4.1.1", "3.0.0", 1),
+                path.read_text(encoding="utf-8").replace("5.0.0", "3.0.0", 1),
                 encoding="utf-8",
             )
             self.assert_contract_failure(
-                path, "Lite", "Only code-review-lite v4.1.1 reports are accepted"
+                path, "Lite", "Only code-review-lite v5.0.0 reports are accepted"
             )
 
 
@@ -832,7 +832,7 @@ def _write_v4_contract(
     report_options.setdefault("unreviewed_risk_families", unreviewed)
     if "triggered" not in report_options:
         report_options["triggered"] = (
-            ["Requirement Validator", "Performance Reviewer"]
+            ["Code Reviewer", "Performance Reviewer"]
             if profile == "Lite"
             else []
         )
@@ -850,7 +850,7 @@ def _write_v4_contract(
             {
                 "recordVersion": 3,
                 "skillName": "code-review-lite",
-                "skillVersion": "4.1.1",
+                "skillVersion": "5.0.0",
                 "reviewProfile": profile,
                 "runtime": runtime_payload,
                 "session": session,
@@ -874,7 +874,7 @@ def _write_v4_contract(
     )
     report.write_text(
         report.read_text(encoding="utf-8")
-        .replace("code-review-lite v3.0.0", "code-review-lite v4.1.1")
+        .replace("code-review-lite v3.0.0", "code-review-lite v5.0.0")
         .replace("**Main Runtime**: gpt-5.6-sol / xhigh", "**Main Runtime**: gpt-5.6-terra / medium")
         .replace(f"**Context Manifest**: {context_path}", "**Context Manifest**: n/a")
         + "\n## Runtime, Scope, and Test Evidence\n"
@@ -912,11 +912,11 @@ def _rewrite_artifact(report, sidecar, key, path, payload):
 
 
 def _route_requirement_only(report):
-    """Project a blocking build/test outcome to Requirement Validator only."""
+    """Project a blocking build/test outcome to Code Reviewer only."""
     text = report.read_text(encoding="utf-8").replace(
-        "- Requirement Validator (`gpt-5.6-sol / high`) - fixture reason\n"
+        "- Code Reviewer (`gpt-5.6-sol / high`) - fixture reason\n"
         "- Performance Reviewer (`gpt-5.6-terra / medium`) - fixture reason",
-        "- Requirement Validator (`gpt-5.6-sol / high`) - fixture reason",
+        "- Code Reviewer (`gpt-5.6-sol / high`) - fixture reason",
     )
     text = text.replace(
         "| Performance Reviewer | `gpt-5.6-terra / medium` | isolated manifest | "
@@ -959,12 +959,12 @@ def _write_no_production_contract(tmp_path):
         flags=re.DOTALL,
     )
     text = text.replace(
-        "- Requirement Validator (`gpt-5.6-sol / high`) - fixture reason\n"
+        "- Code Reviewer (`gpt-5.6-sol / high`) - fixture reason\n"
         "- Performance Reviewer (`gpt-5.6-terra / medium`) - fixture reason",
         "- None",
     )
     text = re.sub(
-        r"\| Requirement Validator \|.*?\n\| Performance Reviewer \|.*?\n",
+        r"\| Code Reviewer \|.*?\n\| Performance Reviewer \|.*?\n",
         "None\n",
         text,
     )
@@ -1175,7 +1175,7 @@ def test_tc_030_rejects_lite_artifacts_for_multi_specialist_escalation(tmp_path)
 
 
 def test_tc_031_rejects_legacy_v3_reports_even_when_the_old_contract_is_valid(tmp_path):
-    """TC-031 / DoD-3.4: public verification accepts v4.1.1/recordVersion 3 only.
+    """TC-031 / DoD-3.4: public verification accepts v5.0.0/recordVersion 3 only.
 
     Steps:
       1. Create an otherwise-valid legacy v3 Lite report.
@@ -1185,12 +1185,12 @@ def test_tc_031_rejects_legacy_v3_reports_even_when_the_old_contract_is_valid(tm
     report = _write_report_body(
         tmp_path,
         "Lite",
-        triggered=["Requirement Validator", "Performance Reviewer"],
+        triggered=["Code Reviewer", "Performance Reviewer"],
     )
 
     failures = [message for level, message in evaluate(report, "Lite") if level == "FAIL"]
 
-    assert "Only code-review-lite v4.1.1 reports are accepted" in failures
+    assert "Only code-review-lite v5.0.0 reports are accepted" in failures
 
 
 def test_tc_032_rechecks_pass_attestation_against_shared_runtime_policy(tmp_path):
@@ -1281,7 +1281,7 @@ def test_tc_034_no_production_code_forbids_worktree_context_build_test_and_revie
             lambda report, sidecar: report.write_text(
                 report.read_text(encoding="utf-8").replace(
                     "### Triggered\n- None",
-                    "### Triggered\n- Requirement Validator (`gpt-5.6-sol / high`) - invalid",
+                    "### Triggered\n- Code Reviewer (`gpt-5.6-sol / high`) - invalid",
                 ),
                 encoding="utf-8",
             ),
@@ -1581,7 +1581,7 @@ def test_v41_accepts_declined_multi_family_with_priority_and_ordered_residual(tm
         escalation_decision="pro-declined",
         selected_specialist="Security Reviewer",
         unreviewed_risk_families="Performance Reviewer=async | Standard Reviewer=lockfile",
-        triggered=["Requirement Validator", "Security Reviewer"],
+        triggered=["Code Reviewer", "Security Reviewer"],
     )
 
     assert _v4_failures(report) == []
@@ -1596,7 +1596,7 @@ def test_v41_rejects_multi_auto_wrong_selection_and_reordered_residual(tmp_path)
         escalation_decision="not-needed",
         selected_specialist="Performance Reviewer",
         unreviewed_risk_families="Standard Reviewer=lockfile | Security Reviewer=auth",
-        triggered=["Requirement Validator", "Performance Reviewer"],
+        triggered=["Code Reviewer", "Performance Reviewer"],
     )
 
     failures = _v4_failures(report)
@@ -1638,7 +1638,7 @@ def test_v41_multi_family_blocked_gate_requires_all_unreviewed_and_requirement_o
         escalation_decision="pro-declined",
         selected_specialist="None",
         unreviewed_risk_families=triggers,
-        triggered=["Requirement Validator"],
+        triggered=["Code Reviewer"],
     )
     report.write_text(report.read_text(encoding="utf-8") + "- **Test Gate**: BLOCKED (gap)\n", encoding="utf-8")
 

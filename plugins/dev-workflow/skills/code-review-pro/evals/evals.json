@@ -4,13 +4,13 @@
     {
       "id": 1,
       "prompt": "Review my current branch. It changes 2 source files with 74 added/deleted lines. No public/shared behavior, API, schema, auth, dependency, async lifecycle, state, or config is touched.",
-      "expected_output": "After running runtime/session preflight (advisory) and recording its result, the review selects Tiny from production files only, runs deterministic relevant tests, and writes verified v3 report/sidecar artifacts.",
+      "expected_output": "After running runtime/session preflight (advisory) and recording its result, the review selects Tiny from production files only, runs deterministic relevant tests, and writes verified v4 report/sidecar artifacts.",
       "expectations": [
         "The profile is Tiny only because scopeStatus is pass, production-only filesChanged <= 3, changedLines <= 100, and riskTriggers is empty; the classifier has no docsOnly field",
         "Exactly one dedicated Build Validator runs per repo with the active tool's fast runtime profile",
         "Requirement and specialist agents are skipped while the main agent reviews requirement, regression, security, performance, design, standards, and tests",
         "Preflight records modelId, effort, and trustLevel; report Main Runtime equals the attestation, including a labeled self-reported or unknown trustLevel when attestation is unavailable, and never uses settings or not exposed",
-        "The report contains exact Skill, Version, Runtime, Triggered, and Skipped fields and the sidecar contains recordVersion 3 with hash-bound runtime, scope, and test artifacts",
+        "The report contains exact Skill, Version, Runtime, Triggered, and Skipped fields and the sidecar contains recordVersion 4 with hash-bound runtime, scope, and test artifacts",
         "Branch Work Item Gate runs with the Build Validator runtime for branch/PR scope and records PASS/WARN/FAIL/SKIPPED in the report and sidecar"
       ]
     },
@@ -20,22 +20,22 @@
       "expected_output": "The small diff is classified Pro because API and auth risks forbid Tiny. Build and regression-only Requirement validators run, Security and relevant design specialists trigger, and unrelated behavior preservation is evidenced.",
       "expectations": [
         "The classifier selects Pro despite the Tiny size thresholds because api-contract and auth-security-boundary triggers are announced",
-        "Requirement Validator always runs in regression-only mode with the active tool's deep runtime profile",
+        "Code Reviewer always runs in regression-only mode with the active tool's deep runtime profile",
         "Security Reviewer runs through the generic code-reviewer standard runtime while untriggered specialists are explicitly skipped",
         "Requirement evidence compares base/new behavior and cites symbols, callers or consumers, events/state where relevant, tests, and unrelated behavior preservation",
-        "A malformed or type-mismatched branch/work-item gate failure is reported as CRITICAL and stops Requirement Validator and specialists"
+        "A malformed or type-mismatched branch/work-item gate failure is reported as CRITICAL and stops Code Reviewer and specialists"
       ]
     },
     {
       "id": 3,
       "prompt": "Review Azure DevOps PR 75635 and follow its linked direct work item. Treat the parent only as context. Verify changed symbols, callers/consumers, events/state, tests, and preserved behavior; then prepare a publish-compatible report.",
-      "expected_output": "PR 75635 receives a Pro review with direct-AC mapping, parent-context separation, risk-triggered specialist routing, stable report metadata, ADO guard, and strict v3 follow-up records.",
+      "expected_output": "PR 75635 receives a Pro review with direct-AC mapping, parent-context separation, risk-triggered specialist routing, stable report metadata, ADO guard, and strict v4 follow-up records.",
       "expectations": [
         "The review announces Pro profile plus every classifier and specialist trigger before dispatch",
         "The direct work item's acceptance criteria are binding and parent context does not create extra Missing or Partial criteria",
-        "Build Validator and Requirement Validator always run; only specialists with recorded evidence triggers run after a passing build",
-        "The report passes the ADO autolink guard and scripts/verify_output.py using its generated runtime attestation, and its sidecar includes skillName code-review-pro, skillVersion 3.0.2, reviewProfile, and invocation provenance",
-        "A later follow-up reclassifies only the delta with the same No-production-code/Tiny/Pro classifier and writes recordVersion 3",
+        "Build Validator and Code Reviewer always run; only specialists with recorded evidence triggers run after a passing build",
+        "The report passes the ADO autolink guard and scripts/verify_output.py using its generated runtime attestation, and its sidecar includes skillName code-review-pro, skillVersion 4.0.0, reviewProfile, and invocation provenance",
+        "A later follow-up reclassifies only the delta with the same No-production-code/Tiny/Pro classifier and writes recordVersion 4",
         "The PR source branch ID is verified through az boards work-item show, the ADO work item type must be User Story, Bug, or Issue, and branch prefix mismatch is WARN not FAIL"
       ]
     }
@@ -45,14 +45,14 @@
     "Tests/docs-only scope becomes No-production-code with no worktree, tests, semantic agents, or findings.",
     "A production finding may cite test evidence; a test/doc/generated/vendor/binary finding is invalid.",
     "Missing direct tests produce exactly the use-unit-testing advisory; executions[] supports multiple repositories and routes fail/timeout results to a blocking test gate.",
-    "The verifier rejects pre-v3 records and validates retained branch, actor, child-runtime, PR-only, merge-preview, dependency, and follow-up provenance without an expected-runtime argument.",
+    "The verifier rejects pre-v4 records and validates retained branch, actor, child-runtime, PR-only, merge-preview, dependency, and follow-up provenance without an expected-runtime argument.",
     "A Lite-originated Pro run records user-confirmed or explicit-auto consent; missing Lite consent stops before Pro execution.",
     "The report contains Runtime Evidence, Scope Evidence, Test Evidence, and Semantic Review sections, and report finding targets exactly match production-only sidecar findings."
   ],
   "non_goals": [
     "Do not sync, install, publish, or modify deployed copies of the skill",
     "Do not use file/line thresholds alone to classify risky changes as Tiny",
-    "Do not spawn all specialists by default or skip the Pro Requirement Validator when no work item exists",
+    "Do not spawn all specialists by default or skip the Pro Code Reviewer when no work item exists",
     "Do not treat parent Feature or Epic outcomes as direct acceptance criteria",
     "Do not create worktrees outside the reviewed repository"
   ]

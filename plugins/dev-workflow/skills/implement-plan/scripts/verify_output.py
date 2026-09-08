@@ -168,6 +168,11 @@ def task_contract(text, unit, results):
     return has_tdd
 
 
+def tdd_task_numbers(text):
+    return [str(number) for number, task in enumerate(TASK_RE.findall(section(text, "Tasks")), 1)
+            if (fields(task).get("Depth") or ["simplify"])[0] == "TDD"]
+
+
 def preflight_contract(text, results):
     preflight = section(text, "Preflight")
     if not preflight.strip():
@@ -220,6 +225,29 @@ def preflight_contract(text, results):
     return declared_autonomy
 
 
+def assignment_agents_for_task(assignment, number):
+    """Return Agent-column values for exact Task rows, never prose in evidence cells."""
+    lines = assignment.splitlines()
+    header = next((line for line in lines if "|" in line and re.search(r"\bAgent\b", line, re.I)), None)
+    if not header:
+        return []
+    columns = [cell.strip().lower() for cell in header.strip().strip("|").split("|")]
+    try:
+        task_index, agent_index = columns.index("task(s)"), columns.index("agent")
+    except ValueError:
+        return []
+    values = []
+    for line in lines:
+        if "|" not in line or re.fullmatch(r"\s*\|?\s*[-:| ]+\s*\|?\s*", line):
+            continue
+        cells = [cell.strip() for cell in line.strip().strip("|").split("|")]
+        if len(cells) <= max(task_index, agent_index):
+            continue
+        if re.fullmatch(rf"Task\s*{number}", cells[task_index], re.I):
+            values.append(cells[agent_index].lower())
+    return values
+
+
 def evaluate(text, plan_path=None):
     results = []
     context = section(text, "Context")
@@ -229,8 +257,12 @@ def evaluate(text, plan_path=None):
     assignment, verification = section(text, "Agent Assignment"), section(text, "Verification")
     has_tdd = task_contract(text, unit, results)
     autonomy = preflight_contract(text, results)
-    if has_tdd and "qa-engineer" not in assignment.lower():
-        results.append(("FAIL", "TDD requires qa-engineer assignment"))
+    for number in tdd_task_numbers(text):
+        task_agents = assignment_agents_for_task(assignment, number)
+        if not any("code-implementer" in agent for agent in task_agents):
+            results.append(("FAIL", f"TDD Task {number} requires code-implementer assignment"))
+        if any("qa-engineer" in agent for agent in task_agents):
+            results.append(("FAIL", f"TDD Task {number} must not assign qa-engineer; unit/component tests belong to code-implementer"))
     if (not verification.strip() or not re.search(r"\bbuild\b", verification, re.I)
             or not re.search(r"\btest(?:s| suite)?\b", verification, re.I)):
         results.append(("FAIL", "Verification requires build and existing tests"))

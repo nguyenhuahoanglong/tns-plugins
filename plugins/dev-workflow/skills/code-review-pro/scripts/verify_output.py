@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Verify the strict code-review-pro v3 report package."""
+"""Verify the strict code-review-pro v4 report package."""
 
 import argparse
 import hashlib
@@ -9,7 +9,7 @@ import sys
 from pathlib import Path
 
 
-SKILL = "code-review-pro v3.0.1"
+SKILL = "code-review-pro v4.0.0"
 PROFILES = {"No-production-code", "Tiny", "Pro"}
 BRANCH_GATE_FIELDS = {
     "Status", "Branch", "Prefix", "Work Item ID", "Expected Type",
@@ -502,7 +502,7 @@ def _validate_retained(text, values, data, results):
         "blockingValidations", "productionFiles", "evidenceFiles", "excludedFiles",
         "runtimeAttestation", "scopeManifest", "testEvidence", "session",
     }
-    add(results, required <= set(data), "sidecar contains retained v3 provenance fields")
+    add(results, required <= set(data), "sidecar contains retained v4 provenance fields")
     add(results, _is_string(data.get("reviewedCommit")), "reviewedCommit is populated")
     add(results, _is_string(data.get("targetBranch")), "targetBranch is populated")
     add(results, data.get("scopeType") in {"pr", "branch", "staged", "working", "files"},
@@ -559,7 +559,7 @@ def _validate_retained(text, values, data, results):
         _is_string(runtime.get(role)) and bool(re.fullmatch(r".+ / .+", runtime[role]))
         for role in roles
     )
-    add(results, runtime_ok, "sidecar runtime contains populated v3 child roles")
+    add(results, runtime_ok, "sidecar runtime contains populated v4 child roles")
     runtime = runtime if isinstance(runtime, dict) else {}
     add(results, runtime.get("main") == values.get("Main Runtime"),
         "sidecar runtime.main matches report Main Runtime")
@@ -615,7 +615,7 @@ def _validate_actors(values, data, runtime, profile, repo_names,
     ]
     semantic = [
         item for item in triggered
-        if item.startswith(("Main(", "Requirement Validator(",
+        if item.startswith(("Main(", "Code Reviewer(",
                             "Security Reviewer(", "Performance Reviewer(",
                             "Philosophy Reviewer(", "Standard Reviewer("))
     ]
@@ -641,7 +641,7 @@ def _validate_actors(values, data, runtime, profile, repo_names,
                 _actor(skipped, "Build Validator[") == expected_skipped_builds,
                 "Branch Work Item Gate failure skips every Build Validator")
             for actor in (
-                "Requirement Validator",
+                "Code Reviewer",
                 *[f"{name} Reviewer" for name in SPECIALISTS],
             ):
                 add(results,
@@ -654,7 +654,7 @@ def _validate_actors(values, data, runtime, profile, repo_names,
             add(results, build_records == expected_builds,
                 "Tiny triggers one Build Validator per repo")
             for actor in (
-                "Requirement Validator",
+                "Code Reviewer",
                 *[f"{name} Reviewer" for name in SPECIALISTS],
             ):
                 add(results, not _actor(triggered, f"{actor}(")
@@ -674,7 +674,7 @@ def _validate_actors(values, data, runtime, profile, repo_names,
                 _actor(skipped, "Build Validator[") == expected_skipped_builds,
                 "Branch Work Item Gate failure skips every Build Validator")
             for actor in (
-                "Requirement Validator",
+                "Code Reviewer",
                 *[f"{name} Reviewer" for name in SPECIALISTS],
             ):
                 add(results,
@@ -687,12 +687,12 @@ def _validate_actors(values, data, runtime, profile, repo_names,
             add(results, build_records == expected_builds,
                 "Pro triggers one Build Validator per repo")
             expected_requirement = (
-                f"Requirement Validator({runtime.get('requirement')}; "
+                f"Code Reviewer({runtime.get('requirement')}; "
                 f"{data.get('requirementMode')})"
             )
-            add(results, _actor(triggered, "Requirement Validator(") == [expected_requirement]
-                and not _actor(skipped, "Requirement Validator("),
-                "Pro triggers dedicated Requirement Validator")
+            add(results, _actor(triggered, "Code Reviewer(") == [expected_requirement]
+                and not _actor(skipped, "Code Reviewer("),
+                "Pro triggers dedicated Code Reviewer")
             for name in SPECIALISTS:
                 actor = f"{name} Reviewer"
                 triggered_records = _actor(triggered, f"{actor}(")
@@ -823,9 +823,9 @@ def evaluate(report_path, sidecar_path=None):
     add(results, isinstance(data, dict), "sidecar is a JSON object")
     data = data if isinstance(data, dict) else {}
 
-    add(results, data.get("recordVersion") == 3, "recordVersion is 3")
+    add(results, data.get("recordVersion") == 4, "recordVersion is 4")
     add(results, data.get("skillName") == "code-review-pro", "skillName is code-review-pro")
-    add(results, data.get("skillVersion") == "3.0.1", "skillVersion is 3.0.1")
+    add(results, data.get("skillVersion") == "4.0.0", "skillVersion is 4.0.0")
     add(results, data.get("reviewProfile") == values.get("Review Profile"),
         "reviewProfile matches report")
     _validate_retained(text, values, data, results)
@@ -855,7 +855,7 @@ def evaluate(report_path, sidecar_path=None):
     if isinstance(gate, dict) and gate.get("status") == "FAIL":
         semantic = [
             item for item in triggered
-            if item.startswith(("Main(", "Requirement Validator(", "Security Reviewer(",
+            if item.startswith(("Main(", "Code Reviewer(", "Security Reviewer(",
                                 "Performance Reviewer(", "Philosophy Reviewer(",
                                 "Standard Reviewer("))
         ]
@@ -865,7 +865,7 @@ def evaluate(report_path, sidecar_path=None):
 
 
 def render(results, dry_run=False):
-    heading = "=== OUTPUT CHECK: code-review-pro v3 ==="
+    heading = "=== OUTPUT CHECK: code-review-pro v4 ==="
     if dry_run:
         heading += " [DRY RUN]"
     lines = [heading]
@@ -880,7 +880,7 @@ def render(results, dry_run=False):
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("report", help="Path to .CodeReview report")
-    parser.add_argument("--sidecar", help="Path to recordVersion 3 review sidecar")
+    parser.add_argument("--sidecar", help="Path to recordVersion 4 review sidecar")
     parser.add_argument("--dry-run", action="store_true",
                         help="Validate read-only and label output")
     args = parser.parse_args(argv)

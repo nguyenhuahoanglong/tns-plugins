@@ -1,5 +1,9 @@
 # Unit Testing
 
+## 2026-09-08 migration note
+
+`code-implementer` owns unit/component tests; `qa-engineer` owns requirement-traced E2E assets. Existing test-first and registry rules remain. Verification: 16 tests passed.
+
 ## Purpose
 
 Creates traceable, deterministic unit and component tests for C#/.NET, React/TypeScript, and PCF. The skill treats existing production code as a first-class target: it protects observable behavior and meaningful regression risks while retaining the project’s framework, test ownership, and suite structure. Browser E2E remains out of scope.
@@ -20,7 +24,7 @@ Creates traceable, deterministic unit and component tests for C#/.NET, React/Typ
 - **Known Quirk is not correctness:** suspicious current behavior can be pinned in registry metadata and test headers without endorsing it or changing production code.
 - **Registry hierarchy:** resolve existing registry, approved plan/design, project convention, then canonical test file.
 - **Existing behavior order is deliberate:** discover instructions, resolve ownership, baseline GREEN, inventory behavior, map risks, reconcile tests, satisfy the approval gate, verify, then back-link the registry.
-- **Scope = unit + component only:** E2E/Playwright stays with `qa-engineer` and `browser-skill`.
+- **Ownership = code-implementer:** it writes unit/component and test-only assets; E2E/Playwright stays with `qa-engineer` and `browser-skill`.
 
 ## Changelog
 
