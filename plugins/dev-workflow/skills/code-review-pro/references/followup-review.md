@@ -50,9 +50,9 @@ This abridged shape lists every required field. Artifact `path` values are conta
   "runtime": {
     "main": "gpt-5.6-terra / medium",
     "trustLevel": "verified",
-    "build": "haiku / default",
-    "requirement": "opus / default",
-    "specialists": "opus / default"
+    "build": "haiku / configured medium",
+    "requirement": "opus / configured medium",
+    "specialists": "opus / configured medium"
   },
   "classifier": {
     "filesChanged": 4,
@@ -84,10 +84,10 @@ This abridged shape lists every required field. Artifact `path` values are conta
     "reason": "Branch prefix and ADO work item type match"
   },
   "triggered": [
-    "Branch Work Item Gate(haiku / default; branch work item convention)",
-    "Build Validator[repo](haiku / default; code build)",
-    "Code Reviewer(opus / default; work-item)",
-    "Philosophy Reviewer(opus / default; api-contract)"
+    "Branch Work Item Gate(haiku / configured medium; branch work item convention)",
+    "Build Validator[repo](haiku / configured medium; code build)",
+    "Code Reviewer(opus / configured medium; work-item)",
+    "Philosophy Reviewer(opus / configured medium; api-contract)"
   ],
   "skipped": [
     "Security Reviewer(no security trigger)",

@@ -34,10 +34,10 @@ Use these fields exactly once. `Main Runtime` is exactly `{runtimeAttestation.mo
 Join actor records with ` | ` and never put a pipe inside one record. Use:
 
 - `Main(Tiny all-lens)`
-- `Branch Work Item Gate(haiku / default; branch work item convention)`
-- `Build Validator[{repo}](haiku / default; code build)`
-- `Code Reviewer(opus / default; {work-item|regression-only})`
-- `{Specialist} Reviewer(opus / default; {trigger})`
+- `Branch Work Item Gate(haiku / configured medium; branch work item convention)`
+- `Build Validator[{repo}](haiku / configured medium; code build)`
+- `Code Reviewer(opus / configured medium; {work-item|regression-only})`
+- `{Specialist} Reviewer(opus / configured medium; {trigger})`
 
 Skipped records use `{Actor}({reason})`. No-production-code triggers no semantic/build actor; an applicable Branch Work Item Gate is allowed. Tiny triggers Main plus one Build Validator per repository. Pro triggers one Build Validator per repository, one Code Reviewer, and exactly the classified specialists.
 

@@ -9,4 +9,4 @@ Use one `code-reviewer` in `baseline` mode for Pro. It owns direct-AC mapping, r
 
 Provide the persistent diff, production allowlist, evidence paths, scope/test artifacts, requirement context, worktree, and `_shared-contract.md`. Supplied diff is authoritative; no Git, edits, nesting, or findings outside allowlist.
 
-Dispatch with `Task(subagent_type="code-reviewer", prompt="...", description="...")` at `opus / default`. Require `Child Read: PASS {token}`. Risk-focused `code-reviewer` instances retain their named Security, Performance, Philosophy, or Standard lens and must not repeat full baseline mapping.
+Dispatch with `Task(subagent_type="code-reviewer", prompt="...", description="...")` at `opus / configured medium`. Require `Child Read: PASS {token}`. Risk-focused `code-reviewer` instances retain their named Security, Performance, Philosophy, or Standard lens and must not repeat full baseline mapping.

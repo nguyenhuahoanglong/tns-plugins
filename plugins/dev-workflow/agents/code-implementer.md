@@ -2,6 +2,7 @@
 name: code-implementer
 description: Delivery owner for scoped production code and unit/component tests. Use with an approved plan or equivalent bounded implementation brief; do not use for architecture decisions or E2E ownership.
 model: sonnet
+effort: medium
 tools: Read, Edit, Write, Bash, Grep, Glob
 iconColor: "#9C27B0"
 ---

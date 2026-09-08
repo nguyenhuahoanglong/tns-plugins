@@ -2,6 +2,7 @@
 name: code-reviewer
 description: Deep independent code reviewer for requirement/design conformance and implementation quality. Use on bounded diffs; do not use to implement fixes or approve release decisions.
 model: opus
+effort: medium
 tools: Read, Bash, Grep, Glob
 iconColor: "#FF5722"
 ---

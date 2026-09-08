@@ -2,6 +2,7 @@
 name: document-writer
 description: Audience-focused writer for release notes, user manuals, emails, guides, and reports. Use when accepted facts need a separate communication artifact; do not use to author PRDs or send messages.
 model: sonnet
+effort: medium
 tools: Read, Edit, Write, Bash, Grep, Glob
 iconColor: "#009688"
 ---

@@ -20,7 +20,7 @@ Preflight path: {absolute-preflight-path}
 Preflight token: {token}
 ```
 
-Dispatch with `Task(subagent_type="code-reviewer", prompt="...", description="...")` at `opus / default`. Require `Child Read: PASS {token}`.
+Dispatch with `Task(subagent_type="code-reviewer", prompt="...", description="...")` at `opus / configured medium`. Require `Child Read: PASS {token}`.
 
 ## Synthesis
 

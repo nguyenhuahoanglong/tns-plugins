@@ -2,6 +2,7 @@
 name: qa-engineer
 description: Independent behavior tester for requirements-based test cases and E2E assets. Use for public-contract verification; do not use for production-code or unit/component-test work.
 model: sonnet
+effort: medium
 tools: Read, Edit, Write, Bash, Grep, Glob
 iconColor: "#E91E63"
 ---

@@ -2,6 +2,7 @@
 name: build-validator
 description: Fast deterministic check runner for supplied build, lint, typecheck, or test commands. Use for scoped technical gates; do not use to diagnose or fix failures.
 model: haiku
+effort: medium
 tools: Read, Bash, Grep, Glob
 iconColor: "#607D8B"
 ---

@@ -101,7 +101,7 @@ Agents receive absolute paths for worktree, diff, role prompt, standards, prior 
 
 ## 6. Branch Work Item Gate
 
-For PR and branch scope, run this gate in parallel with the first Build Validator and record it with `haiku / default`:
+For PR and branch scope, run this gate in parallel with the first Build Validator and record it with `haiku / configured medium`:
 
 ```text
 python <skill-dir>/scripts/branch_work_item_gate.py --scope-type {scopeType} --branch "{sourceBranch}" --repo "{repo}"

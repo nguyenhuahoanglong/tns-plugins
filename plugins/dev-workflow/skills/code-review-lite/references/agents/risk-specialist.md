@@ -68,7 +68,7 @@ Child Read: PASS {token}
 
 # {Security|Performance|Philosophy|Standard} Review
 
-- Runtime: opus / default
+- Runtime: opus / configured medium
 - Role: Security | Performance | Philosophy | Standard
 - Trigger: {specific changed behavior}
 
