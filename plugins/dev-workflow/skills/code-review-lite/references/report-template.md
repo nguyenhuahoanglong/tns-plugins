@@ -1,11 +1,11 @@
 ---
 name: report-template
-description: Exact v5.0.0 Lite report and record-v3 evidence contract
+description: Exact v5.0.1 Lite report and record-v3 evidence contract
 ---
 
 # Report Template
 
-Use `.CodeReview/{safe-branch}.lite.md`; Pro escalation produces no Lite report. Use v5.0.0 fields exactly.
+Use `.CodeReview/{safe-branch}.lite.md`; Pro escalation produces no Lite report. Use v5.0.1 fields exactly.
 
 ```markdown
 # Code Review (Lite): {title}
@@ -14,7 +14,7 @@ Use `.CodeReview/{safe-branch}.lite.md`; Pro escalation produces no Lite report.
 **Source**: {source}
 **Target**: {target}
 **Files Reviewed**: {count}
-**Skill**: code-review-lite v5.0.0
+**Skill**: code-review-lite v5.0.1
 **Review Profile**: No Production Code | Code Tiny | Lite
 **Main Runtime**: {exact attested modelId} / {exact attested effort} ({trustLevel})
 **Context Manifest**: {absolute ephemeral path | n/a}
@@ -34,14 +34,14 @@ Add a reminder line only when `Trust` is not `verified` or `Recommendation` is `
 > Reminder: runtime not verified as recommended ({trustLevel}{, reasonCode}); for higher-confidence review switch to Claude Opus (or Sonnet 5+) at high thinking and re-run.
 ```
 
-The sidecar contains `recordVersion: 3`, `skillName: code-review-lite`, `skillVersion: 5.0.0`,
+The sidecar contains `recordVersion: 3`, `skillName: code-review-lite`, `skillVersion: 5.0.1`,
 `reviewProfile`, the complete runtime attestation (including `trustLevel` and, when present,
 `reasonCode`), its exact `{status, sessionStatus,
 overrideRecorded}` session projection, `productionAllowlist`, deterministic build/semantic-agent
 evidence, and artifact `path`/`sha256`. The report runtime must equal the attestation and sidecar.
 Existing sessions require `overrideRecorded: true`; fresh sessions require `false`.
 
-Apply this v5.0.0 decision table before creating a Lite artifact:
+Apply this v5.0.1 decision table before creating a Lite artifact:
 
 | Triggered families | Policy / response | Outcome | Lite fields |
 |---|---|---|---|
@@ -90,10 +90,10 @@ semantic agents; build/test fail, timeout, or gap selects `None`, runs only Code
 and leaves every triggered family unreviewed. Pro auto/ask-accepted paths write neither Lite report
 nor sidecar.
 
-The sidecar mirrors the four fields exactly as `escalationPolicy`, `escalationDecision`,
-`selectedSpecialist`, and `unreviewedRiskFamilies`; `selectedSpecialist` must be exactly `Security
-Reviewer`, `Philosophy Reviewer`, `Performance Reviewer`, `Standard Reviewer`, or `None`. It
-retains `recordVersion: 3`.
+The sidecar mirrors the five fields exactly as `escalationPolicy`, `escalationPolicyProvenance`,
+`escalationDecision`, `selectedSpecialist`, and `unreviewedRiskFamilies`; `selectedSpecialist` must
+be exactly `Security Reviewer`, `Philosophy Reviewer`, `Performance Reviewer`, `Standard Reviewer`,
+or `None`. It retains `recordVersion: 3`.
 
 Test evidence uses `executions[]` and retains every run across repositories. Each execution records
 repo, command, status, exit code, and passed/failed/skipped counts. No Production Code retains its

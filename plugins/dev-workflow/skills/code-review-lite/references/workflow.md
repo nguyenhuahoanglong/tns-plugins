@@ -1,6 +1,6 @@
 ---
 name: workflow
-description: v5.0.0 runtime, scope, test, escalation, and isolated-agent workflow
+description: v5.0.1 runtime, scope, test, escalation, and isolated-agent workflow
 ---
 
 # Workflow
@@ -79,7 +79,7 @@ Use `Task(subagent_type="code-reviewer", prompt="...", description="...")` and
 findings outside the allowlist. Keep prompt cache/context ephemeral.
 
 Write `.CodeReview/.{safe-branch}.lite.review-meta.json` with `recordVersion: 3`,
-`skillVersion: 5.0.0`, exact attested runtime, session override, production allowlist, build and semantic-agent
+`skillVersion: 5.0.1`, exact attested runtime, session override, production allowlist, build and semantic-agent
 evidence, and absolute runtime/scope/test artifact references with SHA-256 hashes. Add
 `escalationPolicy`, `escalationPolicyProvenance`, `escalationDecision`, `selectedSpecialist`, and `unreviewedRiskFamilies`, mirrored
 by report fields `Escalation Policy`, `Escalation Policy Provenance`, `Escalation Decision`, `Selected Specialist`, and `Unreviewed

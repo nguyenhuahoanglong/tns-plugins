@@ -1,12 +1,12 @@
 ---
 name: code-review-lite
-description: "Adaptive, attested production-code review. Use for quick reviews, pre-merge checks, deterministic evidence, and Pro escalation."
-version: 5.0.0
+description: "Bounded, attested production-code review: deterministic gates, one baseline reviewer, at most one risk specialist. Use for quick reviews and pre-merge checks; 2+ families escalate to code-review-pro."
+version: 5.0.1
 ---
 
 # Code Review Lite
 
-Read `references/workflow.md` and `references/report-template.md`. This is v5.0.0.
+Read `references/workflow.md` and `references/report-template.md`. This is v5.0.1.
 
 ## Invocation
 
@@ -83,7 +83,7 @@ Write `.CodeReview/{safe-branch}.lite.md` and collision-safe
 `.CodeReview/.{safe-branch}.lite.review-meta.json`. The report fields are `Escalation Policy`,
 `Escalation Policy Provenance`, `Escalation Decision`, `Selected Specialist`, and `Unreviewed Risk Families`; the matching sidecar
 keys are `escalationPolicy`, `escalationPolicyProvenance`, `escalationDecision`, `selectedSpecialist`, and
-`unreviewedRiskFamilies`. The sidecar uses `recordVersion: 3`, `skillVersion: 5.0.0`, exact
+`unreviewedRiskFamilies`. The sidecar uses `recordVersion: 3`, `skillVersion: 5.0.1`, exact
 runtime/session values, scope/test evidence, SHA-256 references, production allowlist, and
 build/semantic-agent evidence. Its `selectedSpecialist` value must be exactly `Security Reviewer`,
 `Philosophy Reviewer`, `Performance Reviewer`, `Standard Reviewer`, or `None`. Use the template

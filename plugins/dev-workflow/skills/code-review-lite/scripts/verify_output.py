@@ -8,7 +8,7 @@ import sys
 from pathlib import Path
 
 LEGACY_SKILL = "code-review-lite v3.0.0"
-SKILL = "code-review-lite v5.0.0"
+SKILL = "code-review-lite v5.0.1"
 PROFILES = {"Docs Tiny", "Code Tiny", "Lite", "No Production Code"}
 SEMANTIC_AGENTS = {
     "Code Reviewer",
@@ -569,7 +569,7 @@ def evaluate_v4(path, text, expected_profile=None, sidecar_override=None):
         "Runtime attestation identifies a current cross-checked host session",
     )
     add(results, sidecar.get("skillName") == "code-review-lite", "Lite metadata skillName is code-review-lite")
-    add(results, sidecar.get("skillVersion") == "5.0.0", "Lite metadata skillVersion is 5.0.0")
+    add(results, sidecar.get("skillVersion") == "5.0.1", "Lite metadata skillVersion is 5.0.1")
     add(results, sidecar.get("reviewProfile") == profile, "Lite metadata reviewProfile matches report")
     add(results, side_runtime == runtime, "Lite metadata runtime matches attestation")
     add(results, field(text, "Main Runtime") == exact_runtime, "Report runtime matches attested runtime")

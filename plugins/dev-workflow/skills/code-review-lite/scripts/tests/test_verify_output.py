@@ -719,11 +719,11 @@ class VerifyOutputV4GateTests(unittest.TestCase):
                 triggered=["Code Reviewer", "Performance Reviewer"],
             )
             path.write_text(
-                path.read_text(encoding="utf-8").replace("5.0.0", "3.0.0", 1),
+                path.read_text(encoding="utf-8").replace("5.0.1", "3.0.0", 1),
                 encoding="utf-8",
             )
             self.assert_contract_failure(
-                path, "Lite", "Only code-review-lite v5.0.0 reports are accepted"
+                path, "Lite", "Only code-review-lite v5.0.1 reports are accepted"
             )
 
 
@@ -850,7 +850,7 @@ def _write_v4_contract(
             {
                 "recordVersion": 3,
                 "skillName": "code-review-lite",
-                "skillVersion": "5.0.0",
+                "skillVersion": "5.0.1",
                 "reviewProfile": profile,
                 "runtime": runtime_payload,
                 "session": session,
@@ -874,7 +874,7 @@ def _write_v4_contract(
     )
     report.write_text(
         report.read_text(encoding="utf-8")
-        .replace("code-review-lite v3.0.0", "code-review-lite v5.0.0")
+        .replace("code-review-lite v3.0.0", "code-review-lite v5.0.1")
         .replace("**Main Runtime**: gpt-5.6-sol / xhigh", "**Main Runtime**: gpt-5.6-terra / medium")
         .replace(f"**Context Manifest**: {context_path}", "**Context Manifest**: n/a")
         + "\n## Runtime, Scope, and Test Evidence\n"
@@ -1175,7 +1175,7 @@ def test_tc_030_rejects_lite_artifacts_for_multi_specialist_escalation(tmp_path)
 
 
 def test_tc_031_rejects_legacy_v3_reports_even_when_the_old_contract_is_valid(tmp_path):
-    """TC-031 / DoD-3.4: public verification accepts v5.0.0/recordVersion 3 only.
+    """TC-031 / DoD-3.4: public verification accepts v5.0.1/recordVersion 3 only.
 
     Steps:
       1. Create an otherwise-valid legacy v3 Lite report.
@@ -1190,7 +1190,7 @@ def test_tc_031_rejects_legacy_v3_reports_even_when_the_old_contract_is_valid(tm
 
     failures = [message for level, message in evaluate(report, "Lite") if level == "FAIL"]
 
-    assert "Only code-review-lite v5.0.0 reports are accepted" in failures
+    assert "Only code-review-lite v5.0.1 reports are accepted" in failures
 
 
 def test_tc_032_rechecks_pass_attestation_against_shared_runtime_policy(tmp_path):

@@ -6,7 +6,7 @@ Lite 5.0.0 uses `Code Reviewer` baseline plus at most one risk-focused instance 
 
 ## Purpose
 
-Adaptive, low-cost production-code review for quick checks and pre-merge validation. Version 5.0.0
+Adaptive, low-cost production-code review for quick checks and pre-merge validation. Version 5.0.1
 advisorily attests the host runtime/session (never blocking) before repository reads, partitions production from evidence-only
 and excluded files, verifies tests deterministically, and supports controlled multi-specialist
 escalation to Pro.
@@ -54,8 +54,8 @@ Lite reports use `Escalation Policy`, `Escalation Policy Provenance`, `Escalatio
 `escalationDecision`, `selectedSpecialist`, and `unreviewedRiskFamilies`. A passing bounded Lite
 selects exactly one persisted specialist value by Security Reviewer > Philosophy Reviewer >
 Performance Reviewer > Standard Reviewer. For every Lite route, branch FAIL selects `None` and
-starts no semantic agents; build/test failures, timeouts, and gaps select `None`, run Requirement
-Validator only, and leave every triggered family unreviewed. Residual families are reported by the
+starts no semantic agents; build/test failures, timeouts, and gaps select `None`, run Code Reviewer
+only, and leave every triggered family unreviewed. Residual families are reported by the
 main workflow as unreviewed, never injected into the selected role.
 
 `Selected Specialist` and sidecar `selectedSpecialist` accept only `Security Reviewer`,
@@ -81,10 +81,21 @@ drift evidence; and record per-child context mode plus token/cache counters.
 Production findings may target only `productionFiles`; tests/docs may still be cited as evidence.
 Test evidence aggregates every repo/command under `executions[]`. Missing direct tests for changed
 symbols emits exact `use-unit-testing` without suppressing a selected specialist. Blocking branch
-outcomes route no semantic agents; blocking build or test outcomes route only the Requirement
-Validator. In either case, `Selected Specialist` is `None` and every triggered family is unreviewed.
+outcomes route no semantic agents; blocking build or test outcomes route only the Code Reviewer.
+In either case, `Selected Specialist` is `None` and every triggered family is unreviewed.
 
 ## Changelog
+
+### 2026-09-10 - v5.0.1 prompt-audit fixes
+
+- Corrected the record-v3 sidecar contract in `references/report-template.md`: it mirrors **five** fields, including `escalationPolicyProvenance`. The paragraph still said "four" and omitted that key, contradicting the same file's Classification block, `SKILL.md`, `references/workflow.md`, and `scripts/verify_output.py`, which requires it.
+- Rewrote `references/feedback-reception.md` from `WHEN`/`IF`/`FOR` pseudocode and a banned-phrase list into prose (141 -> 75 lines). Every constraint is preserved: verify against the codebase, clarify all unclear items before starting any, check platform/version, push back with reasoning, escalate architectural conflicts.
+- Trimmed duplicated slogans and the no-provenance "Red Flags / Never:" cluster from `references/requesting-review.md`, and fixed its frontmatter, which advertised CI-check guidance the file never contained.
+- Removed the escalation decision table from `references/agents/risk-specialist.md`. The child receives one pre-selected family and the same file forbids it from acting on escalation, so seven rows rode in every specialist dispatch unactionable.
+- Fixed two stale `Requirement Validator` references in current-behaviour README prose (the v5.0.0 rename to `Code Reviewer`); dated changelog mentions are retained.
+- Narrowed the `SKILL.md` description to state the pre-existing 2+-family Pro boundary, which Lite and Pro descriptions did not previously distinguish.
+- Synced the identical `feedback-reception.md` and `requesting-review.md` copies under `code-review-pro`.
+- Active intent revision 1 preserved; no gate, output contract, or non-goal changed. Verification: 189 tests plus 7 subtests, both review harnesses at 105, `quick_validate` and `guardrail_check` clean.
 
 ### 2026-07-22 - v5.0.0 advisory runtime preflight
 

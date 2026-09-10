@@ -43,6 +43,10 @@ actual launch runtime for the main agent instead of assuming one.
 
 ## Changelog
 
+### 2026-09-10 - Shared reference cleanup
+
+- Synced `references/feedback-reception.md` and `references/requesting-review.md` with the `code-review-lite` prompt audit: pseudocode and no-provenance prohibition lists rewritten as prose, duplicated slogans trimmed, and `requesting-review.md` frontmatter corrected. Both files remain byte-identical to their Lite counterparts. No Pro workflow, gate, or report contract changed.
+
 ### 2026-07-22 - v4.0.0 advisory runtime preflight
 
 - Runtime preflight is now advisory and never hard-blocks: unverifiable or below-recommended runtime records a `trustLevel` (`verified|self-reported|unknown`) and reminds the user to switch to a recommended model + high thinking, then continues. Fixes hard-stops under GitHub Copilot VS Code and Claude CLI without a status line.

@@ -1,13 +1,11 @@
 ---
 name: requesting-review
-description: When and how to request code reviews from others — subagents, human reviewers, or CI checks
+description: When and how to request a code review from a subagent or a human reviewer, and how to act on the feedback
 ---
 
 # Requesting Review
 
 Dispatch reviews to catch issues before they cascade.
-
-**Core principle:** Review early, review often.
 
 ## When to Request Review
 
@@ -72,14 +70,5 @@ If you disagree with feedback:
 - Review before merge to main
 - Review when stuck on a problem
 
-## Red Flags
-
-**Never:**
-- Skip review because "it's simple"
-- Ignore Critical issues
-- Proceed with unfixed High-priority issues
-- Dismiss valid technical feedback without reasoning
-
-## The Bottom Line
-
-Review early. Fix issues before they compound. Technical feedback is a gift — evaluate it honestly.
+Every Critical and High finding is resolved before merge; a finding you disagree with is answered
+with technical reasoning rather than left unaddressed.

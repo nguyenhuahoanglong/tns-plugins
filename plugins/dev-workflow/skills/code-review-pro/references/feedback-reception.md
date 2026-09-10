@@ -5,104 +5,48 @@ description: Protocol for receiving code review feedback with technical rigor �
 
 # Feedback Reception
 
-Code review requires technical evaluation, not emotional performance.
-
-**Core principle:** Verify before implementing. Ask before assuming. Technical correctness over social comfort.
+Code review feedback is evaluated technically: verify before implementing, ask before assuming.
 
 ## Response Pattern
 
-```
-WHEN receiving code review feedback:
-1. READ: Complete feedback without reacting
-2. UNDERSTAND: Restate requirement in own words (or ask)
-3. VERIFY: Check against codebase reality
-4. EVALUATE: Technically sound for THIS codebase?
-5. RESPOND: Technical acknowledgment or reasoned pushback
-6. IMPLEMENT: One item at a time, test each
-```
+Read the feedback through before responding to any of it, restate the requirement in your own words
+(or ask), and check it against what the codebase actually does. Judge whether it is sound for *this*
+codebase, answer with a technical acknowledgment or reasoned pushback, then implement one item at a
+time, testing each.
 
-## Forbidden Responses
+## Responding
 
-**Never:**
-- "You're absolutely right!" (performative)
-- "Great point!" / "Excellent feedback!" (performative)
-- "Let me implement that now" (before verification)
-- "Thanks for catching that!" (gratitude over action)
-
-**Instead:**
-- Restate the technical requirement
-- Ask clarifying questions
-- Push back with technical reasoning if wrong
-- Just start working — actions over words
+Answer feedback with substance: restate the technical requirement, ask a clarifying question, or
+push back with reasoning. Agreement on its own is not a response; verification is.
 
 ## Handling Unclear Feedback
 
-```
-IF any item is unclear:
-  STOP — do not implement anything yet
-  ASK for clarification on ALL unclear items first
-
-WHY: Items may be related. Partial understanding = wrong implementation.
-```
-
-**Example:**
-```
-Reviewer: "Fix items 1-6"
-You understand 1,2,3,6. Unclear on 4,5.
-
-Wrong: Implement 1,2,3,6 now, ask about 4,5 later
-Right: "I understand items 1,2,3,6. Need clarification on 4 and 5 before proceeding."
-```
+Ask about every unclear item before implementing any of them: review items are often related, and a
+partial reading produces the wrong implementation. Given six items with two unclear, say which four
+you understood and ask about the other two rather than starting on the four.
 
 ## Source-Specific Handling
 
-### From the User (Trusted Source)
-- Implement after understanding
-- Still ask if scope is unclear
-- No performative agreement
-- Skip to action or technical acknowledgment
+Feedback from the user is implemented once understood; still ask when the scope is unclear.
 
-### From External Reviewers
-```
-BEFORE implementing:
-  1. Check: Technically correct for THIS codebase?
-  2. Check: Breaks existing functionality?
-  3. Check: Reason for current implementation?
-  4. Check: Works on all platforms/versions?
-  5. Check: Does reviewer understand full context?
-
-IF suggestion seems wrong:
-  Push back with technical reasoning
-
-IF can't easily verify:
-  Say so: "I can't verify this without [X]. Should I investigate/ask/proceed?"
-
-IF conflicts with the user's prior decisions:
-  Stop and discuss with the user first
-```
+For an external reviewer, check before implementing whether the suggestion is correct for this
+codebase, whether it breaks existing functionality, whether the current implementation exists for a
+reason, whether it holds on every supported platform and version, and whether the reviewer had the
+full context. Push back with technical reasoning where it does not hold. Where you cannot verify it,
+say so and name what you would need. Where it conflicts with the user's prior decisions, stop and
+discuss it with the user first.
 
 ## YAGNI Check for "Professional" Features
 
-```
-IF reviewer suggests "implementing properly":
-  Search codebase for actual usage
-
-  IF unused: "This isn't called anywhere. Remove it (YAGNI)?"
-  IF used: Then implement properly
-```
+When a reviewer asks for something to be "implemented properly", search the codebase for actual
+usage first. If nothing calls it, propose removing it instead; if something does, implement it
+properly.
 
 ## Implementation Order
 
-```
-FOR multi-item feedback:
-  1. Clarify anything unclear FIRST
-  2. Then implement in this order:
-     - Blocking issues (breaks, security)
-     - Simple fixes (typos, imports)
-     - Complex fixes (refactoring, logic)
-  3. Test each fix individually
-  4. Verify no regressions
-```
+Clarify the unclear items first, then work blocking issues (breaks, security) before simple fixes
+(typos, imports) before complex ones (refactoring, logic). Test each fix individually and confirm no
+regressions.
 
 ## When to Push Back
 
@@ -122,19 +66,9 @@ Push back when:
 
 ## Acknowledging Correct Feedback
 
-When feedback IS correct:
-```
-Good: "Fixed. [Brief description of what changed]"
-Good: "Good catch — [specific issue]. Fixed in [location]."
-Good: [Just fix it and show in the code]
-
-Bad: "You're absolutely right!"
-Bad: "Thanks for catching that!"
-Bad: ANY gratitude expression
-```
-
-Actions speak. Just fix it. The code shows you heard the feedback.
+Report the fix and where it landed — `Fixed {what changed} in {location}` — and let the code carry
+the rest.
 
 ## The Bottom Line
 
-External feedback = suggestions to evaluate, not orders to follow. Verify. Question. Then implement. No performative agreement. Technical rigor always.
+External feedback is a set of suggestions to evaluate, not orders to follow.

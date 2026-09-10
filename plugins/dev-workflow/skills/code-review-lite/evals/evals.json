@@ -10,7 +10,7 @@
         "The report selects Code Tiny only after recording one changed file, no more than 100 changed lines, Documentation Only false, and no risk or specialist trigger.",
         "The branch check, exact approved dotnet command, and discovered direct/affected tests run as deterministic processes; each repo/run remains in test executions evidence.",
         "Triggered and Agent Usage are both None because Code Tiny dispatches zero Code Reviewer or specialist children.",
-        "The report identifies code-review-lite v5.0.0, mirrors Escalation Policy ask with omitted-default provenance, Escalation Decision not-needed, Selected Specialist None, and Unreviewed Risk Families None in its recordVersion 3 sidecar, and passes scripts/verify_output.py with expected profile Code Tiny."
+        "The report identifies code-review-lite v5.0.1, mirrors Escalation Policy ask with omitted-default provenance, Escalation Decision not-needed, Selected Specialist None, and Unreviewed Risk Families None in its recordVersion 3 sidecar, and passes scripts/verify_output.py with expected profile Code Tiny."
       ]
     },
     {
@@ -54,7 +54,7 @@
       "prompt": "Lite-review a passing change with Security=auth, Performance=async, and Standard=lockfile specialist triggers. Escalation Policy: ask. I decline Pro escalation.",
       "expected_output": "Continue as bounded Lite after the declined ask, select Security Reviewer by priority, and preserve the other exact trigger entries as ordered unreviewed risk families.",
       "expectations": [
-        "The Lite report and record-v3 sidecar use code-review-lite v5.0.0 and mirror policy ask, user-authored provenance, decision pro-declined, selected Security Reviewer, and the exact ordered residual trigger list.",
+        "The Lite report and record-v3 sidecar use code-review-lite v5.0.1 and mirror policy ask, user-authored provenance, decision pro-declined, selected Security Reviewer, and the exact ordered residual trigger list.",
         "Code Reviewer and Security Reviewer are the only semantic agents after passing gates; Performance and Standard are not silently reviewed.",
         "Changing the policy to auto or accepting the ask invokes Pro and produces no Lite artifact."
       ]
