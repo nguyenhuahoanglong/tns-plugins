@@ -274,10 +274,16 @@ def _emit(result, as_json, stream):
     if as_json:
         print(json.dumps(result, ensure_ascii=False, default=str), file=stream)
         return
+    replay = bool(result.get("read_only") and result.get("report"))
     print("=== DAILY REPORT RESULT ===", file=stream)
     print(f"Overall: {result['status']}", file=stream)
     print(f"Code: {result['code']}", file=stream)
     print(f"Date: {result.get('date') or 'n/a'}", file=stream)
+    if replay:
+        print("Source: last-run.json replay — no work was performed by this command.", file=stream)
+        if result.get("stale"):
+            print(f"STALE: this is the {result.get('date')} report, not today "
+                  f"({dt.date.today().isoformat()}). Run 'run' to produce today's report.", file=stream)
     steps = {step["name"]: step for step in result.get("steps", [])}
     gather, workbook = steps.get("gather", {}), steps.get("workbook", {})
     queue = steps.get("queue", {})
@@ -301,7 +307,15 @@ def _emit(result, as_json, stream):
     print(f"Warnings: {'; '.join(map(str, warnings)) if warnings else 'None'}", file=stream)
     print(f"Next action: {result.get('recovery') or 'None'}", file=stream)
     # A report is always emitted when it was available, including partial/failure states.
-    if result.get("report"): print("=== COPY-READY REPORT ===\n```text\n" + result["report"] + "\n```", file=stream)
+    # A replay withholds the body unless asked: a pasteable fence that is not today's
+    # report is the whole reason an earlier day's tasks were once reported as today's.
+    if result.get("report"):
+        if replay and not result.get("show_report"):
+            print("Report body withheld on replay. Use 'run' for today's report, "
+                  "or 'status --report' to view it.", file=stream)
+        else:
+            label = f"=== LAST RUN REPORT (REPLAY — {result.get('date')}) ===" if replay else "=== COPY-READY REPORT ==="
+            print(label + "\n```text\n" + result["report"] + "\n```", file=stream)
 
 
 def build_parser():
@@ -314,6 +328,7 @@ def build_parser():
         command = sub.add_parser(name, help=help_text); command.add_argument("--json", action="store_true", help="Emit stable JSON result.")
     sub.choices["setup"].add_argument("--import-config"); sub.choices["setup"].add_argument("--import-workbook"); sub.choices["setup"].add_argument("--replace", action="store_true")
     sub.choices["doctor"].add_argument("--config"); sub.choices["auth"].add_argument("--config")
+    sub.choices["status"].add_argument("--report", action="store_true", help="Also print the replayed report body.")
     sub.choices["pending"].add_argument("--config"); sub.choices["pending"].add_argument("--sync", action="store_true", help="Retry pending records."); sub.choices["pending"].add_argument("--prune-days", type=int, default=30)
     run_parser = sub.choices["run"]; run_parser.add_argument("--config"); run_parser.add_argument("--date"); run_parser.add_argument("--add", action="append", default=[]); run_parser.add_argument("--review-only", action="store_true")
     return parser
@@ -363,7 +378,10 @@ def main(argv=None, *, stdout=None, dependencies=None):
         if not context.last_run_path.is_file(): result = _result(PARTIAL, "NO_LAST_RUN", recovery="Run the first report.", pending=counters)
         else:
             result = json.loads(context.last_run_path.read_text(encoding="utf-8"))
-            result.update(read_only=True, current_queue=counters)
+            result.update(read_only=True, current_queue=counters,
+                          replayed_date=result.get("date"),
+                          stale=result.get("date") != dt.date.today().isoformat(),
+                          show_report=bool(args.report))
     elif args.command == "pending":
         if not context.config_path.is_file(): result = _result(PARTIAL, "SETUP_REQUIRED", recovery="Run setup and configure the runtime.")
         else:

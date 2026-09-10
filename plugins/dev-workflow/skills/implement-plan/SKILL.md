@@ -29,8 +29,8 @@ route the request normally. Supporting non-code files never establish eligibilit
    creating or materially revising the plan.
 3. Resolve the plan path before anything else, per `references/plan-contract.md`. A host-injected plan path
    is the only writable file while plan mode is in force.
-4. Only an invocation flag (`--tdd`, `--review`, `--no-tdd`, `--no-review`) or an explicit user `Yes`
-   selects TDD or review.
+4. Only an invocation flag (`--tdd`, `--review`, `--no-tdd`, `--no-review`) or the user's explicit answer to
+   the one consolidated consent question selects TDD or review.
 5. **Autonomy boundary.** The guarantee covers execution through build and test verification. The only
    sanctioned interaction points are `code-review-lite` escalation, which pauses by design, and reporting a
    `blocked` task. Implementers never ask the user anything.
@@ -91,5 +91,6 @@ AC, project rule, or verified code impact makes a separate communication artifac
 
 ## Verify Output
 
-Run `python scripts/preflight.py <plan-path>` and `python scripts/verify_output.py <plan-path>` before
-approval and after final updates; zero FAIL, and zero BLOCK before approval.
+Run `python scripts/preflight.py <plan-path>` at its gates — during Harden, and again as the first
+Execute step after promotion; zero BLOCK before approval. Run `python scripts/verify_output.py <plan-path>`
+before approval and again after final status updates; zero FAIL each time.

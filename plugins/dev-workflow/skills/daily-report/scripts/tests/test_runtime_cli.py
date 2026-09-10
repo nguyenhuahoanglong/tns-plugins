@@ -191,3 +191,61 @@ def test_run_setup_failure_stops_before_reexec(tmp_path, monkeypatch):
     output = io.StringIO()
     assert daily_report.main(["run", "--json"], stdout=output) == 1
     assert json.loads(output.getvalue())["code"] == "DEPENDENCY_INSTALL_FAILED"
+
+
+# Regression: a status replay rendered byte-identical to a fresh run, so an earlier
+# day's tasks were presented as today's report. A replay must announce itself and
+# must never carry the COPY-READY label the response contract emits into the fence.
+def test_status_replay_is_labelled_stale_and_not_copy_ready():
+    # Arrange
+    result = daily_report._result(
+        "SUCCESS", "COMPLETED", command="status", date="1999-01-01",
+        report="Yesterday\nToday\n- #1 Stale task",
+    )
+    result.update(read_only=True, stale=True)
+    output = io.StringIO()
+
+    # Act
+    daily_report._emit(result, False, output)
+
+    # Assert
+    rendered = output.getvalue()
+    assert "Source: last-run.json replay" in rendered
+    assert "STALE: this is the 1999-01-01 report" in rendered
+    assert "Report body withheld on replay" in rendered
+    assert "COPY-READY" not in rendered
+    # The structural guard: no fence and no report text means nothing can be pasted as today's report.
+    assert "```" not in rendered
+    assert "#1 Stale task" not in rendered
+
+
+def test_status_replay_shows_labelled_body_only_when_explicitly_requested():
+    # Arrange
+    result = daily_report._result("SUCCESS", "COMPLETED", command="status", date="1999-01-01",
+                                  report="Yesterday\nToday\n- #1 Stale task")
+    result.update(read_only=True, stale=True, show_report=True)
+    output = io.StringIO()
+
+    # Act
+    daily_report._emit(result, False, output)
+
+    # Assert
+    rendered = output.getvalue()
+    assert "=== LAST RUN REPORT (REPLAY — 1999-01-01) ===" in rendered
+    assert "#1 Stale task" in rendered
+    assert "COPY-READY" not in rendered
+
+
+def test_fresh_run_still_emits_copy_ready_label():
+    # Arrange
+    result = daily_report._result("SUCCESS", "COMPLETED", command="run", date="1999-01-01",
+                                  report="Yesterday\nToday\n- #1 Fresh task")
+    output = io.StringIO()
+
+    # Act
+    daily_report._emit(result, False, output)
+
+    # Assert
+    rendered = output.getvalue()
+    assert "=== COPY-READY REPORT ===" in rendered
+    assert "REPLAY" not in rendered and "STALE" not in rendered

@@ -1,5 +1,6 @@
 """Small Azure DevOps CLI boundary used by the daily task report."""
 import json
+import locale
 import os
 import shutil
 import subprocess
@@ -24,8 +25,26 @@ def _resolve_argv(argv):
     return [resolved, *argv[1:]] if resolved else argv
 
 
+def _decode(raw):
+    """Decode CLI output without ever raising.
+
+    The Azure CLI writes the Windows console codepage (cp1252), not UTF-8, so a
+    work-item title containing an em dash or curly quote aborts a ``text=True``
+    reader thread. That exception cannot propagate out of the thread, leaving
+    empty stdout on a zero exit code, which reads as "no work items" downstream.
+    """
+    if not raw:
+        return ""
+    try:
+        return raw.decode("utf-8")
+    except UnicodeDecodeError:
+        return raw.decode(locale.getpreferredencoding(False), errors="replace")
+
+
 def _default_runner(argv):
-    return subprocess.run(_resolve_argv(argv), capture_output=True, text=True, encoding="utf-8")
+    completed = subprocess.run(_resolve_argv(argv), capture_output=True)
+    return subprocess.CompletedProcess(completed.args, completed.returncode,
+                                       _decode(completed.stdout), _decode(completed.stderr))
 
 
 def _failure(code, project, team, message):
@@ -36,8 +55,14 @@ def _load_json(result, project, team):
     if result.returncode:
         message = (result.stderr or result.stdout or "Azure CLI request failed").strip()
         return None, _failure("ADO_QUERY_FAILED", project, team, message)
+    # Every query here returns an object even when it matches nothing, so empty
+    # output on a zero exit code is a failure. Reporting it as success would drop
+    # work items from the report silently.
+    if not (result.stdout or "").strip():
+        return None, _failure("EMPTY_RESPONSE", project, team,
+                              (result.stderr or "Azure CLI returned no output").strip())
     try:
-        return json.loads(result.stdout or "null"), None
+        return json.loads(result.stdout), None
     except (TypeError, json.JSONDecodeError) as error:
         return None, _failure("MALFORMED_JSON", project, team, str(error))
 

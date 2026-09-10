@@ -20,7 +20,7 @@
     "Do not write a repository file while a host plan path is in force.",
     "Do not approve a plan whose Autonomy is verified-blocked.",
     "Do not redirect output from discovered backlog context.",
-    "Do not auto-select TDD or review without a flag or an explicit Yes.",
+    "Do not auto-select TDD or review without a flag or the user's explicit answer to the consolidated consent question.",
     "Do not weaken build/existing-suite verification.",
     "Do not let agents edit plan status, prompt the user, or write outside their allowlist."
   ]

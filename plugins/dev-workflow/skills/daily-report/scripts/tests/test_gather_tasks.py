@@ -513,3 +513,43 @@ def test_tc_031_rejects_legacy_only_config_without_any_external_call(monkeypatch
         gather_tasks.gather(_legacy_config(), runner=injected_runner)
     assert injected_calls == []
     assert direct_calls == []
+
+
+# Regression: the Azure CLI writes the Windows console codepage, so a ``text=True``
+# reader thread died decoding an em dash. The exception could not leave the thread,
+# so stdout arrived empty on exit code 0 and the work items vanished from the report.
+def test_cli_output_in_console_codepage_decodes_without_replacement(monkeypatch):
+    # Arrange
+    client = _portable_client()
+    title = "Service Plan \u2014 \u201cContract\u201d template"
+    raw = json.dumps({"fields": {"System.Title": title}}, ensure_ascii=False).encode("cp1252")
+    monkeypatch.setattr(client.locale, "getpreferredencoding", lambda *_: "cp1252")
+
+    # Act
+    decoded = client._decode(raw)
+
+    # Assert
+    assert json.loads(decoded)["fields"]["System.Title"] == title
+    assert "\ufffd" not in decoded
+
+
+# Regression: every query here returns an object even when nothing matches, so empty
+# output on a zero exit code meant a dropped work item, not an empty result set.
+def test_empty_stdout_on_zero_exit_is_reported_instead_of_dropping_tasks():
+    # Arrange
+    client = _portable_client()
+    config = _portable_config()
+    config["ado"]["projects"] = ["Project One"]
+    config["ado"]["teams"] = [{"project": "Project One", "team": "Team One"}]
+
+    def runner(argv):
+        return subprocess.CompletedProcess(argv, 0, stdout="", stderr="")
+
+    # Act
+    result = client.gather_current_tasks(config, runner=runner)
+
+    # Assert
+    assert result["tasks"] == []
+    assert result["failures"][0]["code"] == "EMPTY_RESPONSE"
+    assert result["failures"][0]["project"] == "Project One"
+    assert result["failures"][0]["team"] == "Team One"

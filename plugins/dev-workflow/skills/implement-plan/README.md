@@ -82,6 +82,18 @@ and has at most two rework loops.
 
 ## Changelog
 
+### 2026-09-10 - v4.0.1 - Prompt-audit consistency fixes
+
+- Hard rule 4 now points at the consolidated consent question instead of an "explicit `Yes`", which was
+  not a well-formed answer to the four-option question in `plan-contract.md`.
+- The `## Verify Output` recap no longer implies a preflight run after final updates; preflight keeps its
+  two gates and `verify_output.py` keeps the post-status-update rerun.
+- `simple-new` mode choreography names the main agent as the scaffold writer, matching the `scaffolded`
+  status and the SKILL.md scaffold carve-out.
+- `evals.json` `non_goals` updated to the new consent wording.
+- Aligned edit against intent revision 1: purpose, activation, outputs, approval gates, and retry limits
+  unchanged. Validated with both unittest suites, `guardrail_check.py`, and `quick_validate.py`.
+
 ### 2026-09-01 - v4.0.0 - Host-plan-mode adoption and autonomy preflight (breaking)
 
 - Reframed the skill as a plan contract plus autonomous execution engine; removed every planning-method

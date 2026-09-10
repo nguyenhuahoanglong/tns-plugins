@@ -15,7 +15,7 @@ python scripts/daily_report.py doctor
 python scripts/daily_report.py auth
 python scripts/daily_report.py run [--add "Planning"]
 python scripts/daily_report.py run --review-only
-python scripts/daily_report.py status
+python scripts/daily_report.py status [--report]
 python scripts/daily_report.py pending [--sync]
 ```
 
@@ -33,6 +33,12 @@ Every command supports `--json`; use per-command `--help` for its options. State
 Results have `SUCCESS` (exit 0), `PARTIAL` (2), or `FAILED` (1), an exact code, step evidence, recovery instruction, and report when available. `last-run.json` is atomic and sanitized; `status` only reads it.
 
 ## User response contract
+
+A bare `/daily-report` invocation means `run`. Never satisfy it with `status`: `status` replays the previous
+run from `last-run.json`, so on any later day it returns an earlier day's tasks. `status` therefore withholds
+the report body; only a `run` produces a `=== COPY-READY REPORT ===` block, and only that block may be
+emitted in the report fence. `status --report` prints the replayed body under a `LAST RUN REPORT
+(REPLAY — <date>)` label; that is history, so report it as such and state the date, never as today's report.
 
 For normal human output, always return both parts when the script provides a report:
 

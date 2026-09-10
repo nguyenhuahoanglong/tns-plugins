@@ -65,9 +65,10 @@ prior progress; a second blocker becomes `blocked`.
 
 - `existing-method`: record the exact existing-suite GREEN baseline; reuse or add characterization tests
   GREEN; make RED assertions only for changed or new behavior; implement to GREEN.
-- `simple-new`: at `Depth: TDD`, create compile-ready named signatures and control-flow wiring without
-  business logic, record `Scaffold`, add assertion-level RED tests, then implement to GREEN. At `simplify`,
-  implement directly.
+- `simple-new`: at `Depth: TDD`, the main agent writes the compile-ready named signatures and control-flow
+  wiring recorded in the task's `Scaffold` field, without business logic, and sets Status `scaffolded`; the
+  test-only dispatch verifies that scaffold and adds assertion-level RED tests; a fresh implementer makes
+  them GREEN. At `simplify`, the implementer implements directly.
 - `complex-backbone`: pause the same task for unchanged `design-backbone`, honor its independent decision
   and approval locks, verify the handoff, resume the same task, and create no duplicate tests.
 
