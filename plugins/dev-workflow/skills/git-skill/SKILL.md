@@ -63,10 +63,10 @@ Use `pr`, not raw Azure CLI PR creation. It resolves the target, extracts `#<tas
 - Use `--preview` before creation when metadata or target is uncertain.
 - Branch deletion or stash clearing requires the matching action flag and `--confirm`; do not force-push, rewrite history, or delete remote branches without an explicit request.
 
-For failure diagnosis and supported recovery, read `references/troubleshooting.md`. For PR behavior details, read `references/pr-workflow.md`.
-
 For PR creation, use `--title`, `--description` or `--description-file`, and `--work-items` when the approved metadata must be exact. Preview first; it shows the exact planned values without an Azure write. The CLI validates title, description length, description-file readability, and positive work-item IDs before creation, then read-only verifies the created title, normalized body, target ref, and exact work-item set. It does not repair drift.
+
+For failure diagnosis and supported recovery, read `references/troubleshooting.md`. For PR behavior details, read `references/pr-workflow.md`.
 
 ## Verify Output
 
-After a mutating workflow, run `scripts/verify_output.py --repository "<repo>" --result '<RESULT JSON>'` when deterministic postconditions matter. Add `--expected-file`, `--work-item`, or `--dry-run` only for applicable assertions; use failure output to stop and resolve the operation before claiming success.
+After a mutating workflow, run `python "<SKILL_ROOT>/scripts/verify_output.py" --repository "<repo>" --result '<RESULT JSON>'` when deterministic postconditions matter. Add `--expected-file`, `--work-item`, or `--dry-run` only for applicable assertions; use failure output to stop and resolve the operation before claiming success.

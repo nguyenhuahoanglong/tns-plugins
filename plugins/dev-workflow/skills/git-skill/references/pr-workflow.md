@@ -30,9 +30,10 @@ python -B "<skill-root>/scripts/git_skill.py" pr --repository "<repo>" --target-
 python -B "<skill-root>/scripts/git_skill.py" pr --repository "<repo>" --title "#1234 Exact title" --description-file "C:\review\body.md" --work-items 1234 5678 --preview
 ```
 
-The only PR flags are `--repository`, `--target-branch`, `--description`,
+The `pr` flags are `--repository`, `--target-branch`, `--title`,
+`--description`, `--description-file`, `--work-items`,
 `--allow-no-work-items`, `--preview`, and `--dry-run`. `--dry-run` has the same
-non-mutating behavior as `--preview`; use one, not an invented legacy flag.
+non-mutating behavior as `--preview`; use one, not an invented flag.
 The script prints one `=== PR ===` header and one `RESULT:` JSON object. Stop on
 a nonzero exit code or `"status":"ERROR"`; inspect its `message` and `details`
 before retrying.
@@ -73,6 +74,13 @@ description, target ref, and exact linked-work-item set once with Azure CLI.
 Any missing, malformed, or different value fails creation. Do not repair or
 silently truncate metadata, and do not claim verification from create output alone.
 
+The command reads a UTF-8 description file as-is (apart from line-ending
+normalization during verification), validates a nonblank title, positive
+numeric work-item IDs, and a 4,000-character description limit before any
+Azure create call. Explicit `--work-items` replace commit-derived IDs. After
+creation it performs one read-only verification and returns `ERROR` for any
+title, body, target-ref, or exact link-set drift.
+
 ## Completion and cleanup boundaries
 
 Auto-complete is optional and must stop on `mergeStatus` `conflicts` or
@@ -83,4 +91,3 @@ fails, delete neither branch. These completion helpers are not public `pr`
 flags, so perform them only through an approved workflow that preserves these
 stops. See [troubleshooting.md](troubleshooting.md) for failures and fallback
 boundaries.
-The command reads a UTF-8 description file as-is (apart from line-ending normalization during verification), validates a nonblank title, positive numeric work-item IDs, and a 4,000-character description limit before any Azure create call. Explicit `--work-items` replace commit-derived IDs. After creation it performs one read-only verification and returns `ERROR` for any title, body, target-ref, or exact link-set drift.

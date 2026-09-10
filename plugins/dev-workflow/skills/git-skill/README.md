@@ -20,6 +20,12 @@ Use `scripts/verify_output.py` with a CLI result JSON to check applicable reposi
 
 ## Changelog
 
+### 2026-09-10 - Correct documented PR flag set and verifier invocation
+
+- Documented the full `pr` flag set; the previous "only PR flags" list omitted `--title`, `--description-file`, and `--work-items`.
+- Fixed the `verify_output.py` example to the installed-skill-root absolute form required by the skill's own runtime contract.
+- Moved appended PR-metadata contract text into its own section so reference pointers close their sections.
+
 ### 2026-08-31 - Exact PR metadata contract
 
 - Added `pr --title`, `--description-file`, and explicit `--work-items` support with pre-create validation.
