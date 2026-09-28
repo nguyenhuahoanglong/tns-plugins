@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Take a `code-review-pro` report (e.g., `.CodeReview/{branch}.md`), attach it to an Azure DevOps work item, and post a single concise discussion comment that @mentions the developer with the Must Fix shortlist. On follow-up runs after the developer pushes fixes, edit the same comment in place with a "Resolved N/M" banner instead of cluttering the thread with new comments.
+Publish a `code-review-pro` report to an Azure DevOps work item or pull request. Work-item mode attaches the report and posts a concise Must Fix summary; PR mode posts the full report inline. Both mention the developer by default. When the user explicitly says they reviewed it themselves or asks for no self-mention, publish a neutral introduction without reviewer/author identity and preserve that policy on followup. Never infer self-review from account identity.
 
 ## Pain Points Addressed
 
@@ -11,6 +11,7 @@ Take a `code-review-pro` report (e.g., `.CodeReview/{branch}.md`), attach it to 
 - Re-running review on iterated code spawns duplicate comments, hurting discussion clarity
 - No persistent record of which Must Fix items were resolved across iterations
 - Author identity resolution (PR.createdBy → WI.assignedTo → ask) is implicit knowledge, lost between sessions
+- Self-reviews used to mention the PR author even when reviewer and author were the same person
 
 ## Design Notes
 
@@ -21,6 +22,22 @@ Take a `code-review-pro` report (e.g., `.CodeReview/{branch}.md`), attach it to 
 - Identity cache `~/.claude/.ado-identity-cache.json` avoids Graph queries on repeat publishes to same author.
 
 ## Changelog
+
+### 2026-09-28 - Automatic self-review detection (v1.3.0)
+- Active intent revision 2: user requested automatic detection and synchronization of related consumers.
+- Default PR publication compares authenticated ADO GUID with PR author GUID through the same REST authentication used for posting. Equal GUIDs suppress names/mentions; different GUIDs retain the author mention. Names/emails are never identity evidence.
+- Explicit suppression and mention overrides take precedence. Unknown identity fails before POST; dry-run and publish record detection provenance.
+- WI mode retains explicit context handling; its existing CLI has no automatic identity resolver.
+- Validation: 15 focused regression tests pass, including GUID normalization, invalid/missing identity, no POST on lookup failure, overrides, and compatibility. Live no-flag dry-runs and consumer parity are checked during synchronization.
+
+
+### 2026-09-28 - Explicit self-review without mention (v1.2.0)
+- Added explicit PR `--self-review` mode with neutral introduction, null mention identity, and `mentionPolicy: "none"` state.
+- Full dry-run body is available as JSON `body`; output verifier accepts self-review and legacy author-mention output/state.
+- WI guidance honors the same explicit user policy and preserves it on followup; no identity-based inference.
+- Fixed Windows Azure CLI output decoding: strict UTF-8 first, then strict system-locale fallback, preserving Unicode report text.
+- Regression coverage: default author mention, explicit target override, self-review output, invalid combinations/state, legacy-state compatibility, and locale decoding.
+- Intent: r1 records current behavior approved by the user request; original history remains reconstructed and unconfirmed. Targeted regression tests pass.
 
 ### 2026-06-10 - PR-thread target (v1.1.0)
 - Added a second publish target: **pull request thread** (alongside the existing work-item flow).

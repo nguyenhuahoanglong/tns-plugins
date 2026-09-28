@@ -29,6 +29,21 @@ Push back on any item w/ reasoning if disagree.
 | `{{resolved_banner}}` | followup only — empty for initial | see below |
 | `{{bullets}}` | Must Fix bullets, numbered | see below |
 
+## Explicit self-review / no-mention policy
+
+Use only when the user explicitly says they conducted the review or asks not to
+mention themselves. Do not infer this from PR author, assignee, or account
+identity. Replace the mention-anchor opening with this neutral header, keeping
+the remaining summary fields and report link:
+
+```markdown
+Code review {{iteration_label}}: [{{filename}}]({{attachment_url}}). Build {{build_status}}. {{n_high}} HIGH must-fix.
+```
+
+Omit mention GUID, email, and display name; persist `mentionPolicy: "none"`,
+`selfReview: true`, and null mention fields. Followups preserve the saved policy
+unless the user explicitly changes it.
+
 ## Resolved banner (followup only)
 
 When `iteration > 1`, prepend (between mention line and `**Must Fix:**`):

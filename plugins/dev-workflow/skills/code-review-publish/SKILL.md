@@ -1,7 +1,7 @@
 ---
 name: code-review-publish
-description: Publish a code-review report to an ADO work item or a pull request thread, @mentioning the author. Use for "publish review", "comment review on the PR", "follow up the review", /publish-review.
-version: 1.1.0
+description: Publish a code-review report to an ADO work item or pull request thread, with optional author mention. Use for "publish review", "comment review on the PR", "follow up the review", /publish-review.
+version: 1.3.0
 ---
 
 # Code Review Publish
@@ -16,8 +16,8 @@ version: 1.1.0
 
 | Target | Trigger | Body | Followup | Detail |
 |---|---|---|---|---|
-| **Work item** | `<wi-id>` (numeric, no `--pr`) | Attach report file + **concise** @mention summary with Must Fix shortlist | Edit comment in place ("Resolved N/M" banner) | rest of this file |
-| **Pull request** | `--pr <id>` / `pr` subcommand / request names a PR | **Full report inline** + greeting that @mentions PR author; no attachment | **New** thread + **resolve** prior thread | `references/pr-publish.md` |
+| **Work item** | `<wi-id>` (numeric, no `--pr`) | Attach report file + **concise** summary with Must Fix shortlist; mention developer by default | Edit comment in place ("Resolved N/M" banner) | rest of this file |
+| **Pull request** | `--pr <id>` / `pr` subcommand / request names a PR | **Full report inline** + automatic self-review detection; neutral introduction for own PR, author mention for other PRs | **New** thread + **resolve** prior thread | `references/pr-publish.md` |
 
 PR mode is deliberately the opposite of the WI anti-pattern "don't repeat the full review" — PR threads have no attachment, so the full report goes inline. Read `references/pr-publish.md` before running PR mode; the rest of this file is the WI flow.
 
@@ -29,7 +29,7 @@ PR mode is deliberately the opposite of the WI anti-pattern "don't repeat the fu
 /publish-review followup <wi-id> [--report <path>]
 
 # Pull-request target
-/publish-review pr <pr-id> [--report <path>] [--mention <guid|email>]
+/publish-review pr <pr-id> [--report <path>] [--mention <guid|email>] [--self-review]
 /publish-review pr followup <pr-id> [--report <path>]
 ```
 
@@ -40,6 +40,7 @@ PR mode is deliberately the opposite of the WI anti-pattern "don't repeat the fu
 | `--report` | `.CodeReview/{current-branch}.md` | Report path (sanitize branch slashes → dashes) |
 | `--pr` | none | WI mode: comma-separated PR ids for author lookup via `az repos pr show` |
 | `--mention` | resolved | Override mention target. WI: email→GUID. PR: pass GUID or email |
+| `--self-review` | false | PR mode: force neutral introduction; otherwise compare authenticated ADO GUID with PR author GUID automatically. Cannot combine with mention override or custom greeting |
 | `--re-attach` | false | WI followup: re-upload the report even if state has prior `attachmentUrl` |
 
 ## ADO autolink guard
@@ -58,27 +59,27 @@ ADO renders raw `#123` as a work-item link. Raw `#number` is allowed only for ex
 | Phase | Action | Tool |
 |---|---|---|
 | 1 Detect | Read `.CodeReview/.{branch}.pr-publish.json` → `followup` if `threadId` present (forces resolve-prior). | filesystem |
-| 2 Resolve mention | `--mention` GUID/email > `PR.createdBy` (from `pr-info`). No identity cache needed. | `pr_publish.py pr-info` |
+| 2 Resolve mention | Explicit `--self-review` suppresses mentions; explicit `--mention-guid` overrides detection. Otherwise fetch `authenticatedUser.id` from organization `connectionData` through the same `az rest` authentication as posting, compare with PR author GUID, and omit mention when equal. Unknown identity stops before POST. | `pr_publish.py pr-info` |
 | 3 Compose + post | Run ADO autolink guard `fix` + `check`, then greeting + `---` + **full report inline**; POST new active thread. Followup: also resolve prior thread. | `pr_publish.py publish [--prior-thread <id>]` |
-| 4 Persist | Write state w/ `prId, threadId, commentId, priorThreadIds[], mentionGuid, iteration, postedAt`. | `publish_state.py write` |
+| 4 Persist | Write state w/ `prId, threadId, commentId, priorThreadIds[], mentionPolicy, selfReview, selfReviewDetection, mentionGuid, iteration, postedAt`. For self-review use `mentionPolicy: "none"`, `selfReview: true`, `mentionGuid: null`. | `publish_state.py write` |
 
-Always `--dry-run` first to preview the body + mention GUID before posting. Full step detail, API shapes, and verification: `references/pr-publish.md`.
+Always `--dry-run` first. Its JSON `body` field contains full report body; `bodyPreview` remains a truncated compatibility field. Full step detail, API shapes, and verification: `references/pr-publish.md`.
 
 ## Verify Output
 
-PR mode (deterministic local checks): write the dry-run `bodyPreview` to a file and run `scripts/verify_output.py body <file>` to confirm the greeting + `@<GUID>` + `---` + report shape + no accidental ADO `#number` autolinks; after persisting state, run `scripts/verify_output.py state <.pr-publish.json>`. The live mention chip, dev notification, and prior-thread resolution are confirmed in the PR UI (see `references/pr-publish.md`).
+PR mode (deterministic local checks): save full dry-run JSON and run `scripts/verify_output.py body <dry-run.json>` to confirm author-mention or self-review introduction, `---`, full report shape, and no accidental ADO `#number` autolinks. After persisting state, run `scripts/verify_output.py state <.pr-publish.json>`. Legacy mentioned states without `mentionPolicy` remain valid. The live mention chip, notification, and prior-thread resolution are confirmed in the PR UI (see `references/pr-publish.md`).
 
 ## WI mode pipeline
 
 | Phase | Action | Tool |
 |---|---|---|
 | 1 Detect | Read state file `.CodeReview/.{branch}.publish.json` → mode = `update` if exists, else `initial`. Subcommand `followup` forces `update`. | filesystem |
-| 2 Resolve mention | `--mention` > PR.createdBy > WI.assignedTo > AskUserQuestion. Email → GUID via cache or Graph. See `references/identity-resolution.md`. | `az repos pr show`, `ado get`, `az rest` |
+| 2 Resolve mention | Default: `--mention` > PR.createdBy > WI.assignedTo > AskUserQuestion. If user explicitly says they conducted review or asks for no self-mention, skip identity resolution; use neutral header and persist `mentionPolicy: "none"`, `selfReview: true`, `mentionGuid: null`. Never infer this policy from account identity. Otherwise email → GUID via cache or Graph. See `references/identity-resolution.md`. | `az repos pr show`, `ado get`, `az rest` |
 | 3 Sanitize + parse report | Run ADO autolink guard `fix` + `check`, then extract Build Status row, Must Fix bullets w/ slugs + severities, total counts. | `scripts/ado_autolink_guard.py`, `scripts/parse_must_fix.py` |
 | 4 Attach | `initial` → `ado attach <wi> --file <report> --link-comment "Code review"`. `update` → reuse prior `attachmentUrl` unless `--re-attach`. | `ado attach` |
-| 5 Compose | Render `references/comment-template.md` w/ `{guid, name, filename, attachment_url, build_status, n_high, bullets, iteration_label, resolved_banner}`. | text |
+| 5 Compose | Render `references/comment-template.md` w/ `{guid, name, filename, attachment_url, build_status, n_high, bullets, iteration_label, resolved_banner}`; explicit no-mention policy uses neutral header and omits mention link/name. | text |
 | 6 Post / Edit | `initial` → `ado comment <wi> --file <tmp>`. `update` → `ado comment-edit <wi> <commentId> --file <tmp>`. | `ado comment`, `ado comment-edit` |
-| 7 Persist | Write state file w/ `commentId, attachmentId, attachmentUrl, mentionGuid, mustFixSlugs[], iteration, postedAt`. | `scripts/publish_state.py write` |
+| 7 Persist | Write state file w/ `commentId, attachmentId, attachmentUrl, mentionGuid, mentionPolicy, selfReview, mustFixSlugs[], iteration, postedAt`. No-mention state has `mentionGuid: null`, `mentionName: null`, and `mentionEmail: null`. | `scripts/publish_state.py write` |
 
 For followup: phase 3 also runs `publish_state.py diff <prior-state> <new-report>` → `{resolved[], remaining[], new[]}`. Phase 5 prepends iteration banner. Phase 6 always edits in place.
 
@@ -86,6 +87,7 @@ For followup: phase 3 also runs `publish_state.py diff <prior-state> <new-report
 
 - **Don't** repeat the full review in the comment — link + summary only.
 - **Don't** @mention multiple people unless the user explicitly asks.
+- **Don't** match display names or emails to detect self-review. PR mode compares validated live GUIDs on every default publish/followup. Honor explicit no-mention instructions for either target; WI mode still requires explicit context because its CLI has no automatic identity resolver.
 - **Don't** auto-transition the WI state; suggest only.
 - **Don't** post if attach failed — atomic. State file written only when phases 4-6 all succeed.
 - **Don't** publish reports with accidental raw `#number` refs — run `ado_autolink_guard.py fix` then `check` first.
@@ -104,6 +106,8 @@ For followup: phase 3 also runs `publish_state.py diff <prior-state> <new-report
   "commentId": 14081617,
   "attachmentId": "0cd09271-...",
   "attachmentUrl": "https://dev.azure.com/.../attachments/...",
+  "mentionPolicy": "author",
+  "selfReview": false,
   "mentionGuid": "a046b071-...",
   "mentionEmail": "review.author@example.com",
   "mentionName": "Review Author",
@@ -137,7 +141,7 @@ After running:
 ## Scripts
 
 - `scripts/ado_autolink_guard.py check|fix <report.md>` — sanitize accidental ADO `#number` autolinks; raw `#number` remains only for intentional work-item refs.
-- `scripts/pr_publish.py pr-info|publish` — PR mode: resolve PR author + post inline report thread + resolve prior thread. Supports `--dry-run`.
+- `scripts/pr_publish.py pr-info|publish` — PR mode: resolve PR author + post inline report thread + resolve prior thread. Supports `--dry-run`, automatic self-review detection, and explicit `--self-review`/`--mention-guid` overrides.
 - `scripts/parse_must_fix.py <report.md>` — JSON `{buildStatus, mustFixSlugs[], mustFixBullets[], counts}`. Pass `--out <file>` to write JSON to file. (WI mode.)
 - `scripts/publish_state.py read|write|diff|init` — state file CRUD + slug diff. Used by both targets.
 

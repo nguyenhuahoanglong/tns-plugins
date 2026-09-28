@@ -1,0 +1,59 @@
+{
+  "schema_version": 1,
+  "artifact_type": "skill",
+  "artifact_name": "code-review-publish",
+  "original_intent": {
+    "statement": "Provide a repeatable workflow for publishing code-review reports to Azure DevOps work items and pull requests, including author notification and follow-up handling.",
+    "source": "README.md changelog entries dated 2026-05-07 and 2026-06-10; original request is not present in current records.",
+    "captured_on": "2026-09-28",
+    "provenance": "reconstructed",
+    "status": "unconfirmed"
+  },
+  "active_revision": 2,
+  "revisions": [
+    {
+      "id": 1,
+      "date": "2026-09-28",
+      "intent": "Publish code-review reports to ADO work items or pull requests. Preserve default author mentions and existing follow-up behavior. When the user explicitly says they performed the review or asks for no self-mention, use a neutral introduction, omit mention identity, and preserve that policy in state. Do not infer self-review from account or author identity.",
+      "success_criteria": [
+        "Default and explicitly overridden PR mention flows continue to produce a valid author mention.",
+        "Explicit PR self-review produces a neutral introduction, full report body, mentionPolicy none, selfReview true, and null mentionGuid.",
+        "Invalid self-review plus mention overrides are rejected before publication.",
+        "Output verification accepts new self-review state and legacy author-mention state, while rejecting inconsistent policy metadata.",
+        "Dry-run output exposes full body for verification, including Unicode text returned by Azure CLI."
+      ],
+      "non_goals": [
+        "No automatic self-identity inference or change to default mention behavior.",
+        "No changes to ADO PR vote/status, attachment behavior, or work-item follow-up strategy.",
+        "No installation, plugin publication, commit, push, or live comment operation by this skill-source update."
+      ],
+      "approval": {
+        "status": "approved",
+        "source": "Explicit user request on 2026-09-28 to update publish skill so self-review does not mention the reviewer.",
+        "reason": "Adds the explicitly requested self-review exception while retaining existing default publishing behavior and scope."
+      }
+    },
+    {
+      "id": 2,
+      "date": "2026-09-28",
+      "intent": "Automatically detect PR self-review from authenticated ADO GUID and PR author GUID, suppress self-mentions, and retain author mentions for other PRs. Preserve explicit overrides, fail before POST when identity cannot be verified, and synchronize source, installed skills and related plugin.",
+      "success_criteria": [
+        "Equal validated GUIDs automatically select neutral introduction without name or mention.",
+        "Different GUIDs preserve author mention; explicit overrides take precedence.",
+        "Missing, malformed or unavailable identity stops before POST.",
+        "Dry-run and publish expose detection provenance; legacy states remain valid.",
+        "Related installed skill and plugin copies receive validated changes."
+      ],
+      "non_goals": [
+        "No matching by display names or email.",
+        "No new PR comments, PR vote/status changes or automatic WI identity detection during this update.",
+        "No unrelated skill or agent changes."
+      ],
+      "approval": {
+        "status": "approved",
+        "source": "User request on 2026-09-28 in current session: script should auto detect and sync related sources.",
+        "reason": "Supersedes revision1 explicit-only detection boundary and authorizes related synchronization."
+      }
+    }
+  ]
+}

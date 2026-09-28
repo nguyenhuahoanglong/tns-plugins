@@ -7,7 +7,7 @@
       "expected_output": "A new active PR thread on PR 75324 whose comment body is the greeting line `Hi @<GUID>, please help me check this code review result:` followed by `---` and the full report, mentioning the PR author. No file is attached.",
       "expectations": [
         "Routes to PR mode (target is a PR, not a work item) and reads references/pr-publish.md",
-        "Uses scripts/pr_publish.py to compose and post — does not hand-build az rest calls",
+        "Uses scripts/pr_publish.py to compose and post \u2014 does not hand-build az rest calls",
         "The comment body is the greeting + '---' + the FULL report inline (not summarized, no Must Fix shortlist extraction)",
         "Runs ado_autolink_guard.py fix + check before composing the inline body so accidental #number refs are escaped",
         "The mention token is `@<GUID>` using PR.createdBy resolved via az repos pr show (no identity-cache/Graph lookup)",
@@ -17,7 +17,7 @@
     },
     {
       "id": 2,
-      "prompt": "The dev pushed fixes — follow up the review on PR 75324 with the updated report.",
+      "prompt": "The dev pushed fixes \u2014 follow up the review on PR 75324 with the updated report.",
       "expected_output": "A fresh PR thread with the new report is posted AND the prior thread is resolved (status closed); state file iteration is bumped and the resolved thread id is recorded.",
       "expectations": [
         "Detects prior PR state (threadId present) and runs followup behaviour",
@@ -25,14 +25,47 @@
         "Resolves the prior thread via pr_publish.py publish --prior-thread <id> (PATCH status=closed)",
         "Updates state: bumps iteration and appends the resolved thread id to priorThreadIds[]"
       ]
+    },
+    {
+      "id": 3,
+      "prompt": "I reviewed this PR myself. Publish the review to PR 79326, and do not mention my name.",
+      "expected_output": "A new active PR thread contains the full report after `---`, introduced by `Code review result:`. Body contains no reviewer/author mention. Result/state carry mentionPolicy `none`, selfReview `true`, and null mentionGuid.",
+      "expectations": [
+        "Honors explicit self-review without identity lookup; default mode compares authenticated/author GUIDs",
+        "Runs PR mode with explicit `--self-review` and does not pass mention GUID/name or custom greeting",
+        "Preserves full report inline and uses the neutral no-mention introduction",
+        "Dry-run JSON exposes full body in `body`; verifier accepts full dry-run JSON",
+        "Persists mentionPolicy `none`, selfReview `true`, and null mentionGuid/mentionName",
+        "Default PR mode continues to mention PR.createdBy and legacy mentioned state remains valid"
+      ]
+    },
+    {
+      "id": 5,
+      "prompt": "Publish this review to my own PR without a self-review flag. Authenticated and author GUIDs match with different casing.",
+      "expected_output": "Neutral full report, no name/mention; selfReview true, mentionPolicy none, matching identity provenance.",
+      "expectations": [
+        "Compares validated GUIDs through same REST authentication as posting",
+        "Needs no --self-review flag",
+        "Does not compare names/emails"
+      ]
+    },
+    {
+      "id": 6,
+      "prompt": "Publish this review with no override, but connectionData identity lookup fails.",
+      "expected_output": "No POST; actionable authentication/explicit-mode error.",
+      "expectations": [
+        "Does not silently assume a different author",
+        "Does not fabricate a GUID or fall back to displayName"
+      ]
     }
   ],
   "non_goals": [
-    "Does not change the PR vote, status, or auto-complete settings — only thread status",
+    "Does not change the PR vote, status, or auto-complete settings \u2014 only thread status",
     "Does not summarize, truncate, or drop report sections in PR mode (full report inline)",
     "Does not publish accidental raw #number refs; only explicit work-item contexts keep raw #number",
     "Does not attach a file in PR mode (attachment is WI-mode only)",
     "Does not mention multiple reviewers unless explicitly asked (default = PR.createdBy)",
+    "Default PR mode suppresses mention only when validated authenticated and author GUIDs match; unknown identity stops before POST",
     "Does not modify the existing work-item publish flow"
   ]
 }

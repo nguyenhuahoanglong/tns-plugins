@@ -30,6 +30,12 @@ Hi @<{GUID-UPPERCASE}>, please help me check this code review result:
   Must Fix shortlist extraction — the reader sees the whole report in-thread.
 - GUID is uppercased to match the canonical example; ADO accepts either case.
 
+By default, compare `authenticatedUser.id` from the organization `/_apis/connectionData` endpoint with `PR.createdBy.id`, using the same `az rest` authentication/resource as posting. Validated equal GUIDs automatically select self-review; different GUIDs retain the author mention. No flag is needed. Explicit `--self-review` forces suppression; explicit `--mention-guid` overrides automatic detection.
+The first line becomes `Code review result:` with no reviewer/author name or
+mention token. Never compare display names or emails. If identity lookup fails or a GUID is missing/invalid, stop before posting; restore authentication or choose an explicit mode. This
+flag cannot be combined with `--mention-guid`, `--mention-name`, or `--greeting`.
+The full report and `---` separator remain unchanged.
+
 `scripts/pr_publish.py publish` runs `ado_autolink_guard.py fix` + `check` on
 the report before composing the body. This prevents accidental ADO work-item
 links from raw `#number` refs such as `PR \#1489` or `AC \#4`. Raw `#number`
@@ -45,8 +51,10 @@ real publish fixes the report file in place before posting.
 `createdBy.displayName` directly, so PR mode resolves the mention **without** a
 Graph query or the `~/.claude/.ado-identity-cache.json` lookup that WI mode uses.
 
-Override order: `--mention-guid` (explicit) > `PR.createdBy`. Use an override
-only when the reviewer wants to mention someone other than the PR author.
+Order: explicit suppression or mention override > authenticated-user/author GUID comparison > author mention when GUIDs differ. Use an
+override only when the reviewer wants to mention someone other than the PR
+author. `--self-review` suppresses mention identity entirely and reports
+`mentionPolicy: "none"`, `selfReview: true`, and `mentionGuid: null`.
 
 ## API calls (wrapped by `pr_publish.py`)
 
@@ -87,6 +95,8 @@ prior `threadId` from the state file.
   "threadId": 246619,
   "commentId": 1788234,
   "priorThreadIds": [246511],
+  "mentionPolicy": "author",
+  "selfReview": false,
   "mentionGuid": "a046b071-4c1f-60bc-8970-9a33752df8ec",
   "mentionName": "Thuong Cao Thi",
   "iteration": 2,
@@ -97,6 +107,10 @@ prior `threadId` from the state file.
 Separate filename suffix (`.pr-publish.json`) so a branch can carry both a WI
 publish and a PR publish without collision. Reuse `publish_state.py read|write`
 for CRUD — the shape is just extra fields.
+
+For self-review, persist the same metadata with `mentionPolicy: "none"`,
+`selfReview: true`, and both `mentionGuid` and `mentionName` set to `null`.
+Previous states without `mentionPolicy` remain valid if they have a mention GUID.
 
 ## Anti-patterns (PR-specific)
 
@@ -118,4 +132,10 @@ After a real (non-dry-run) post:
 3. Followup: prior thread shows **Resolved**, newest thread is **Active**.
 4. State file `iteration` matches run count; `priorThreadIds` lists resolved ones.
 
-Use `--dry-run` first to preview `bodyPreview` + `mentionGuid` without posting.
+Use `--dry-run` first. JSON `body` contains full composed content; `bodyPreview`
+remains truncated for compatibility. Save the full JSON and run
+`verify_output.py body <dry-run.json>` to validate its `body` field directly.
+Self-review dry-run and publish results include `mentionPolicy: "none"`,
+`selfReview: true`, and null mention identity fields.
+
+Persist `selfReviewDetection` from the result: `authenticated-user-matches-author`, `authenticated-user-differs-from-author`, `explicit-self-review`, or `explicit-mention`. Automatic self-review always uses the neutral header, even when a custom greeting/name was supplied without an explicit mention GUID.
