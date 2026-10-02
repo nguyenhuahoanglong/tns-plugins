@@ -1,0 +1,38 @@
+{
+  "schema_version": 1,
+  "artifact_type": "skill",
+  "artifact_name": "yana-pcf-deploy",
+  "original_intent": {
+    "statement": "Provide deploy-only Yana PCF workflow from explicit source branch, pin remote SHA, and keep local production import blocked.",
+    "source": "Reconstructed from prompts/source/skills/yana-pcf-deploy/SKILL.md and README.md changelog dated 2026-08-24; no historical intent.json or original request was present.",
+    "captured_on": "2026-10-02",
+    "provenance": "reconstructed",
+    "status": "unconfirmed"
+  },
+  "active_revision": 1,
+  "revisions": [
+    {
+      "id": 1,
+      "date": "2026-10-02",
+      "intent": "For Yana PCF developers using Claude Code or Codex, resolve deploy intent from request, checkout, Git evidence, and saved local preferences. Support current-work personal and RC sandbox variants by safely syncing the latest approved source into the checked-out branch, preserving local commits and WIP, then building a disposable snapshot; also preserve pinned exact-source deployment for release orchestration. Build both Grid and QuickView, verify exact target org, publish and solution readback, and produce source/package provenance. Keep production CI/CD-only; never create a separate source commit or push, though a Git merge commit may be created when required to sync source.",
+      "success_criteria": [
+        "Personal testing uses checked-out branch, latest configured upstream when present, saved personal variant, and local code without a Long default; no-upstream branch is allowed and reported as local-only.",
+        "RC testing uses exact release branch from checkout, user-confirmed release_sources mapping, or verified exact branch-creation reflog evidence; ambiguous source does not fall back to highest SemVer or common ancestor.",
+        "Current-work sync merges latest identified source into the checked-out branch, preserving WIP and private local files; it discloses whether sync creates a local merge commit and builds a snapshot matching post-sync code plus WIP.",
+        "Pinned release invocation builds only supplied branch SHA and does not merge or include current-checkout WIP.",
+        "Deployment blocks wrong PAC org, missing target script contract, stale source, build/import/publish/readback failure, and local production import.",
+        "Receipt separates source SHA, current HEAD, local-change/snapshot hashes, technical variant version, target environment, and package SHA-256."
+      ],
+      "non_goals": [
+        "Full release orchestration, work-item/PR/notes changes, source version bumps, and variant removal.",
+        "A separate source commit or any push; a merge commit created by Git to sync latest source is allowed when disclosed.",
+        "Local production deployment."
+      ],
+      "approval": {
+        "status": "approved",
+        "source": "User-approved Option A and deployment intent decisions in conversation dated 2026-10-02.",
+        "reason": "User approved extending the existing deploy skill while preserving pinned release behavior and adding current-branch latest-plus-local-work deployment for personal/RC testing."
+      }
+    }
+  ]
+}

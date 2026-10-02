@@ -1,1 +1,58 @@
-{"schema_version":1,"artifact_type":"skill","artifact_name":"implement-plan","original_intent":{"statement":"Provide gated autonomous implementation from an approved code plan.","source":"Reconstructed from existing SKILL.md","captured_on":"2026-09-08","provenance":"reconstructed","status":"unconfirmed"},"active_revision":1,"revisions":[{"id":1,"date":"2026-09-08","intent":"Keep gated plan execution while assigning unit/component TDD to code-implementer and keeping QA for separate E2E work.","success_criteria":["TDD verifier requires code-implementer","QA E2E remains available","Blocker retry and review caps remain"],"non_goals":["Changing approval gates","Adding retries"],"approval":{"status":"approved","source":"User-approved eight-role migration","reason":"Explicit role ownership decision."}}]}
+{
+  "schema_version": 1,
+  "artifact_type": "skill",
+  "artifact_name": "implement-plan",
+  "original_intent": {
+    "statement": "Provide gated autonomous implementation from an approved code plan.",
+    "source": "Reconstructed from existing SKILL.md",
+    "captured_on": "2026-09-08",
+    "provenance": "reconstructed",
+    "status": "unconfirmed"
+  },
+  "active_revision": 2,
+  "revisions": [
+    {
+      "id": 1,
+      "date": "2026-09-08",
+      "intent": "Keep gated plan execution while assigning unit/component TDD to code-implementer and keeping QA for separate E2E work.",
+      "success_criteria": [
+        "TDD verifier requires code-implementer",
+        "QA E2E remains available",
+        "Blocker retry and review caps remain"
+      ],
+      "non_goals": [
+        "Changing approval gates",
+        "Adding retries"
+      ],
+      "approval": {
+        "status": "approved",
+        "source": "User-approved eight-role migration",
+        "reason": "Explicit role ownership decision."
+      }
+    },
+    {
+      "id": 2,
+      "date": "2026-10-02",
+      "intent": "Keep explicitly invoked, approved code-plan execution while reducing mechanical prompt-audit constraints, resolving predictable user/auth/E2E dependencies during planning, selecting task-specific models and thinking within actual platform controls, and reporting task allocation and progress clearly.",
+      "success_criteria": [
+        "Approval covers concrete scope and quality choices; routine execution does not reopen settled decisions.",
+        "Human authentication, E2E target/data authority, expected behavior, and downstream consent are resolved or explicitly staged before dependent execution.",
+        "Role/model/effort routing uses task complexity, visual needs, platform support and effective runtime evidence.",
+        "Task allocation, execution progress and final evidence use adaptable user-facing templates.",
+        "Structured checks preserve meaningful consistency and ownership without treating field counts or prose keywords as approval authority.",
+        "Unit/component work retains implementation ownership; QA stays independent E2E; existing retry/review-loop defaults remain bounded."
+      ],
+      "non_goals": [
+        "Auto-triggering implement-plan or broadening its code-only workflow to non-code primary deliverables",
+        "Bypassing user/project/security permissions or downstream skill consent",
+        "Guaranteeing zero interaction despite expired access or new consequential facts",
+        "Changing shared agent definitions/platform mapping, live installation, publication, commit or push"
+      ],
+      "approval": {
+        "status": "approved",
+        "source": "User request in current 2026-10-02 conversation: improve implement-plan for less prompt-audit rigidity, minimal interaction after approval, planning-time E2E/auth readiness, researched platform/model/thinking mapping, and task/progress output templates.",
+        "reason": "The current request explicitly authorizes these behavior changes; source-only maintenance retains implementation approval and external-action authority boundaries."
+      }
+    }
+  ]
+}

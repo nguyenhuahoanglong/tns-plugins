@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "artifact_type": "skill",
+  "artifact_name": "pcf-controls",
+  "original_intent": {
+    "statement": "Provide generic guidance for developing, building and deploying Power Apps Component Framework controls.",
+    "source": "Reconstructed from the pre-edit mirrored SKILL.md and resources; original user request unavailable.",
+    "captured_on": "2026-10-02",
+    "provenance": "reconstructed",
+    "status": "unconfirmed"
+  },
+  "active_revision": 1,
+  "revisions": [{
+    "id": 1,
+    "date": "2026-10-02",
+    "intent": "Retain generic PCF authoring guidance while routing existing Core.Component.PCF variant and browser-override operations to the two dedicated skills distributed in dev-workflow.",
+    "success_criteria": [
+      "Generic scaffolding and lifecycle requests retain the existing guidance.",
+      "Existing project deployment requests use the configured source, variant and org workflow rather than generic push commands.",
+      "Browser override requests route to complete client-asset testing without authorizing server deployment."
+    ],
+    "non_goals": ["Local production import for Core.Component.PCF", "Installing missing providers silently", "Rewriting upstream authoring guidance"],
+    "approval": {
+      "status": "approved",
+      "source": "User selected Option A and requested skill-creator authoring after the team-PCF design in this conversation on 2026-10-02.",
+      "reason": "Approved design includes pcf-controls routing and reuse of the two existing operation skills."
+    }
+  }]
+}

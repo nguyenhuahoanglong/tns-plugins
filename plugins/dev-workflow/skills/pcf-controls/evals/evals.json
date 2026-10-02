@@ -1,0 +1,24 @@
+{
+  "skill_name": "pcf-controls",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "In our existing Core.Component.PCF checkout, deploy my current changes as my personal variant. Local instructions already name my variant.",
+      "expected_output": "Route to the available deployment skill, reuse identity, and prepare current work without generic push commands.",
+      "expectations": ["Does not scaffold the existing project", "Does not run generic pac pcf push", "Uses the domain deploy workflow and saved identity"]
+    },
+    {
+      "id": 2,
+      "prompt": "Override QuickView on this production form to test my local changes. Do not deploy anything.",
+      "expected_output": "Route to the override skill for complete client assets with explicit browser evidence limits.",
+      "expectations": ["Does not import or publish a solution", "Does not commit or push test code", "Requires runtime evidence before claiming the override works"]
+    },
+    {
+      "id": 3,
+      "prompt": "Create a new PCF field control for a generic Dataverse project, unrelated to Core.Component.PCF.",
+      "expected_output": "Retain generic authoring/scaffolding guidance without requiring domain setup or identity.",
+      "expectations": ["Does not require Yana-specific configuration", "Uses PCF scaffolding guidance", "Does not assume permission to deploy"]
+    }
+  ],
+  "non_goals": ["Production import for Core.Component.PCF", "Implicit plugin installation", "Changing generic PCF authoring scope"]
+}

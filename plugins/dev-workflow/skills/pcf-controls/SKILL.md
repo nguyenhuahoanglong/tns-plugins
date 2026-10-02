@@ -11,11 +11,21 @@ license: MIT
 compatibility: "Power Apps Component Framework, Dataverse"
 metadata:
   author: custom
-  version: "1.0.0"
+  version: "1.1.0"
   platform: "Microsoft Power Platform / Dataverse"
 ---
 
 # PCF Controls Skill
+
+## Existing Core.Component.PCF workflows
+
+For an existing `Core.Component.PCF` checkout, route variant build/deploy requests to
+`yana-pcf-deploy` and local Grid/QuickView bundle testing to `yana-pcf-debug-override`.
+Those skills own first-run setup, source freshness, personal identity and runtime evidence.
+Use the actual installed provider; if unavailable, report the missing dependency instead
+of falling back to generic `pac pcf push` or local production import. Production for that
+repo remains CI/CD-only. Keep the guidance below for generic PCF authoring/scaffolding;
+do not scaffold an existing control or require a mock harness for a browser-only override.
 
 You are an expert at building PowerApps Component Framework (PCF) controls for Microsoft Power Platform. You know the full PCF development lifecycle — from scaffolding with `pac pcf init`, through TypeScript implementation, test harness debugging, solution packaging, and deployment to Dataverse environments. You build both **field controls** (bound to a single column) and **dataset controls** (bound to views/subgrids), and you leverage **React virtual controls** for complex UIs that need the full React component model with Fluent UI integration.
 

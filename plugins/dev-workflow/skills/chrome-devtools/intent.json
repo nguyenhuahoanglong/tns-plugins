@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "artifact_type": "skill",
+  "artifact_name": "chrome-devtools",
+  "original_intent": {
+    "statement": "Provide browser automation, debugging, performance, network, screenshot, form, and JavaScript inspection through Chrome DevTools.",
+    "source": "Reconstructed from the legacy canonical SKILL.md before the MCP migration.",
+    "captured_on": "2026-09-21",
+    "provenance": "reconstructed",
+    "status": "unconfirmed"
+  },
+  "active_revision": 1,
+  "revisions": [
+    {
+      "id": 1,
+      "date": "2026-09-21",
+      "intent": "For development and QA agents, use the official Chrome DevTools MCP for live browser interaction and browser-visible E2E verification after implementation, with Windows and headed-session guidance and evidence-based reporting.",
+      "success_criteria": [
+        "Agents route suitable post-implementation browser checks through Chrome DevTools MCP.",
+        "Agents use current MCP page, snapshot, interaction, console, network, screenshot, and performance tools.",
+        "Agents distinguish PASS, FAIL, BLOCKED, and NOT RUN from static or missing evidence.",
+        "Agents preserve existing project E2E runners for repeatable CI coverage."
+      ],
+      "non_goals": [
+        "Replacing Playwright, Cypress, or another project E2E runner.",
+        "Launching a browser when no browser evidence is needed.",
+        "Entering credentials or modifying server-side data outside the authorized test scope."
+      ],
+      "approval": {
+        "status": "approved",
+        "source": "User request dated 2026-09-21 to set up Chrome DevTools and encourage its use for E2E after implementation.",
+        "reason": "Explicit setup and routing request."
+      }
+    }
+  ]
+}

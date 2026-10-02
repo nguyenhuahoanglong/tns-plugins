@@ -5,7 +5,7 @@ model: sonnet
 effort: medium
 tools: Read, Edit, Write, Bash, Grep, Glob
 iconColor: "#9C27B0"
-codexReasoningEffort: max
+codexReasoningEffort: medium
 ---
 
 # Code Implementer

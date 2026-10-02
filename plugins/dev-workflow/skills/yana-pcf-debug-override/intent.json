@@ -1,0 +1,84 @@
+{
+  "schema_version": 1,
+  "artifact_type": "skill",
+  "artifact_name": "yana-pcf-debug-override",
+  "original_intent": {
+    "statement": "Build YanaGrid locally and debug it through Chrome Local Overrides without importing a solution or changing server web resources.",
+    "source": "Reconstructed from README.md Purpose and the 2026-07-10 changelog, preserved at source commit 79ebc1c. The historical first user request is unavailable.",
+    "captured_on": "2026-09-29",
+    "provenance": "reconstructed",
+    "status": "unconfirmed"
+  },
+  "active_revision": 3,
+  "revisions": [
+    {
+      "id": 1,
+      "date": "2026-09-29",
+      "intent": "Improve the existing YanaGrid debug override workflow so a browser uses the complete compatible client resource set from one local build, including separately served CSS and other runtime assets. Inventory generated resources, use observed request mappings, protect existing user work, validate the host contract and localization boundary, and verify what the browser actually loaded. Distinguish verified client resource parity from an actual Dataverse deployment; unresolved host-managed differences must block a parity claim.",
+      "success_criteria": [
+        "Discover runtime assets from the generated control manifest and output rather than a hard-coded bundle-only list.",
+        "Reject missing, ambiguous, stale, cross-origin, or out-of-scope mappings; apply a complete validated set with rollback on failure.",
+        "Verify exact runtime URLs and content evidence for every required client asset; copying files alone never proves parity.",
+        "Account for localization, manifest properties, dataset bindings, platform libraries, identity and other host-managed differences; report NEEDS_DEPLOY or unverified state instead of a false deploy-equivalent result.",
+        "Preserve source identity files, unrelated mappings, user drafts, authentication state, and server records/configuration."
+      ],
+      "non_goals": [
+        "Deploying solutions or modifying Dataverse server resources, metadata, security, plugins, or form configuration",
+        "Guaranteeing managed-solution layering, import/publish behavior, or all environments from a browser-only test",
+        "Entering credentials, rewriting unrelated Chrome mappings, or editing installed skills by hand",
+        "Claiming full client parity from JavaScript-only or disk-hash-only checks"
+      ],
+      "approval": {
+        "status": "approved",
+        "source": "User request in this YanaGrid bug/override conversation, 2026-09-29: improve the bundle override skill to include all needed files and simulate the result of a real deployment.",
+        "reason": "The user explicitly requested this extension after identifying mixed new-JavaScript/deployed-CSS testing. Client-only debugging and no-server-mutation boundaries remain in force."
+      }
+    },
+    {
+      "id": 2,
+      "date": "2026-09-29",
+      "intent": "Default to complete client asset overrides for YanaGrid logic and UI testing. Keep host metadata and RESX differences visible, assess their relevance to each behavior, and reserve strict client/host parity for an explicit verification scope. Do not deploy unrelated resources merely to eliminate host warnings.",
+      "success_criteria": [
+        "Apply and verify every required JS, CSS and other loaded client asset from one build; missing assets remain fatal.",
+        "Persist the chosen scope in the apply receipt so verification cannot silently weaken it.",
+        "Permit logic/UI E2E despite unrelated host differences, reporting affected host-dependent cases as unverified.",
+        "Retain strict client-parity verification and the no-deployment boundary."
+      ],
+      "non_goals": [
+        "Deploying all resources or changing server metadata to obtain an asset-debug PASS",
+        "Claiming host localization, registration, or solution deployment equivalence from asset-only verification"
+      ],
+      "approval": {
+        "status": "approved",
+        "source": "User clarification in this conversation on 2026-09-29: đánh giá việc có nên cố deploy tất cả hay không, mục đích chính là tôi muốn override để test logic của yanagird, và các thay đổi của UI nếu có",
+        "reason": "The clarified goal does not require unrelated host parity; complete runtime asset proof and behavioral E2E remain required."
+      }
+    },
+    {
+      "id": 3,
+      "date": "2026-10-02",
+      "intent": "Let team members use the active dev-workflow plugin from Claude Code or Codex to test YanaGrid by default or explicitly selected YanaQuickView through complete local bundle overrides. Reuse shared one-time setup, preserve the intended current source, isolate maps by checkout/profile/environment/control/deployed identity, and require evidence of the bytes the browser actually loaded. Missing browser capability or runtime evidence remains unverified.",
+      "success_criteria": [
+        "Default to YanaGrid and support YanaQuickView through its own workspace, manifest identity and build output.",
+        "Use yana-pcf-deploy's shared setup helper and managed AGENTS.local.md values. Ask only for missing information; do not repeat setup questions, create a duplicate personal config, install a browser adapter, sign in or grant browser access silently.",
+        "Build the current checkout with tracked/untracked changes or local commits ahead without Git mutation. For a clean checkout with no local commits, fetch its configured upstream and fast-forward only; stop on missing upstream, divergence, remote rewind or concurrent state change. Never commit or push.",
+        "Keep resource maps distinct by repository checkout, configured browser profile, origin, selected control and observed deployed identity. Require explicit one-time Grid-only migration for old unscoped schema-2 maps, copying rather than replacing the legacy entry.",
+        "Inventory and apply the complete required client resource set from one selected-control build; validate all exact observed URLs and configured Overrides destinations before build/apply.",
+        "Require executed-JavaScript and actual loaded response bytes for every required runtime resource before a resource PASS; distinguish runtime asset proof from behavior E2E and server deployment parity.",
+        "Make dry-run read-only with no fetch, merge, write, build, browser action or report write.",
+        "Detect Claude and Codex browser capabilities independently. A missing adapter, target or loaded-byte proof is NOT VERIFIED, never a PASS."
+      ],
+      "non_goals": [
+        "Importing or publishing a solution, changing server web resources, metadata, form binding, plugins or security",
+        "Installing or configuring browser MCPs, creating Chrome profiles, signing in, or silently granting the Local Overrides folder",
+        "Committing, pushing, stashing, resetting or merging non-fast-forward source changes",
+        "Claiming Dataverse deployment lifecycle, uncaptured forms/locales, or cross-runtime browser parity without direct evidence"
+      ],
+      "approval": {
+        "status": "approved",
+        "source": "User approved Option A and continued the Yana PCF skill design on 2026-10-02, including first-use setup without repeated prompts, Grid default with QuickView support, current-branch local override behavior, no commit/push, and use of skill-creator.",
+        "reason": "The approved design extends the existing local override workflow for team use while retaining its no-server-mutation boundary and actual loaded-byte requirement."
+      }
+    }
+  ]
+}

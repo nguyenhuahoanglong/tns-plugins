@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
-"""Deterministic implement-plan contract verifier.
+"""Structured-template consistency helper for implement-plan.
 
-Static and hermetic: it reads the plan text only. Contract violations are FAIL (exit 1); a recorded but
-unapprovable autonomy state is BLOCK (exit 3). Legacy and pre-v4 plans are normalized on read.
+Static and hermetic: it reads the plan text only. Inconsistencies are FAIL (exit 1);
+recorded blocked probes are BLOCK (exit 3). This helper is not permission authority.
+Legacy and pre-v4 plans are normalized on read without rewriting decision provenance.
 """
 from __future__ import annotations
 
@@ -12,32 +13,22 @@ import re
 import sys
 from pathlib import Path
 
-FIELD_RE = re.compile(r"^-?\s*(?P<key>[A-Za-z][A-Za-z -]*):\s*(?P<value>.*?)\s*$", re.MULTILINE)
-TASK_RE = re.compile(r"^### Task \d+:.*?(?=^### Task |^## |\Z)", re.MULTILINE | re.DOTALL)
+FIELD_RE = re.compile(r"^-?[ \t]*(?P<key>[A-Za-z][A-Za-z -]*):[ \t]*(?P<value>.*?)[ \t]*$", re.MULTILINE)
+TASK_RE = re.compile(r"^### Task (?P<id>\d+):.*?(?=^### Task |^## |\Z)", re.MULTILINE | re.DOTALL)
 TABLE_RE = re.compile(r"^\|(?P<cells>.+)\|\s*$", re.MULTILINE)
 RESULT_RE = re.compile(r"^-\s*(?P<pid>.+?)\s+(?P<state>ready|blocked|unverifiable)\s*:\s*(?P<detail>.*)$",
                        re.MULTILINE)
 
-CONTEXT_FIELDS = ("Plan path", "Plan path origin", "Plan path evidence", "Unit tests", "Unit tests source",
-                  "Unit tests reason", "Code review", "Code review source", "Code review reason")
+CONTEXT_FIELDS = ("Plan path", "Unit tests", "Code review")
 ORIGINS = ("host-plan-mode", "existing-input", "backlog-requirement", "generated-project-root")
-SOURCES = ("user", "flag")
+SOURCES = ("user", "flag", "project", "assessment", "auto-assessment")
 DECISIONS = ("selected", "skipped")
-TASK_FIELDS = ("Status", "Depends on", "Files", "Mode", "Description", "Done when", "ACs")
+TASK_FIELDS = ("Status", "Depends on", "Files", "Description", "Done when", "ACs")
 STATUSES = ("pending", "scaffolded", "in-progress", "complete", "blocked")
 MODES = ("existing-method", "simple-new", "complex-backbone")
 AUTONOMY_STATES = ("verified-ready", "unverifiable-with-fallback", "verified-blocked")
 PROBE_KINDS = ("path", "command", "command-version", "auth", "env", "url", "node-deps", "dotnet-restore",
                "manual")
-SAFETY_TERMS = tuple(re.compile(pattern, re.I) for pattern in (
-    r"task-listed", r"delete\w*\s+(?:or|and|,)?\s*move", r"reset", r"restore", r"checkout", r"stash",
-    r"stage", r"commit", r"push", r"publish", r"install", r"working-tree-aware", r"scoped diff"))
-PLACEHOLDERS = ((re.compile(r"\bTBD\b", re.I), "TBD"),
-                (re.compile(r"\bTO" r"DO\b", re.I), "task-decision marker"),
-                (re.compile(r"\bundecided\b", re.I), "undecided marker"),
-                (re.compile(r"\{[^{}]+\}"), "template braces"),
-                (re.compile(r"\bappropriate(?:ly)?\b", re.I), "vague 'appropriate'"),
-                (re.compile(r"\bsimilar to Task\b", re.I), "cross-task shorthand"))
 LEGACY_DECISIONS = {"requested": "selected", "not requested": "skipped"}
 
 
@@ -76,7 +67,7 @@ def derived_file_probes(text):
 
 
 def normalize(data, plan_path=None):
-    """Map legacy and pre-v4 Context shapes onto the v4 field names, once, up front."""
+    """Map legacy Context shapes while preserving recorded assessment provenance."""
     normalized = {key: list(values) for key, values in data.items()}
     for label in ("Unit tests", "Code review"):
         value = (normalized.get(label) or [""])[0]
@@ -84,9 +75,6 @@ def normalize(data, plan_path=None):
             normalized[label] = [LEGACY_DECISIONS[value]]
             normalized.setdefault(f"{label} source", ["user"])
             normalized.setdefault(f"{label} reason", [f"legacy explicit choice: {value}"])
-        source = (normalized.get(f"{label} source") or [""])[0]
-        if source == "auto-assessment":
-            normalized[f"{label} source"] = ["user"]
         for dropped in (f"{label} decision", f"{label} recommendation", f"{label} recommendation reason",
                         "TDD decision", "TDD recommendation", "TDD recommendation reason", "Depth"):
             normalized.pop(dropped, None)
@@ -94,7 +82,10 @@ def normalize(data, plan_path=None):
         normalized["Plan path origin"] = ["existing-input"]
         normalized.setdefault("Plan path evidence", [f"existing plan supplied as input: {plan_path}"])
     if "Plan path" not in normalized:
-        normalized["Plan path"] = [str(plan_path)] if plan_path else list(normalized["Plan path evidence"])
+        if plan_path:
+            normalized["Plan path"] = [str(plan_path)]
+        elif data.get("Plan path evidence"):
+            normalized["Plan path"] = list(data["Plan path evidence"])
     return normalized
 
 
@@ -114,7 +105,7 @@ def context_contract(data, results):
         one(data, key, results)
     origin = (data.get("Plan path origin") or [None])[0]
     evidence = (data.get("Plan path evidence") or [""])[0]
-    if origin not in ORIGINS:
+    if origin is not None and origin not in ORIGINS:
         results.append(("FAIL", "Plan path origin is invalid"))
     elif origin == "backlog-requirement" and ".backlog" not in evidence:
         results.append(("FAIL", "backlog path origin requires .backlog evidence"))
@@ -127,27 +118,30 @@ def context_contract(data, results):
         value = (data.get(label) or [None])[0]
         if value not in DECISIONS:
             results.append(("FAIL", f"{label} must be selected or skipped"))
-        if (data.get(f"{label} source") or [None])[0] not in SOURCES:
-            results.append(("FAIL", f"{label} source must be user or flag"))
+        if f"{label} source" in data:
+            source = one(data, f"{label} source", results)
+            if source not in SOURCES:
+                results.append(("FAIL", f"{label} source is invalid"))
         decisions[label] = value
     return decisions["Unit tests"], decisions["Code review"]
 
 
 def task_contract(text, unit, results):
-    tasks = TASK_RE.findall(section(text, "Tasks"))
+    tasks = list(TASK_RE.finditer(section(text, "Tasks")))
     if not tasks:
         results.append(("FAIL", "missing Task section"))
         return False
     has_tdd = False
-    for number, task in enumerate(tasks, 1):
-        data = fields(task)
+    for task in tasks:
+        number = task.group("id")
+        data = fields(task.group())
         label = f"Task {number}"
         for key in TASK_FIELDS:
             one(data, key, results, label)
         if (data.get("Status") or [None])[0] not in STATUSES:
             results.append(("FAIL", f"{label} Status is invalid"))
         mode = (data.get("Mode") or [None])[0]
-        if mode not in MODES:
+        if mode is not None and mode not in MODES:
             results.append(("FAIL", f"{label} Mode is invalid"))
         depth = (data.get("Depth") or ["simplify"])[0]
         if depth not in ("simplify", "TDD"):
@@ -158,25 +152,72 @@ def task_contract(text, unit, results):
                 results.append(("FAIL", f"{label} Depth TDD requires Unit tests: selected"))
             if not ((data.get("TDD reason") or [""])[0] or (data.get("Risk reason") or [""])[0]):
                 results.append(("FAIL", f"{label} Depth TDD requires a non-empty TDD reason"))
-            if mode == "existing-method" and not (data.get("Existing-method baseline") or [""])[0]:
-                results.append(("FAIL", f"{label} existing-method TDD requires Existing-method baseline"))
-            if mode == "simple-new" and not (data.get("Scaffold") or [""])[0]:
-                results.append(("FAIL", f"{label} simple-new TDD requires Scaffold"))
-        if mode == "complex-backbone" and any(word not in text.lower() for word in
-                                              ("design-backbone", "handoff", "resume", "duplicate tests")):
-            results.append(("FAIL", f"{label} complex-backbone semantics are incomplete"))
+    structure_contract(text, tasks, results)
     return has_tdd
 
 
 def tdd_task_numbers(text):
-    return [str(number) for number, task in enumerate(TASK_RE.findall(section(text, "Tasks")), 1)
-            if (fields(task).get("Depth") or ["simplify"])[0] == "TDD"]
+    return [task.group("id") for task in TASK_RE.finditer(section(text, "Tasks"))
+            if (fields(task.group()).get("Depth") or ["simplify"])[0] == "TDD"]
+
+
+def structure_contract(text, tasks, results):
+    """Check declared task relationships, without interpreting implementation prose."""
+    ids = [task.group("id") for task in tasks]
+    for tid in set(ids):
+        if ids.count(tid) > 1:
+            results.append(("FAIL", f"duplicate Task {tid}"))
+    declared_acs = set(re.findall(r"\bAC-\d+\b", section(text, "Acceptance Criteria")))
+    dependencies, files = {}, {}
+    for task in tasks:
+        tid, data = task.group("id"), fields(task.group())
+        dependency_text = (data.get("Depends on") or [""])[0]
+        dependencies[tid] = set(re.findall(r"\bTask\s+(\d+)\b", dependency_text, re.I))
+        if dependency_text.lower() not in ("none", "n/a", "-") and not dependencies[tid]:
+            results.append(("FAIL", f"Task {tid} Depends on must name Task IDs or none"))
+        for dependency in dependencies[tid]:
+            if dependency not in ids:
+                results.append(("FAIL", f"Task {tid} depends on unknown Task {dependency}"))
+            if dependency == tid:
+                results.append(("FAIL", f"Task {tid} depends on itself"))
+        file_text = (data.get("Files") or [""])[0]
+        paths = re.findall(r"`([^`]+)`", file_text)
+        if not paths:
+            paths = [item.strip() for item in re.split(r"[,;]", file_text)]
+        files[tid] = {path.replace("\\", "/").casefold() for path in paths if path}
+        ac_refs = re.findall(r"\bAC-\d+\b", (data.get("ACs") or [""])[0])
+        if not ac_refs:
+            results.append(("FAIL", f"Task {tid} ACs must reference at least one AC-N"))
+        for ac in ac_refs:
+            if ac not in declared_acs:
+                results.append(("FAIL", f"Task {tid} references undefined {ac}"))
+
+    def reaches(start, target, visited=None):
+        visited = set() if visited is None else visited
+        if start in visited:
+            return False
+        visited.add(start)
+        return any(dep == target or reaches(dep, target, visited)
+                   for dep in dependencies.get(start, ()))
+
+    if any(reaches(tid, tid) for tid in ids):
+        results.append(("FAIL", "task dependencies contain a cycle"))
+    unique_ids = list(dict.fromkeys(ids))
+    for index, first in enumerate(unique_ids):
+        for second in unique_ids[index + 1:]:
+            shared = files[first] & files[second]
+            if shared and not (reaches(first, second) or reaches(second, first)):
+                results.append(("FAIL", f"Task {first} and Task {second} overlap Files without dependency ordering: "
+                                + ", ".join(sorted(shared))))
 
 
 def preflight_contract(text, results):
     preflight = section(text, "Preflight")
     if not preflight.strip():
-        results.append(("FAIL", "missing ## Preflight section"))
+        if re.search(r"^## Preflight\s*$", text, re.MULTILINE):
+            results.append(("FAIL", "provided Preflight section is empty"))
+        if re.search(r"\bverified-ready\b", text):
+            results.append(("FAIL", "verified-ready requires recorded Preflight results"))
         return None
     task_names = {match.group(1) for match in re.finditer(r"^### (Task \d+):", text, re.MULTILINE)}
     declared = []
@@ -198,6 +239,11 @@ def preflight_contract(text, results):
     if not re.search(r"^Run:\s*\S+", preflight, re.MULTILINE):
         results.append(("FAIL", "Preflight results need a Run: line naming the probe run"))
     observed = list(RESULT_RE.finditer(preflight))
+    if not observed:
+        results.append(("FAIL", "provided Preflight has no recorded probe results"))
+    for line in preflight.splitlines():
+        if re.match(r"^-\s*(?:PF-\S+|derived path\b)", line) and not RESULT_RE.match(line):
+            results.append(("FAIL", f"malformed Preflight result: {line}"))
     reported = {match.group("pid").strip() for match in observed}
     for pid in declared:
         if pid not in reported:
@@ -243,7 +289,7 @@ def assignment_agents_for_task(assignment, number):
         cells = [cell.strip() for cell in line.strip().strip("|").split("|")]
         if len(cells) <= max(task_index, agent_index):
             continue
-        if re.fullmatch(rf"Task\s*{number}", cells[task_index], re.I):
+        if str(number) in re.findall(r"\bTask\s*(\d+)\b", cells[task_index], re.I):
             values.append(cells[agent_index].lower())
     return values
 
@@ -255,35 +301,37 @@ def evaluate(text, plan_path=None):
         return [("FAIL", "missing ## Context section")]
     unit, review = context_contract(normalize(fields(context), plan_path), results)
     assignment, verification = section(text, "Agent Assignment"), section(text, "Verification")
-    has_tdd = task_contract(text, unit, results)
+    task_contract(text, unit, results)
     autonomy = preflight_contract(text, results)
     for number in tdd_task_numbers(text):
         task_agents = assignment_agents_for_task(assignment, number)
-        if not any("code-implementer" in agent for agent in task_agents):
-            results.append(("FAIL", f"TDD Task {number} requires code-implementer assignment"))
+        if not any("code-implementer" in agent or
+                   (re.search(r"\b(?:worker|default)\b", agent) and "implementation" in agent) or
+                   ("main" in agent and "tiny" in agent) for agent in task_agents):
+            results.append(("FAIL", f"TDD Task {number} requires implementation-role assignment"))
         if any("qa-engineer" in agent for agent in task_agents):
             results.append(("FAIL", f"TDD Task {number} must not assign qa-engineer; unit/component tests belong to code-implementer"))
-    if (not verification.strip() or not re.search(r"\bbuild\b", verification, re.I)
-            or not re.search(r"\btest(?:s| suite)?\b", verification, re.I)):
-        results.append(("FAIL", "Verification requires build and existing tests"))
-    if review == "selected" and "code-review-lite" not in verification.lower():
-        results.append(("FAIL", "selected code review requires code-review-lite"))
-    if review == "selected" and "escalation policy: ask" not in verification.lower():
-        results.append(("FAIL", "selected review requires Escalation Policy: ask"))
-    if review == "skipped" and "code-review-lite" in verification.lower():
-        results.append(("FAIL", "skipped code review must not invoke code-review-lite"))
-    if "code-implementer" in assignment.lower() and any(not term.search(text) for term in SAFETY_TERMS):
-        results.append(("FAIL", "delegation safety/working-tree-aware contract is incomplete"))
-    for pattern, name in PLACEHOLDERS:
-        if pattern.search(text):
-            results.append(("FAIL", f"placeholder/vague text detected: {name}"))
+    verification_data = fields(verification)
+    for label in ("Build", "Existing tests"):
+        evidence = one(verification_data, label, results, "Verification")
+        if evidence and re.fullmatch(r"(?:N/A|not applicable|skipped)\s*[.!]?", evidence, re.I):
+            results.append(("FAIL", f"Verification {label} N/A requires a reason"))
+    review_evidence = " ".join(verification_data.get("Code review", []))
+    scoped_review = (re.search(r"\bcode-review-(?:lite|pro)\b", review_evidence) or
+                     (re.search(r"\bcode-reviewer\b", review_evidence, re.I) and
+                      re.search(r"\bscope\b|\bscoped\b", review_evidence, re.I)) or
+                     (re.search(r"\breviewer\s*:\s*\S+", review_evidence, re.I) and
+                      re.search(r"\bscope\b|\bscoped\b", review_evidence, re.I)))
+    if review == "selected" and not scoped_review:
+        results.append(("FAIL", "selected code review requires a named scoped reviewer or code-review-lite/pro"))
+    if review == "skipped" and scoped_review:
+        results.append(("FAIL", "skipped code review must not invoke a reviewer"))
     if not any(level == "FAIL" for level, _ in results):
-        results.extend((("PASS", "plan contract valid"), ("PASS", "task and verification flows match"),
-                        ("PASS", "preflight results recorded and consistent"),
-                        ("PASS", "no placeholders detected")))
+        results.extend((("PASS", "structured plan is consistent"), ("PASS", "task and verification flows match")))
+        if autonomy is not None:
+            results.append(("PASS", "preflight results recorded and consistent"))
     if autonomy == "verified-blocked":
-        results.append(("BLOCK", "Autonomy is verified-blocked: valid plan, but it cannot be approved until "
-                                 "every blocked probe is resolved and preflight is re-run"))
+        results.append(("BLOCK", "recorded Preflight has blocked probes; resolve them and re-run Preflight"))
     return results
 
 

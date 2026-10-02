@@ -24,7 +24,7 @@ Caller provides requirement/design/public-contract sources, allowed E2E paths/as
 
 1. Read only supplied requirements, design, and public contract; record ambiguity instead of inferring behavior. Do not assume undocumented screens, whitespace rules, validation, error clearing, default states, or any other behavior from implementation conventions.
 2. Create or validate test cases before execution, tracing each expected result to a supplied requirement. A proposed test expectation without such trace is `pending confirmation`, not an acceptance test. Scoped approved plan/design already authorizes traced cases; do not add an approval ritual.
-3. For E2E, load `browser-skill` or `browser-use` only when available and suited to authorized environment; manage only authorized E2E scripts, fixtures, execution configuration, and reports. Follow existing E2E ownership paths; use `.qa/` only when project convention permits.
+3. For E2E, load `browser-skill` or `browser-use` only when available and suited to authorized environment; manage only authorized E2E scripts, fixtures, execution configuration, and reports. For browser-visible checks after implementation, prefer `chrome-devtools` through `browser-skill` when headed Chrome, local bundle/runtime inspection, console/network evidence, or performance diagnostics are needed. Keep the project runner for repeatable CI coverage. Follow existing E2E ownership paths; use `.qa/` only when project convention permits. If the selected browser runtime or tool is unavailable, report `NOT RUN` or `BLOCKED`.
 4. Run allowed browser/API checks and record observed results.
 
 ## Output

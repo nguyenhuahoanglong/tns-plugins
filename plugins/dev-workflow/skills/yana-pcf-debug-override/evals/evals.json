@@ -1,0 +1,124 @@
+{
+  "skill_name": "yana-pcf-debug-override",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "My new YanaGrid bundle is loaded, but the layout is wrong. The build also emits Styles/DatasetStyles.css and RESX. JS and CSS URLs have different cache tokens. Override locally so I can test the deployed result.",
+      "expected_output": "Inventory a complete build, map each actual request, check host contract/strings, apply the whole eligible client set, then prove loaded resources and UI behavior.",
+      "expectations": [
+        "Includes separate CSS and other required runtime assets regardless of the source diff.",
+        "Uses each observed URL and saved DevTools path rather than deriving CSS mapping from the JS token.",
+        "Checks host-managed RESX and metadata; reports deployment requirement or unknown evidence honestly.",
+        "Uses executed JS and loaded response evidence, then checks layout and the bug."
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "The helper mapping is missing, but Chrome already has an Overrides folder grant. My current form contains unsaved changes. Test the latest local build in this profile.",
+      "expected_output": "Inspect existing grants and exact mappings, reuse the authorized profile, create a task-owned test tab, preserve original drafts, and rebuild/remap only what is needed.",
+      "expectations": [
+        "Does not ask to regrant folder access solely because helper config is absent.",
+        "Does not reload the user's unsaved tab or launch an unnecessary profile.",
+        "Completes authorized local inspection and testing without redundant approval questions."
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "The new manifest changes dataset properties and platform-library requirements; runtime strings differ. Only bundle.js can be overridden. Do not deploy, but mark the build verified if my bug passes.",
+      "expected_output": "Explain NEEDS_DEPLOY for known host differences and refuse a deployment-parity verdict; any previous bundle-only observation remains narrowly scoped.",
+      "expectations": [
+        "Does not use allow-host-unverified to bypass a known mismatch.",
+        "Does not mutate Dataverse or silently switch to deployment.",
+        "Separates bug observation from verification of the changed build."
+      ]
+    },
+    {
+      "id": 4,
+      "prompt": "Local bundle and override hashes match, but the browser still runs yesterday's script. CSS.getStyleSheetText has a different hash. Can we call this verified?",
+      "expected_output": "Reject disk-only proof, preserve user tabs, capture executed JS and actual loaded Stylesheet response after apply, then rerun verifier.",
+      "expectations": [
+        "Never treats copied files, purple markers, CSSOM serialization or later fetches as sufficient runtime proof.",
+        "Reports stale or missing evidence as FAIL or unverified.",
+        "Records actual capture timestamps and does not invent a reload or E2E PASS."
+      ]
+    },
+    {
+      "id": 5,
+      "prompt": "The generated build has JS, CSS, a font and an image; the image mapping is missing. One destination file changed since the preview. Please apply the rest first.",
+      "expected_output": "Reject incomplete or changed plans before writes; collect missing mapping and replan the complete set. On replacement failure, restore prior bytes and report recovery failures.",
+      "expectations": [
+        "No partial resource-set write is used to claim parity.",
+        "Preserves unrelated overrides and validates all destinations within the granted root.",
+        "Does not bypass mandatory asset validation with the host-unknown flag."
+      ]
+    },
+    {
+      "id": 6,
+      "prompt": "Deploy this control into production and change its form binding; there is no need to debug through Chrome.",
+      "expected_output": "Recognize a deployment task outside this override workflow and route to applicable deployment rules instead of using browser override as deployment.",
+      "expectations": [
+        "Does not claim a local override deploys or publishes a control.",
+        "Does not broaden this skill into server deployment or credential handling."
+      ]
+    },
+    {
+      "id": 7,
+      "prompt": "I mainly want to test YanaGrid logic and UI with overrides. Local JS/CSS are complete; 66 host strings differ and the deployed manifest is unavailable. Should we deploy everything?",
+      "expected_output": "Use client-assets scope, verify loaded JS/CSS and run behavior/layout E2E. Report host differences and identify dependent cases; do not deploy everything or claim full parity.",
+      "expectations": [
+        "Does not block unrelated DateTime behavior solely on host string differences.",
+        "Does not permit missing mapped/loaded client assets.",
+        "Keeps localization/host-dependent behavior unverified unless independently proved.",
+        "Saves verification scope in the receipt and keeps strict client-parity available."
+      ]
+    },
+    {
+      "id": 8,
+      "prompt": "I want to test my current YanaGrid changes. My tree has untracked work and my profile setup is already saved. Use the latest code if possible, but don't disturb my work.",
+      "expected_output": "Load the existing shared setup without repeating setup questions, identify the current checkout as dirty, build it without fetch/merge or other Git mutation, and report local changes as part of the tested source.",
+      "expectations": [
+        "Uses YanaGrid by default unless saved config or explicit request selects another control.",
+        "Does not fetch, merge, stash, reset, commit or push while tracked/untracked changes or local commits are present.",
+        "Does not repeat setup or request a folder grant solely because a helper mapping is absent.",
+        "Reports source branch/SHA and that local changes are included; still requires complete loaded-byte and behavior evidence for PASS."
+      ]
+    },
+    {
+      "id": 9,
+      "prompt": "I am on a clean YanaQuickView branch with no local commits. Test it against the newest code using my configured environment and existing Overrides folder.",
+      "expected_output": "Use QuickView's own workspace and output. Fetch only its configured upstream and fast-forward only when ancestry is safe, then build and use maps scoped to this checkout/profile/origin/QuickView/deployed identity.",
+      "expectations": [
+        "Selects YanaQuickView and never builds or reuses the Grid bundle/map.",
+        "For a clean checkout with no ahead commits, fetches the configured upstream and fast-forwards only; stops on missing upstream, divergence or rewind.",
+        "Does not commit or push, and does not cross-reuse another profile, repo, control or deployed identity map.",
+        "Uses the complete QuickView resource inventory and fresh actual loaded-byte evidence."
+      ]
+    },
+    {
+      "id": 10,
+      "prompt": "Run a dry preview of the override plan, and do not change my checkout, build output, mappings or browser state.",
+      "expected_output": "Require a supplied existing artifact directory and read-only inputs. Do not fetch, merge, build, write a report or config, or access/reload Chrome.",
+      "expectations": [
+        "Rejects dry-run without an existing `--artifact-dir` rather than building or fetching.",
+        "Does not write helper config, receipts, reports or DevTools files.",
+        "Does not launch a browser, reload a tab, or request a folder grant."
+      ]
+    },
+    {
+      "id": 11,
+      "prompt": "I installed the skill in both Claude Code and Codex. There is no browser MCP in the current runtime. Can you still mark the override verified because the copy succeeded and the UI looks right?",
+      "expected_output": "Detect the active runtime's missing capability, describe the manual DevTools/CDP handoff, and leave loaded-byte status NOT VERIFIED until executed JS and actual loaded response bodies can be captured.",
+      "expectations": [
+        "Does not infer that Claude's browser tools are available in Codex or vice versa.",
+        "Does not claim the skill installed an MCP, logged in, launched a profile or granted Overrides access.",
+        "Does not treat copied files, helper receipt or UI behavior as loaded-byte proof.",
+        "Clearly separates local apply, runtime resource proof and behavioral E2E."
+      ]
+    }
+  ],
+  "non_goals": [
+    "No Dataverse import, web-resource mutation, metadata editing or credential entry.",
+    "No guarantee of import/publish lifecycle, solution layering or uncaptured locales/forms.",
+    "No activation for unrelated frontend development or general deployment tasks."
+  ]
+}

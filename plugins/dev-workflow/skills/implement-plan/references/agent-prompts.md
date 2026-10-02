@@ -1,93 +1,80 @@
-# Agent Prompts
+# Delegation and Handoffs
 
-Use only after approval. Planning dispatch is the host tool's business, not this skill's. The main agent
-owns plan status and working-tree-aware scope verification.
+Read before dispatch. Choose role and supported model/effort through `model-routing.md`; a role's purpose
+and permissions remain binding regardless of model. Templates are editable briefs, not verbatim ceremonies.
 
-## Shared rules
+## Ownership
 
-- Pass the plan path; never inline the full plan or source files. Point agents to applicable `AGENTS.md`.
-- The main agent alone edits plan status. Dependency order determines waves, and parallelism never bypasses
-  it. Correctness never assumes real concurrency.
-- Before every writable dispatch, record working-tree-aware status plus scoped diff and file hashes;
-  compare afterward.
-- Every writable dispatch carries its exact task-file allowlist and the mandatory footer below.
-- Review receives Global Constraints verbatim. Selected review alone uses `Escalation Policy: ask`; never
-  pre-rate findings or tell a reviewer what not to flag.
+Main owns approval, plan status, integration, and evidence acceptance. Give each worker a bounded outcome,
+relevant plan sections, allowed writes, constraints, dependencies, and Done when. A path reference is useful
+when shared files are readable; a compact self-contained brief is valid when they are not.
 
-## Mandatory writable-dispatch footer
+Before writable dispatch, capture current status and scoped diff, including relevant untracked files.
+Use file hashes when concurrent changes or reliable baseline comparison require them. Preserve existing
+dirty work. Compare afterward; unexpected changes require investigation, not automatic rollback.
 
-Append this verbatim to every writable dispatch:
+Tell every worker:
 
 ```text
-You are not alone in the working tree. Write allowlist: {exact task-listed files only}.
-Do not write outside that allowlist; do not delete or move files; do not git reset, restore, or checkout;
-do not stash, stage, commit, push, publish, install, or broadly clean/revert other changes. If required
-work exceeds the allowlist or any prohibited operation seems needed, stop and report the exact blocker.
-Do not edit plan status. Return changed files, commands/results, and Done-when evidence.
+You are not alone in this workspace. Preserve others' work and adapt to current changes.
+Own only: <allowed files/module and permitted create/modify/delete actions>.
+Do not change plan status, expand scope, or reset/restore/revert/stash others' work.
+No stage, commit, push, publish, external writes, or installation unless this brief explicitly authorizes
+that exact action within the approved plan and applicable permissions.
+Send missing context or blockers to main, not the user. Return changed files and actual check results.
 ```
 
-## Code implementer — test-only TDD stage
+Do not use blanket deletion bans to prevent a planned rename/refactor. Specify permitted actions and
+exact scope; main verifies them. Unapproved destructive or external actions remain prohibited.
+
+## Implementation brief
 
 ```text
-Use Task(subagent_type="code-implementer", prompt="...", description="..."). Create assertion-level unit/component tests for Task {N} at {plan-path}; use project framework and unit-testing
-traceability/test-registry rules. Existing-method: baseline GREEN, characterization GREEN, changed RED.
-Simple-new: verify compile-ready named signatures/control-flow scaffold without business logic, then RED.
-Do not implement production logic or edit the plan.
-{mandatory writable-dispatch footer}
+Role: implementation owner, including selected unit/component tests.
+Task: <ID, outcome, approved plan/section or compact brief>.
+Read: <applicable instructions, scoped sources, interfaces, tests>.
+Constraints: <compatibility and settled decisions>.
+Writes: <exact scope and permitted actions>.
+Test approach: <direct implementation, characterization, or meaningful RED -> GREEN>.
+Done when: <observable behavior and commands/checks>.
+Return: complete | needs-context | blocked; changed files; checks/results; remaining concerns.
+<ownership rules>
 ```
 
-## QA engineer — E2E only
+Prefer `code-implementer` when its runtime fits. A supported general worker can carry the same implementation
+contract at a task-specific model; do not use a restricted research, QA, or reviewer role to write production
+code. Main can own a tiny task directly. Reuse the implementer for normal fixes; use a fresh approach for
+one substantive blocker retry. Do not force separate scaffold/test/implementation agents for routine work.
+
+## QA brief
 
 ```text
-Use Task(subagent_type="qa-engineer", prompt="...", description="..."). Create requirements-based test cases before E2E execution; read
-only requirement/design/public-contract sources and authorized E2E assets. Do not receive, read, or edit
-production code or unit/component tests. Run only authorized browser/API checks and report requirement trace.
-{mandatory writable-dispatch footer}
+Role: independent requirements-based QA; <test-cases | e2e | verify>.
+Requirements/public contracts: <scoped sources and approved cases only>.
+Target and expected identity: <environment, app, account role>.
+Access: <verified browser/runner channel and safe auth reference; no credentials>.
+Allowed test mutations/data and cleanup: <approved boundaries>.
+Writes: <E2E assets and evidence paths only>.
+Expected outcomes: <requirement -> case -> observable result>.
+Return: cases run, environment identity, evidence, defects, and NOT RUN/BLOCKED gaps.
+<ownership rules>
 ```
 
-## Implementer
+Use fresh isolated QA context, without production source, unit tests, or inherited implementation history.
+Do not pass the entire implementation plan if it includes those internals; prepare a requirement-only
+packet. Cases can be designed during planning. Live execution waits for approved mutations and ready target.
+Choose the project E2E runner for repeatability; use an available browser skill/tool for observed UI evidence.
+Verify the intended deployed/local build identity so testing the wrong build cannot become PASS.
 
-```text
-Use Task(subagent_type="code-implementer", prompt="...", description="..."). Implement Task {N}: {task-name}; project: {project-root}; plan: {plan-path}. Read Goal, Global
-Constraints, your task, and scoped tests. Follow its Mode, Depth, and Done-when. Run scoped verification.
-Never ask the user anything; the plan is your only source of decisions.
-Statuses: DONE; DONE_WITH_CONCERNS (criteria met, list risks); NEEDS_CONTEXT (state the missing fact and
-return it to the main agent, never to the user); BLOCKED (reason and attempts).
-{mandatory writable-dispatch footer}
-```
+## Review and blockers
 
-The main agent accepts DONE only after checking diff, file scope, and Done-when evidence. `NEEDS_CONTEXT`
-returns to the main agent, which resolves it from the plan or marks the task `blocked` — it is never a user
-prompt, because that would break the autonomy guarantee. One fresh blocker retry carries the decision and
-prior progress; a second blocker becomes `blocked`.
+Give an independent reviewer the scoped diff, requirements, Global Constraints, and relevant evidence.
+Invoke a selected review skill with its real consent/provenance; do not add an automatic `ask` gate to every
+review or silently replace its required approval with orchestrator text. Keep implementation ownership out
+of the review session. Send actionable findings to implementation, then verify corrections, at most two
+review rework loops by default.
 
-## Mode choreography
-
-- `existing-method`: record the exact existing-suite GREEN baseline; reuse or add characterization tests
-  GREEN; make RED assertions only for changed or new behavior; implement to GREEN.
-- `simple-new`: at `Depth: TDD`, the main agent writes the compile-ready named signatures and control-flow
-  wiring recorded in the task's `Scaffold` field, without business logic, and sets Status `scaffolded`; the
-  test-only dispatch verifies that scaffold and adds assertion-level RED tests; a fresh implementer makes
-  them GREEN. At `simplify`, the implementer implements directly.
-- `complex-backbone`: pause the same task for unchanged `design-backbone`, honor its independent decision
-  and approval locks, verify the handoff, resume the same task, and create no duplicate tests.
-
-## Verification and review rework
-
-Use a fresh implementer for red tests, unmet Done-when, scope violations, evidence mismatches, or all
-must-fix findings for the affected tasks. Require the exact correction, re-run Done-when verification, and
-append the mandatory footer. Selected review dispatches say `Run code-review-lite ... Escalation Policy:
-ask` and include `Global Constraints (verbatim from plan): {exact block}`. Re-verify and re-review at most
-twice. Skipped review has no dispatch, no offer, and no verdict.
-
-## Supporting docs
-
-Update or offer supporting docs only when an AC, project rule, or verified code impact requires them. Keep
-each affected document with its owning code task when practical. If a separate final sync is worthwhile, use
-`Task(subagent_type="document-writer", prompt="...", description="...")` for one coherent documentation artifact with final diff-stat, request
-surgical updates, then append mandatory footer.
-
-## Hard blocker advice
-
-Before one existing fresh blocker retry, main may call `Task(subagent_type="advisor", prompt="...", description="...")` with blocked task,
-constraints, evidence, and attempts. Advisor returns recommendation only; it does not edit, approve, or add retries.
+Main resolves missing details from the plan, code evidence, and recorded decisions. A new consequential
+choice or expired human-auth requirement pauses only dependent work. Consolidate the necessary user action;
+do not hide it behind a false autonomy guarantee. An advisor may investigate a hard blocker before the
+single fresh retry; advice does not approve scope changes or add retry loops.

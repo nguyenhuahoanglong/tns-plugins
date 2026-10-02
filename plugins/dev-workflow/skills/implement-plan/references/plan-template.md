@@ -1,102 +1,89 @@
 # Plan Template
 
-Main agent owns every status edit. Apply the path resolution in `plan-contract.md`; task headings are
-unique. Field sets are exact — see `plan-contract.md` for which conditional fields apply.
+Use for medium/large work or the optional consistency helper. Trim irrelevant sections. Small work can
+use one task block. Extra fields are allowed. The host's readable equivalent is equally valid.
 
 ```markdown
-# Plan: {Feature Name}
+# Plan: <Outcome>
 
 ## Context
-Plan path: {canonical path}
-Plan path origin: {host-plan-mode|existing-input|backlog-requirement|generated-project-root}
-Plan path evidence: {supplied input, promoted host draft path, or project-root basis}
-Unit tests: {selected|skipped}
-Unit tests source: {user|flag}
-Unit tests reason: {non-empty decision reason}
-Code review: {selected|skipped}
-Code review source: {user|flag}
-Code review reason: {non-empty decision reason}
+Plan path: <canonical path>
+Unit tests: selected
+Unit tests source: assessment
+Unit tests reason: <behavior/risk covered, or why new tests are skipped>
+Code review: selected
+Code review source: assessment
+Code review reason: <risk and selected route>
+Approval: <pending, or actual user approval source and scope>
+Execution boundary: <local implementation through verification; separately authorized external actions>
 
 ## Goal
-{Outcome understandable without the original conversation.}
+<Observable outcome, scope and non-goals.>
 
 ## Global Constraints
-{Project rules, compatibility constraints, protected paths, and non-goals.}
+<Compatibility, protected work, security, allowed local/external actions, and cost limits.>
 
 ## Acceptance Criteria
-- [ ] AC-1: {observable result}
+- [ ] AC-1: <observable result>
 
-## Preflight
-
-| ID | Kind | Target | Expect | Blocks |
-|---|---|---|---|---|
-| PF-1 | command | `pac` | resolves on PATH | Task 2 |
-| PF-2 | auth | `pac-org` | non-interactive success | Task 2 |
-| PF-3 | node-deps | `src/pcf/package.json` | devDependencies installed | Task 2 |
-| PF-4 | manual | Dataverse MCP list-tables | returns rows | Task 2 |
-
-### Preflight results
-Run: {ISO timestamp} scripts/preflight.py
-- PF-1 ready: {resolved absolute path}
-- PF-2 ready: {non-interactive check succeeded}
-- PF-3 ready: {all declared dependencies present}
-- PF-4 unverifiable: manual probe - Fallback: Task 2 stops and is marked blocked; never prompt.
-- derived path Task 1 `path/to/file` ready: file exists
-Autonomy: unverifiable-with-fallback
+## Readiness
+| Need | Evidence/decision | State | Recovery / affected tasks |
+|---|---|---|---|
+| E2E target and build | <exact target and build verification method> | <ready / pending / N/A with reason> | <Task N> |
+| Auth and account role | <protected read through actual browser/runner, no secrets> | <state> | <permitted refresh or stop> |
+| Test data and cleanup | <allowed mutations, fixture, cleanup> | <state> | <owner> |
+| Test/review decisions | <cases, owner, route and actual consent> | <state> | <possible pause> |
 
 ## Tasks
 
-### Task 1: {Descriptive Name}
+### Task 1: <Outcome>
 - Status: pending
 - Depends on: none
-- Files: `path/to/file`
-- Mode: {existing-method|simple-new|complex-backbone}
-- Description: {specific behavior and compatibility}
-- Done when: {mechanical command or observable evidence}
+- Files: `src/example.ts`, `tests/example.test.ts`
+- Description: <behavior, constraints, implementation role; allowed create/modify/delete scope>
+- Done when: <specific command/result or observable evidence>
 - ACs: AC-1
-
-### Task 2: {TDD Task Name}
-- Status: pending
-- Depends on: Task 1
-- Files: `path/to/other`
-- Mode: existing-method
-- Depth: TDD
-- TDD reason: {why this behavior needs a failing test first}
-- Existing-method baseline: {exact existing suite command and result}
-- Description: {specific behavior and compatibility}
-- Done when: {mechanical command or observable evidence}
-- ACs: AC-1
+- Model / effort: <intended selection and supported fallback>
+- Decision latitude: <details worker may settle without asking>
 
 ## Agent Assignment
-
-| Wave | Task(s) | Agent | Verified by main agent |
-|---|---|---|---|
-| 1 | Task 1 | code-implementer | diff plus Done-when evidence |
-| 2 | Task 2 | code-implementer | RED then GREEN plus diff |
+| Wave | Task(s) | Agent | Model / effort | Why | Fallback |
+|---|---|---|---|---|---|
+| 1 | Task 1 | code-implementer | <live selectable model/effort> | <task fit> | <within approved cost/scope> |
 
 ## Verification
+- Build: `<exact command>` (or N/A with concrete reason)
+- Existing tests: `<exact command>` (or N/A with concrete reason)
+- E2E: <cases, target, runner, permitted data, evidence>
+- Code review: Reviewer: code-reviewer; scope: <changed files>; <genuine consent/session prerequisites>
+- Completion evidence: <results to capture per AC>
 
-- Build: `{exact command}`
-- Existing tests: `{exact command}`
-- TDD tests (only when Unit tests is selected): `{exact command}`
-- Code review (only when selected): `code-review-lite` over changed files, `Escalation Policy: ask`
-- Manual/static checks: {specific check}
-
-| Status | Meaning |
-|---|---|
-| `pending` | Not started |
-| `scaffolded` | TDD signature or stub only |
-| `in-progress` | Implementer active |
-| `complete` | Main agent verified Done-when |
-| `blocked` | Retry exhausted or preflight prerequisite unmet |
+## Execution policy
+<Default: one fresh substantive-blocker retry; at most two selected-review rework loops.
+Continue independent work when blocked. Escalate only new material decisions/authority or human auth.
+Do not commit, publish, deploy, or expand external writes without existing authorization.>
 ```
 
-Every result line reads `- <probe id> <state>: <detail>`, with the state before the colon; an
-`unverifiable` result carries its `Fallback:` on that same line. `Autonomy` follows the aggregation rule:
-blocked beats unverifiable beats ready.
+When TDD is useful, add `Depth: TDD` and `TDD reason: <risk>` to the task. Record baseline/RED/GREEN
+evidence where it matters; `Mode`, scaffold choreography, and fixed agent counts are not mandatory.
 
-`Depth` appears only when `Unit tests: selected`; an absent `Depth` means `simplify`. `TDD reason`,
-`Existing-method baseline`, and `Scaffold` appear only at `Depth: TDD`, the latter two per `Mode`. `Mode`
-appears on every task. Every task needs files, a dependency, a concrete description, a mechanical Done when,
-and an AC mapping; at least one task must deliver code. Supporting non-code files stay inside their owning
-code task and need an AC, project rule, or verified code-impact reason.
+When using the typed preflight script, add this separate section. Task `Files:` are comma-separated
+exact paths for derived probes; bounded-module prose belongs in Description instead. Copy each derived
+result from the real run. Do not leave placeholders or illustrative ready results in an approved plan.
+
+```markdown
+## Preflight
+| ID | Kind | Target | Expect | Blocks |
+|---|---|---|---|---|
+| PF-1 | command | `node` | resolves on PATH | Task 1 |
+
+### Preflight results
+Run: <actual command and time>
+- PF-1 <ready|blocked|unverifiable>: <actual output; Fallback: required if unverifiable>
+- derived path Task 1 `src/example.ts` <state>: <actual output>
+- derived path Task 1 `tests/example.test.ts` <state>: <actual output>
+Autonomy: <aggregate from recorded results>
+```
+
+Task status: pending, in-progress, complete, blocked; legacy scaffolded remains readable.
+Complete means main verified Done when. A worker report alone means awaiting verification, not complete.

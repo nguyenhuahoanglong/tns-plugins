@@ -1,0 +1,51 @@
+{
+  "skill_name": "chrome-devtools",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "After implementing a CRM form fix, verify the browser-visible save behavior in a headed Chrome window and capture console evidence.",
+      "expected_output": "Use Chrome DevTools MCP, preserve the visible session, perform the authorized acceptance flow, and report observed evidence by case.",
+      "expectations": [
+        "Routes the check through Chrome DevTools MCP and confirms the target environment and test data before acting.",
+        "Uses list_pages/new_page or navigate_page, wait_for, take_snapshot, and fresh snapshots after DOM-changing actions.",
+        "Keeps Chrome headed and reports PASS only from observed browser evidence, with console evidence when relevant.",
+        "Reports missing runtime, login, or test authority as BLOCKED or NOT RUN rather than PASS."
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "Inspect a failing post-implementation request in Chrome and determine whether the browser sent the expected bundle.",
+      "expected_output": "Use network and runtime inspection to identify the request and report the observed response/build identity without changing server content.",
+      "expectations": [
+        "Uses list_network_requests and get_network_request with the correct page target, filtering large output as needed.",
+        "Uses evaluate_script only for a focused runtime question and records the exact observed identity.",
+        "Does not claim deployment or server-side state from a local browser observation alone."
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "Run an existing Playwright regression suite after a UI change and also inspect one live headed page for a console error.",
+      "expected_output": "Keep the project runner for repeatable regression coverage and use Chrome DevTools MCP only for the live diagnostic check.",
+      "expectations": [
+        "Does not replace or rewrite the project Playwright suite with ad hoc MCP actions.",
+        "Uses Chrome DevTools MCP for the live headed diagnostic and separates its evidence from suite results.",
+        "Reports each verification source and status independently."
+      ]
+    },
+    {
+      "id": 4,
+      "prompt": "Run browser verification when Chrome DevTools MCP is unavailable and no authorized alternative is provided.",
+      "expected_output": "Stop browser execution and report NOT RUN or BLOCKED with the exact missing prerequisite.",
+      "expectations": [
+        "Does not invent tool calls or silently switch browser backends.",
+        "Does not report PASS from source inspection or a static skill check.",
+        "Preserves credentials and test data while reporting the blocker."
+      ]
+    }
+  ],
+  "non_goals": [
+    "Replacing project Playwright, Cypress, or other repeatable E2E runners.",
+    "Entering credentials or widening authorized test data mutations.",
+    "Claiming deployment or runtime success without observed browser evidence."
+  ]
+}

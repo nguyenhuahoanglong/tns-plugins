@@ -1,104 +1,70 @@
-# Plan Contract
+# Plan Content and Decisions
 
-What a plan must contain to be executable without user interaction. This file prescribes the **contract**,
-never the planning method: no interview script, no question bank, no explorer or architect counts, no
-exploration scaling. The host tool's plan mode owns all of that.
+Read when adopting or drafting a plan. These are outcome requirements, not a prompt-audit scoring rubric.
+Use the host's planning method and the smallest structure that makes execution clear.
 
 ## Path resolution
 
-| Input | Origin | Canonical destination |
+| Input | Origin | Destination |
 |---|---|---|
-| Host-injected plan path present | `host-plan-mode` | draft at host path, `.plans/<feature>.md` on promotion |
-| Existing plan path supplied | `existing-input` | its exact supplied path |
-| Explicit requirement file/folder under `.backlog/<feature>/` | `backlog-requirement` | `.backlog/<feature>/plan.md` |
-| Inline, no-argument, or non-backlog input | `generated-project-root` | nearest project-root `.plans/<feature>.md` |
+| Host-injected plan path | host-plan-mode | Draft there; promote a copy to `.plans/<feature>.md` after approval |
+| User-supplied plan | existing-input | Keep that exact path |
+| Explicit requirement under `.backlog/<feature>/` | backlog-requirement | `.backlog/<feature>/plan.md` |
+| Inline or other input | generated-project-root | Nearest project-root `.plans/<feature>.md` |
 
-Detect, never assume. While a host plan path is in force it is the only writable file: draft there and
-never attempt a repo write before approval. Codex plan mode injects no path, so resolve by matrix; when the
-host forbids planning writes, hold the draft in-message and make the canonical write the first
-post-approval action. Promotion copies the approved draft to the canonical path with a real feature slug
-(host slugs are hash-suffixed paraphrases); never delete or rewrite the host file. From promotion onward
-only the canonical file receives Status updates. Discovered backlog context never redirects a plan.
+Honor host write restrictions. If planning writes are forbidden, show the plan in-message and write its
+approved copy first after approval. Never overwrite/delete the host draft. Discovered backlog context
+does not redirect an explicit path. Main owns canonical status edits after promotion.
 
-## Consent
+## Minimum useful content
 
-`--tdd`, `--review`, `--no-tdd`, and `--no-review` are explicit consent; record the flag verbatim in the
-matching reason field. Without flags, ask one consolidated question after the plan is drafted — both,
-tests only, review only, or neither — once. Silence skips both. A one-line advisory naming the trigger and
-the risk is allowed; a recommendation phase is not. Legacy `requested`/`not requested` and old
-`auto-assessment` selections are accepted as input and normalized to `source: user` with the reason
-preserved. Surface a project-mandated gate conflict for user resolution rather than overriding a decline.
+- Goal, scope, non-goals, constraints, and observable ACs.
+- Task outcome, implementation/E2E ownership, allowed files or bounded module, dependencies, and Done when.
+- Quality choices and reasons: new unit tests, TDD where useful, E2E, review route, existing checks.
+- Human prerequisites, current evidence, permitted recovery, and any accepted verification gaps.
+- Role, intended model/effort, fallback, and why that task needs that level. Mark inherited/unknown honestly.
 
-## Context contract
+One small task can be one concise block. Large work benefits from a table and dependency waves. Do not
+require scaffolds, named task modes, exact field counts, or ban harmless words/code syntax. A real
+unresolved behavior decision matters; an existing TODO comment or JSON object does not block approval.
 
-Write exactly these fields on every new or rewritten plan:
+For the optional parser, retain `## Context`, `## Tasks`, `### Task N:`, `## Acceptance Criteria`, and
+`## Verification`, with the labeled fields shown in the template. Other host formats receive semantic
+review rather than forced conversion. Static validation is not evidence of runtime readiness.
 
-```text
-Plan path: <canonical path>
-Plan path origin: host-plan-mode|existing-input|backlog-requirement|generated-project-root
-Plan path evidence: <supplied input, promoted host draft path, or project-root basis>
-Unit tests: selected|skipped
-Unit tests source: user|flag
-Unit tests reason: <non-empty>
-Code review: selected|skipped
-Code review source: user|flag
-Code review reason: <non-empty>
-```
+## Quality and approval
 
-`Autonomy` and preflight results live in `## Preflight`, never in `## Context`.
+Honor `--tdd`, `--review`, `--no-tdd`, `--no-review` and existing explicit choices. Otherwise propose a
+risk-based choice in the plan, with provenance `assessment` or `project`. Never normalize an assessment
+into `user` consent. Approval of an unchanged plan covers its concrete choices; do not ask again per task.
+Silence is not a choice. If a project rule conflicts with an explicit decline, resolve it before execution.
 
-## Eligibility
+Existing checks remain verification even when writing new tests is skipped. TDD should fail at a meaningful
+behavior assertion before implementation, not at missing imports or scaffolding. Use characterization for
+behavior that must remain stable. Resolve test ownership and material expected outcomes during planning;
+approved cases satisfy downstream gates only where that skill explicitly supports this.
 
-At least one task must deliver source code, executable scripts, test code, or runtime/build code tied to a
-feature, fix, or refactor. Supporting non-code files may ride along in an eligible code plan when an AC,
-project rule, or verified code impact requires them, inside their owning code task; they never make a plan
-eligible and never form a standalone task.
+Review route can be a scoped independent reviewer or the selected review skill, according to user/project
+requirements. Never replace an explicitly requested review skill with a lighter route. For
+`code-review-lite`, `Escalation Policy: auto` requires actual explicit user consent, recorded with source.
+Without it, retain `ask` and disclose the potential pause. A planned Pro review must also satisfy Pro's
+invocation and session-consent rules; do not fabricate `direct-user` provenance. Inspect these gates while
+planning and use a fresh eligible review session where supported.
 
-## Acceptance criteria
+`complex-backbone` is not an automatic workflow switch. Resolve architecture during planning. If the user
+explicitly requested `design-backbone`, satisfy its decision/approval gates through its own workflow and
+record the handoff before dependent detail work. Do not unexpectedly introduce it midway through execution.
 
-Each AC states observable behavior and maps to one or more tasks. Good: `AC-1: Exporting an empty report
-yields a CSV with only the header row.` Weak: `AC-1: Export works.`
+## Execution discretion
 
-## Per-task contract
+Main may choose helper names, local algorithms, test fixtures, and sequencing within approved behavior and
+scope. Reassignment and model escalation within the recorded fallback/cost envelope need no new approval.
+New product behavior, architecture direction, external authority, or meaningful cost expansion does.
 
-Every task carries exactly these seven fields:
+Independent tasks have disjoint write scopes. Tasks may touch the same file sequentially with an explicit
+dependency and updated baseline. Assign coupled work to one owner. Main may refine an allowlist within an
+already-approved module before dispatch, documenting why; a delegate may not expand it unilaterally.
 
-```text
-- Status: pending|scaffolded|in-progress|complete|blocked
-- Depends on: none|Task N
-- Files: `path`
-- Mode: existing-method|simple-new|complex-backbone
-- Description: <zero-context executable behavior and compatibility>
-- Done when: <mechanical command or observable evidence>
-- ACs: AC-N
-```
-
-Conditional fields, and no others:
-
-- When `Unit tests: selected`, add `Depth: simplify|TDD`. An absent `Depth` means `simplify`.
-- When `Depth: TDD`, add `TDD reason: <non-empty>`; `Depth: TDD` is itself the risk assertion.
-- When `Mode: existing-method` and `Depth: TDD`, add `Existing-method baseline: <exact existing suite
-  command and result>`.
-- When `Mode: simple-new` and `Depth: TDD`, add `Scaffold: <named signatures and control-flow wiring>`.
-
-`Mode` is mandatory at every depth because `complex-backbone` routes execution to `design-backbone`
-regardless of Depth. Valid Done-when evidence is a named build/test command, a deterministic assertion, or
-exact endpoint I/O.
-
-## Actionability gate
-
-A task is admitted only when its pattern or signature was personally read, its description is zero-context
-executable, its Done when is mechanical, and `Depends on` is `none` or an exact task. Every external
-prerequisite — authentication, network endpoint, CLI availability, dependency state — has a `## Preflight`
-row. File existence is never hand-authored: `preflight.py` derives a `path` probe from every task's
-`Files:` field, checking parent-folder existence for a file the description marks as new.
-
-No two tasks share a file; merge overlapping work. Imports and contracts create explicit dependency edges,
-and a changed shared interface precedes all of its consumers. Assign one implementer per independent,
-dependency-ready slice, keep coupled files together, and cap concurrency at three. The plan records waves
-plus each agent's file scope, task contract, and Done-when evidence.
-
-## Placeholder ban
-
-`TBD`, `TODO`, `undecided`, `appropriate`, `similar to Task N`, and unresolved template braces block
-writing. Resolve the fact or narrow the scope instead.
+Blocked work stays visible. An approved staged plan identifies exactly what can execute, which ACs remain
+blocked, and what human action is outstanding. Do not turn a required E2E check into optional verification
+or claim full delivery merely because local tests pass.

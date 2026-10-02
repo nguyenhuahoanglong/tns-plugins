@@ -1,0 +1,109 @@
+{
+  "skill_name": "yana-pcf-deploy",
+  "non_goals": [
+    "No full release orchestration, source version bump, ADO/PR/notes updates, variant removal, commit, or push.",
+    "No local production import; production remains CI/CD-only.",
+    "No release-source inference from common ancestor or highest SemVer."
+  ],
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Deploy my variant for testing. I am on US/431-fix-grid and my AGENTS.local.md has personal_variant=Lan.",
+      "expected_output": "Plans CurrentWork Personal from the checked-out branch, syncs its configured upstream latest into that branch, then builds the post-sync code plus safe tracked/untracked changes.",
+      "expectations": [
+        "Uses configured personal variant Lan without asking again or defaulting to Long.",
+        "Reports branch, remote SHA, local HEAD, local-change hash, merge strategy, target environment, and build mode before apply.",
+        "Does not create a separate source commit or push; discloses if Git must create a merge commit, and never copies AGENTS.local.md into snapshot."
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "Deploy my variant from current branch; the working tree has staged changes, unstaged changes, and a new source file.",
+      "expected_output": "Syncs latest configured upstream into the checked-out branch and creates an isolated snapshot from post-sync HEAD, combined tracked diff, and non-ignored new source file.",
+      "expectations": [
+        "Preserves caller branch and staged/unstaged WIP; synced HEAD may advance and is recorded separately from original HEAD.",
+        "Source helper blocks if remote SHA, local-change fingerprint, or excluded private-file fingerprint changes during preflight.",
+        "Snapshot excludes AGENTS.local.md, environment credentials, and ignored build outputs."
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "Deploy RC while current branch is US/431-fix-grid, mapped in local config to release branch 1.7.0.",
+      "expected_output": "Plans CurrentWork RC from latest origin/1.7.0 merged into the checked-out branch, preserving current work branch commits and local changes before snapshotting.",
+      "expectations": [
+        "Uses only exact confirmed 1.7.0 mapping and shared history.",
+        "Does not select a numerically higher SemVer branch; syncs into the current branch and reports whether a merge commit is required.",
+        "Uses shared RC variant and records release branch tip SHA separately from local HEAD and snapshot hash."
+      ]
+    },
+    {
+      "id": 4,
+      "prompt": "Deploy RC from feature branch with no release_sources mapping. The branch shares old history with 1.5.0 and 1.7.0.",
+      "expected_output": "Returns NEEDS_INPUT asking which exact release branch the feature branch targets; does not choose from shared ancestry or version ordering.",
+      "expectations": [
+        "Does not fetch/build/import until release source is confirmed.",
+        "Offers to save exact work-branch-to-release mapping after user confirmation.",
+        "Does not ask for unrelated setup values already present in local config."
+      ]
+    },
+    {
+      "id": 5,
+      "prompt": "Release orchestration supplies branch 1.7.0 and approved SHA abc123; make deploy plan.",
+      "expected_output": "Uses Pinned policy and exact source SHA; does not merge release or include developer checkout WIP.",
+      "expectations": [
+        "Uses supplied branch and verifies live tip against expected SHA.",
+        "Blocks if branch tip differs from approved SHA.",
+        "Preserves pinned Release caller contract without adding current-work merge authority."
+      ]
+    },
+    {
+      "id": 6,
+      "prompt": "Deploy production variant locally.",
+      "expected_output": "Blocks local import and states production deploy is CI/CD-only.",
+      "expectations": [
+        "Does not invoke solution import or change current source.",
+        "Does not treat Prod as a configurable sandbox URL."
+      ]
+    },
+    {
+      "id": 7,
+      "prompt": "PAC points to a different org than saved target, or tracked deploy script lacks expected-org/readback patch.",
+      "expected_output": "Stops before build/import or refuses import until exact org and tracked script contract are verified.",
+      "expectations": [
+        "Compares exact HTTPS org origin before build and passes expected org into tracked deployment script for a second check.",
+        "Fails closed when publish/readback contract markers are missing.",
+        "Reports partial import if publish/readback fails; never reports full success from an import-only result."
+      ]
+    },
+    {
+      "id": 8,
+      "prompt": "Deploy RC from a work branch with no config mapping but its branch reflog says it was created from origin/1.7.0, and the recorded creation commit is an ancestor of current HEAD and latest origin/1.7.0.",
+      "expected_output": "Uses exact 1.7.0 based on verified branch-creation evidence and syncs latest into the current branch.",
+      "expectations": [
+        "Accepts only the exact creation reflog evidence and verifies ancestry to both current HEAD and latest release tip.",
+        "Does not infer the release from a common ancestor alone.",
+        "Records branch-creation-reflog as source evidence."
+      ]
+    },
+    {
+      "id": 9,
+      "prompt": "Deploy my variant from a local branch that has no upstream.",
+      "expected_output": "Allows local-only current-work deployment and says there is no remote upstream to update.",
+      "expectations": [
+        "Uses current branch HEAD and safe local WIP.",
+        "Does not fail solely because no upstream is configured or claim a remote update.",
+        "Keeps source freshness and target-org checks."
+      ]
+    },
+    {
+      "id": 10,
+      "prompt": "Latest source and current work diverged, so Git will create a merge commit. Show plan before I approve deployment.",
+      "expected_output": "Shows exact source SHA, current branch/HEAD, WIP fingerprint, variant, environment, and merge-commit strategy before apply.",
+      "expectations": [
+        "Discloses the merge commit before applying it.",
+        "Does not push or make a separate source commit.",
+        "Rechecks branch, HEAD, source tip, WIP, and private local files immediately before merging after preflight."
+      ]
+    }
+  ]
+}

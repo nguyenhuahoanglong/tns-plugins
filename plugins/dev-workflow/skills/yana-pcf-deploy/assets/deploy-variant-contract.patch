@@ -1,0 +1,50 @@
+diff --git a/Solution/scripts/deploy-variant.ps1 b/Solution/scripts/deploy-variant.ps1
+--- a/Solution/scripts/deploy-variant.ps1
++++ b/Solution/scripts/deploy-variant.ps1
+@@ -70,6 +70,7 @@
+ param(
+     [Parameter(Mandatory)][ValidatePattern('^[A-Za-z0-9]+$')][string]$Variant,
+     [Parameter(ParameterSetName = 'Deploy')][ValidateSet('Debug', 'Release')][string]$BuildMode = 'Debug',
++    [Parameter(ParameterSetName = 'Deploy')][string]$ExpectedOrgUrl,
+     [Parameter(ParameterSetName = 'Remove')][switch]$Remove
+ )
+ 
+@@ -240,6 +241,17 @@
+     $who | Write-Host
+     $orgUrl = ([regex]::Match(($who -join "`n"), 'https://[^\s/]+')).Value
+     if (-not $orgUrl) { throw "Could not determine org URL from 'pac org who'." }
++    if ($ExpectedOrgUrl) {
++        $expectedUri = $null
++        if (-not [Uri]::TryCreate($ExpectedOrgUrl, [UriKind]::Absolute, [ref]$expectedUri) -or $expectedUri.Scheme -ne 'https' -or $expectedUri.UserInfo -or $expectedUri.Query -or $expectedUri.Fragment -or $expectedUri.AbsolutePath.Trim('/')) {
++            throw "ExpectedOrgUrl must be an HTTPS org origin."
++        }
++        $expectedOrigin = $expectedUri.GetLeftPart([UriPartial]::Authority).TrimEnd('/')
++        if ($orgUrl.TrimEnd('/') -ine $expectedOrigin) {
++            throw "Active PAC org '$orgUrl' does not match expected org '$expectedOrigin'; import blocked."
++        }
++        Write-Host '[deploy-variant] Deploy source contract: expected-org-pin-v1' -ForegroundColor DarkCyan
++    }
+ 
+     # --- Import (unmanaged; --force-overwrite replaces an existing variant's bundle/labels) ---
+     Write-Host "[deploy-variant] Importing $zipPath -> $orgUrl ..." -ForegroundColor Cyan
+@@ -274,9 +286,17 @@
+         }
+     }
+     if (-not $published) {
+-        Write-Warning "[deploy-variant] PublishAllXml could not start (org stayed busy). The solution IS imported -- re-run this script (or just the publish) once the org is idle."
+-    }
+-
++        throw "[deploy-variant] PublishAllXml failed after import; solution '$solutionName' is imported but not verified as published. Retry publish after the org is idle."
++    }
++
++    $solutionFilter = [Uri]::EscapeDataString("uniquename eq '$solutionName' and ismanaged eq false")
++    $solutionReadback = Invoke-RestMethod -Method Get -Headers $h -Uri "$orgUrl/api/data/v9.2/solutions?`$select=solutionid,uniquename,ismanaged,version&`$filter=$solutionFilter"
++    $verifiedSolutions = @($solutionReadback.value | Where-Object { $_.uniquename -ceq $solutionName -and $_.ismanaged -eq $false })
++    if ($verifiedSolutions.Count -ne 1) {
++        throw "[deploy-variant] Solution readback did not find exactly one unmanaged '$solutionName'; import/publish state is partial."
++    }
++    Write-Host "[deploy-variant] Verified solution readback: $($verifiedSolutions[0].uniquename), unmanaged=$($verifiedSolutions[0].ismanaged), version=$($verifiedSolutions[0].version)" -ForegroundColor DarkCyan
++    Write-Host '[deploy-variant] Deploy source contract: verified-publish-readback-v1' -ForegroundColor DarkCyan
+     Write-Host "[deploy-variant] Done: '$solutionName' imported & published to $orgUrl." -ForegroundColor Green
+ }
+ finally {

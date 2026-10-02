@@ -1,66 +1,80 @@
-# Autonomy Preflight
+# Planning Readiness and Recovery
 
-The plan must execute with zero user interaction. Preflight proves that before approval by probing real
-prerequisites — files, commands, authentication, endpoints, dependency state — instead of assuming them.
+Read during planning, before asking for execution approval. Goal: remove predictable human interruptions,
+not manufacture a zero-interaction guarantee. Probe only prerequisites relevant to the approved outcome.
 
-**Safety property: a closed set of probe kinds with typed arguments and keyed auth commands, never
-free-form shell.** A `## Preflight` section is agent-authored text; a runner that executed strings from it
-would be remote code execution via markdown. `preflight.py` therefore accepts only the kinds below, and
-`auth` targets are keys into a hardcoded table — the plan can never supply a command line.
+## Human dependencies to resolve now
 
-## Probe kinds
+| Concern | Evidence/decision needed before dependent execution |
+|---|---|
+| Acceptance and UI | Expected happy/error states; relevant screenshots/design references; responsive/accessibility expectations |
+| Architecture | Consequential interface/data-flow choices settled; required design-backbone gates satisfied before detail work |
+| Test ownership | Existing unit/E2E owners and test locations; meaningful cases derived from approved requirements |
+| Target | Exact environment/tenant/app and expected build identity; allowed local/nonproduction scope |
+| Authentication | Actual execution channel reaches a protected read-only page/API as the intended account/role |
+| Browser/runner | Tool available to the eventual QA worker; base URL/start command; session transfer supported without secret leakage |
+| Data and writes | Safe fixtures, allowed create/update/delete operations, cleanup, and any external-write limits |
+| Review | Selected route, real escalation consent, and any session confirmation handled or disclosed |
+| Recovery | Permitted restarts, noninteractive setup/retry, fallback route, and actions that still require the user |
 
-| Kind | Target | What it proves |
-|---|---|---|
-| `path` | repo-relative or absolute path | the file or directory exists. Derived automatically from every task's `Files:`; also declarable. Pure read. |
-| `command` | bare command name | the executable resolves on PATH. Reports the resolved absolute path; never executes it. |
-| `command-version` | bare command name | the executable runs, using one allowlisted argument (`--version`, `-v`, `version`) and nothing else. |
-| `auth` | a key, never a command | a non-interactive credential check succeeds. Keys: `az-account`, `pac-list`, `pac-org`, `ado-pat`, `nuget-sources`, `git-remote`. |
-| `env` | variable name | the variable is set. Never its value, never its length. |
-| `url` | http or https URL | the endpoint is reachable: DNS, TCP, TLS, one unauthenticated GET, no headers or body. `401`/`403` is `ready` — the service is up and only auth is missing, which is the `auth` probe's job. Never POST. |
-| `node-deps` | `package.json` path | every `dependencies` and `devDependencies` entry exists under `node_modules`. This is the `npm ci` detector. |
-| `dotnet-restore` | `.csproj` path | `obj/project.assets.json` exists and is no older than the project file. |
-| `manual` | free text | nothing. Never executed; always `unverifiable`, and the main agent must attest. Covers MCP-driven work no script can probe. |
+Infer known facts from sources and live evidence. Ask only missing consequential facts, grouped while the
+user is planning. Do not send a standard questionnaire for tasks that need no E2E/auth/UI decisions.
 
-Preflight never runs a build or a restore — both write `obj/`, `bin/`, or `node_modules` and would break
-the read-only guarantee that host plan mode depends on. The plan names the build command; preflight proves
-the executable resolves and the manifest, lock, and restore state are present.
+Use an existing authorized login where possible. When user login/MFA is required, arrange it before
+implementation approval, then check access through the same channel execution will use. Host plan-mode
+restrictions still apply: do not launch a prohibited state-changing tool. Have the user perform setup or
+use an explicitly authorized preparation stage. Planning auth readiness is distinct from implementation
+approval. Never place credentials, cookies, tokens, or storage-state contents in a plan or report.
 
-Prefer `auth` over `env` for credentials. `AZURE_DEVOPS_EXT_PAT` being set proves nothing about expiry;
-`ado-pat` actually calls the API read-only, so an expired PAT becomes a real block instead of a surprise
-mid-run.
+## Separate human prerequisites from executable setup
 
-## Read-only and secret-safe
+Missing login, undefined expected behavior, or missing test-data authority cannot be fixed by a worker's
+guess. Resolve now or explicitly stage the dependent task as blocked. A planned local dependency restore,
+starting the test server, or creating an approved fixture may run after approval without another question.
+Record commands, boundaries, and verification; do not imply setup already ran.
 
-- Every probe runs with stdin closed, never through a shell, with a per-probe timeout: 20 s default, 45 s
-  for `auth`, 10 s for `url`.
-- Resolve executables with `shutil.which` first, then invoke the **resolved absolute path**. On Windows
-  `az`, `pac`, `npm`, and `ado` are `.CMD` shims: invoking the bare name raises `WinError 2` and reads as
-  "not installed" even though the tool works.
-- Redact before printing: bearer tokens, JWT-shaped strings, `access_token` values, and the value of any
-  environment variable whose name contains `PAT`, `TOKEN`, `SECRET`, `KEY`, or `PASSWORD`. Captured output
-  is capped per probe.
-- The runner never writes the plan. It prints results; the main agent transcribes them. That preserves both
-  the plan-mode single-file constraint and single-writer ownership of the plan.
+If only a deployed UI exists today, check authentication/permissions now and verify the changed build
+later. Passing access preflight is not passing feature E2E. If credentials expire during execution, use
+only an authorized noninteractive refresh; otherwise pause dependent checks, continue independent work,
+and request the minimum human action. Never silently substitute a different account or target.
 
-## States and gates
+## Reuse the typed probe helper when useful
 
-- **`ready`** — executed and matched.
-- **`blocked`** — executed and failed, or timed out. A timeout on `auth` is the interactive-prompt
-  signature (`az login`, device code), so it is a block, not an unknown. A blocked probe is a legitimate
-  recorded result in a contract-valid plan, but it cannot be approved: fix it in the interactive window with
-  the user present and re-run, or descope the tasks named in `Blocks`. Never improvise credentials, never
-  switch authentication mode.
-- **`unverifiable`** — the kind cannot prove it (`manual`, or an unreadable resource). Requires a
-  `Fallback:` clause **on the same result line**, naming exactly what happens if it turns out blocked at
-  runtime, which is always: the task stops and is marked `blocked`; never prompt, never improvise. The count is surfaced at approval so
-  the user consents to the residual risk.
+`python <skill>/scripts/preflight.py <plan-path> --repo-root <project-root>` reads the structured `## Preflight`
+table. It uses a closed set of typed probes; it never executes free-form plan-supplied commands.
+Keep other readiness tables under a separate heading so this parser does not treat them as probes.
 
-Aggregate to `Autonomy`: `verified-blocked` if any probe is blocked; otherwise
-`unverifiable-with-fallback` if any is unverifiable; otherwise `verified-ready`.
+| Kind | Actual proof and limit |
+|---|---|
+| path | Path or parent exists; not proof a supposedly existing source file is correct |
+| command / command-version | Command resolves / approved version argument runs; not complete task capability |
+| auth | Keyed check: az-account, pac-list, pac-org, ado-pat, nuget-sources, git-remote; account/feed listings alone do not prove resource access |
+| env | Variable is set; not validity/expiry |
+| url | DNS/TCP/TLS and GET reachability; 401/403 is reachable, never authenticated readiness |
+| node-deps | Declared dependency directories exist; not exact lockfile/version/build correctness |
+| dotnet-restore | Assets file exists and is recent enough; not a successful build |
+| manual | Script cannot check it; always unverifiable, even if separate tool evidence exists |
 
-## When to run it
+Prefer direct protected-resource evidence over inferring access from these narrow checks. Record a
+successful MCP/browser read separately; do not label an unrun scripted check ready. No automatic build,
+restore, install, login, or test-data mutation occurs in this helper.
 
-Twice, with no freshness field and no timestamp arithmetic. Once during Harden, where it gates approval,
-and once as the first Execute step after promotion, where it gates fan-out. Two cheap runs cover expired
-tokens and a changed working tree better than any TTL the agent has to reason about.
+Its output remains secret-redacted, capped, noninteractive, and timeout-bounded. The caller records
+results; the helper does not write the plan. Use resolved executable paths and existing approved auth.
+
+## States, decisions, and freshness
+
+For typed probes: `ready`, `blocked`, `unverifiable`; aggregate remains `verified-ready`,
+`verified-blocked`, or `unverifiable-with-fallback`. Copy results accurately. Every unverifiable result
+needs a same-line `Fallback:` describing safe recovery or a dependent-task stop.
+
+These labels describe probe coverage, not blanket approval. A blocked probe stays blocked even when
+approved setup will fix it. Stage setup first and re-probe before dependent dispatch. For a manual probe,
+link direct evidence and explain its narrower coverage; do not change the helper's result.
+
+Recheck volatile prerequisites at execution start or just before their use, and after environment
+changes. Reuse stable evidence. Avoid fixed timestamp rituals and full repeated preflight on every task.
+For an explicitly approved staged run, show runnable tasks and outstanding blocked ACs separately.
+
+`verify_output.py` checks the structured record when present. FAIL means inconsistent/malformed record;
+BLOCK means a recorded blocked probe. Neither is permission to alter scope, credentials, or acceptance.

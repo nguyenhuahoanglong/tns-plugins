@@ -1,86 +1,57 @@
 # Implement Plan
 
-## 2026-09-08 migration note
-
-Unit/component TDD ownership moved to `code-implementer`; QA remains separate E2E work. Assignment parsing reads only exact Task and Agent table cells, so prose cannot change ownership. Verification: 80 unittest cases passed.
-
 ## Purpose
 
-Explicitly invoked code-development workflow that runs **alongside** the host tool's plan mode. The host
-plans; this skill turns that plan into an unattended-executable contract, proves its prerequisites with
-real probes, then delegates allowlisted code work and verifies the evidence. Similar intent never
-auto-triggers it; non-code primary deliverables route elsewhere.
+Explicitly invoked code-plan execution with early readiness decisions, task-specific delegation,
+and verified outcomes. Plan approval remains meaningful; routine execution should need minimal user input.
 
 ## Pain Points
 
-- A second planning method competing with Claude Code and Codex plan mode: duplicated interview scripts,
-  question banks, and explorer/architect counts.
-- A plan path that collides with the host's single-editable-file constraint during plan mode.
-- Plans that look complete and then stall mid-run on an expired PAT, an unauthenticated CLI, an
-  unreachable endpoint, or a `node_modules` that never had its devDependencies.
-- A verifier that only read plan prose and never touched the filesystem, so "executable" meant "well
-  worded".
-- Contract bloat: fifteen Context fields with two duplicated pairs, and twelve fields on every task
-  including a routine one.
-- Implementation accepted from claims rather than scoped diffs and Done-when evidence.
+- Exact-field contracts and keyword checks created ceremony without proving outcomes.
+- E2E account, data, browser, and expected-behavior gaps surfaced after implementation started.
+- Automatic backbone handoffs and hardcoded review escalation could reopen planning mid-run.
+- Fixed role/model mappings obscured task needs and platform override limitations.
+- Progress did not have a reusable user-facing task/evidence format.
 
 ## Workflow
 
-```text
-Entry    explicit invocation -> code-development eligibility
-Phase 1  adopt host or existing plan -> resolve canonical path -> flags as consent
-Phase 2  harden to contract -> declare probes -> preflight -> verifier, zero FAIL
-Phase 3  approve -> zero FAIL and zero BLOCK -> unverifiable count surfaced
-Phase 4  promote -> re-run preflight -> dependency waves -> scoped evidence
-Phase 5  build/existing tests -> selected ask-policy review -> AC evidence
-Phase 6  report -> evidence-required supporting docs only
-```
+Adopt plan -> settle decisions and human dependencies -> show assignments/readiness -> approve once ->
+execute dependency-ready work -> verify evidence -> report. Small tasks stay small. Host planning modes,
+explicit invocation, code-only eligibility, and protection of unrelated work remain in force.
 
-## Contract, not method
+## Resources
 
-This skill prescribes what a plan must contain, never how the agent arrives at it. Cold invocation
-outside plan mode still works: gather what the contract requires by ordinary means.
+- [SKILL.md](SKILL.md): compact workflow and boundaries.
+- [Plan content](references/plan-contract.md) and [template](references/plan-template.md).
+- [Readiness](references/autonomy-preflight.md): planning-time auth/E2E and bounded recovery.
+- [Routing](references/model-routing.md): researched task/model/thinking choices and platform limits.
+- [Delegation](references/agent-prompts.md): scoped implementation and independent QA/review briefs.
+- [Reports](references/report-templates.md): assignment, progress, and completion output.
 
-Context is nine fields — canonical path, origin, evidence, and a decision/source/reason triple for unit
-tests and for code review. Tasks carry seven fields always (Status, Depends on, Files, Mode, Description,
-Done when, ACs); `Depth` appears only when unit tests are selected, and `TDD reason`, `Existing-method
-baseline`, and `Scaffold` only at TDD depth. `Mode` is mandatory at every depth because
-`complex-backbone` routes to `design-backbone` regardless. Legacy `requested`/`not requested` and pre-v4
-recommendation fields are normalized on read.
+## Validation and compatibility
 
-`--tdd`, `--review`, `--no-tdd`, and `--no-review` are explicit consent. Without flags, one consolidated
-question is asked once after the plan is drafted; silence skips both.
+`scripts/verify_output.py` is an optional structured-template consistency helper. It checks relationships,
+ownership and recorded evidence, not semantic quality or permission. Legacy decision values remain readable;
+assessment provenance is preserved. Sequential shared-file tasks are allowed; exact unordered overlap fails.
+Directory/glob scope still needs semantic review. Flexible host plans need not be rewritten for this parser.
 
-## Autonomy preflight
-
-`scripts/preflight.py` probes prerequisites read-only through a **closed set of probe kinds with typed
-arguments and keyed auth commands, never free-form shell** — the plan can declare `auth pac-org`, never a
-command line. Kinds: `path` (derived automatically from every task's `Files:`), `command`,
-`command-version`, `auth`, `env`, `url`, `node-deps`, `dotnet-restore`, and `manual`. Executables are
-resolved with `shutil.which` and invoked by absolute path, because Windows `.CMD` shims otherwise read as
-"not installed". Secrets are redacted and output is capped; the script never writes the plan.
-
-States aggregate to `Autonomy`: `verified-ready`, `unverifiable-with-fallback` (every unverifiable probe
-needs a `Fallback` that stops and blocks the task rather than prompting), or `verified-blocked`. A blocked
-probe is a valid recorded result — `verify_output.py` reports it as **BLOCK** (exit 3), not FAIL (exit 1) —
-but it cannot be approved. Preflight runs twice: once to gate approval, once after promotion to gate
-fan-out. No freshness field, no TTL.
-
-## Delegation and verification
-
-The autonomy guarantee covers execution through build and test verification. The only sanctioned
-interaction points are `code-review-lite` escalation, which pauses by design, and reporting a `blocked`
-task; implementers never prompt the user, and `NEEDS_CONTEXT` returns to the main agent. Every writable
-dispatch carries an exact allowlist and destructive-operation bans; the main agent compares a
-working-tree-aware scoped baseline, alone updates status, and accepts DONE only after diff, file scope, and
-Done-when evidence. Implementers map to independent dependency-ready slices, coupled files stay together,
-and concurrency caps at three. `code-implementer` follows `unit-testing` traceability and test-registry rules;
-`qa-engineer` remains requirements-based E2E work only. One optional advisor pass may inform the existing
-single blocker retry; it adds no retry or approval bypass.
-Selected review uses `code-review-lite` with `Escalation Policy: ask`, receives Global Constraints verbatim,
-and has at most two rework loops.
+`scripts/preflight.py` is unchanged: closed typed probes, read-only, secret-redacted. A script PASS is not
+proof of authenticated app access or feature E2E. Missing checks remain visible. No live model-performance,
+latency, or UI-taste improvement is claimed from static validation or policy smoke tests.
 
 ## Changelog
+
+### 2026-10-02 - Planning readiness, flexible routing, and progress reports
+
+- Active intent r2 records the user's current requested evolution; original intent and r1 remain unchanged.
+- Replaced exact-field/prose-audit gates with minimum outcome requirements and an optional consistency helper.
+- Moved foreseeable auth, E2E authority/cases, architecture and downstream consent discovery into planning.
+- Added Claude Code, Codex, Copilot and Antigravity routing guidance with dated official sources and runtime limits.
+- Added assignment/progress/completion templates; main can own tiny work and serialize shared-file tasks.
+- Preserved explicit activation, code-only eligibility, scope protection, QA separation, and bounded recovery.
+- Validation: 96 verifier/preflight tests passed; intent/history, YAML, local links and four-platform render
+  checks passed (Antigravity format advisory retained). Three isolated policy smoke conditions compared
+  candidate/old/no-skill responses; no live performance benchmark. No install, publish, commit or push.
 
 ### 2026-09-10 - v4.0.1 - Prompt-audit consistency fixes
 
@@ -93,6 +64,12 @@ and has at most two rework loops.
 - `evals.json` `non_goals` updated to the new consent wording.
 - Aligned edit against intent revision 1: purpose, activation, outputs, approval gates, and retry limits
   unchanged. Validated with both unittest suites, `guardrail_check.py`, and `quick_validate.py`.
+
+### 2026-09-21 - Browser E2E routing
+
+- Added a post-implementation routing hint for browser-visible acceptance
+  criteria: use `browser-skill` and prefer `chrome-devtools` for headed live
+  evidence while preserving project E2E runners and existing gates.
 
 ### 2026-09-01 - v4.0.0 - Host-plan-mode adoption and autonomy preflight (breaking)
 

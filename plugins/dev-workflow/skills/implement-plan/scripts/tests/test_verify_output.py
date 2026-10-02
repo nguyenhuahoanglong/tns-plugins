@@ -110,9 +110,9 @@ class TestHappyPath(unittest.TestCase):
 
 
 class TestContextContract(unittest.TestCase):
-    def test_missing_field_fails(self):
+    def test_optional_source_may_be_omitted(self):
         text = plan().replace("Unit tests source: user\n", "")
-        self.assertIn("missing Context field: Unit tests source", messages(text))
+        self.assertNotIn("FAIL", levels(text), messages(text))
 
     def test_origin_and_evidence_must_agree(self):
         text = plan().replace("Plan path evidence: Inline request resolves to .plans/fixture.md.",
@@ -131,7 +131,7 @@ class TestContextContract(unittest.TestCase):
         text = plan().replace("Unit tests source: user", "Unit tests source: auto-assessment")
         self.assertNotIn("FAIL", levels(text), messages(text))
         text = plan().replace("Unit tests source: user", "Unit tests source: guessed")
-        self.assertIn("Unit tests source must be user or flag", messages(text))
+        self.assertIn("Unit tests source is invalid", messages(text))
 
 
 class TestNormalization(unittest.TestCase):
@@ -180,9 +180,9 @@ Code review reason: Declined.""")
 
 
 class TestTaskContract(unittest.TestCase):
-    def test_mode_is_required_at_every_depth(self):
+    def test_mode_is_optional_at_every_depth(self):
         text = plan(unit="skipped").replace("- Mode: existing-method\n", "")
-        self.assertIn("missing Task 1 field: Mode", messages(text))
+        self.assertNotIn("FAIL", levels(text), messages(text))
 
     def test_tdd_depth_requires_selected_unit_tests(self):
         text = plan(unit="skipped").replace("- Mode: existing-method",
@@ -193,19 +193,19 @@ class TestTaskContract(unittest.TestCase):
         text = plan().replace("- TDD reason: Shared export behavior regressed twice before.\n", "")
         self.assertIn("requires a non-empty TDD reason", messages(text))
 
-    def test_existing_method_tdd_requires_a_baseline(self):
+    def test_existing_method_tdd_needs_no_baseline_ceremony(self):
         text = plan().replace("- Existing-method baseline: npm test is GREEN at 214 passing.\n", "")
-        self.assertIn("requires Existing-method baseline", messages(text))
+        self.assertNotIn("FAIL", levels(text), messages(text))
 
-    def test_simple_new_tdd_requires_a_scaffold(self):
+    def test_simple_new_tdd_needs_no_scaffold_ceremony(self):
         text = plan().replace("- Mode: existing-method", "- Mode: simple-new") \
                      .replace("- Existing-method baseline: npm test is GREEN at 214 passing.\n", "")
-        self.assertIn("simple-new TDD requires Scaffold", messages(text))
+        self.assertNotIn("FAIL", levels(text), messages(text))
 
-    def test_complex_backbone_semantics_must_be_present(self):
+    def test_legacy_complex_mode_needs_no_word_soup(self):
         text = plan().replace("- Mode: existing-method", "- Mode: complex-backbone") \
                      .replace("- Existing-method baseline: npm test is GREEN at 214 passing.\n", "")
-        self.assertIn("complex-backbone semantics are incomplete", messages(text))
+        self.assertNotIn("FAIL", levels(text), messages(text))
 
     def test_invalid_status_fails(self):
         text = plan().replace("- Status: pending", "- Status: nearly-done")
@@ -213,9 +213,9 @@ class TestTaskContract(unittest.TestCase):
 
 
 class TestPreflightContract(unittest.TestCase):
-    def test_missing_section_fails(self):
+    def test_missing_preflight_cannot_claim_ready(self):
         text = plan().replace("## Preflight", "## Prelaunch")
-        self.assertIn("missing ## Preflight section", messages(text))
+        self.assertIn("verified-ready requires recorded Preflight results", messages(text))
 
     def test_unknown_kind_fails(self):
         text = plan().replace("| PF-1 | command |", "| PF-1 | sudo |")
@@ -283,7 +283,7 @@ class TestCrossSection(unittest.TestCase):
     def test_tdd_requires_a_code_implementer_assignment(self):
         text = plan(assignment="\n| Wave | Task(s) | Agent | Verified by main agent |\n|---|---|---|---|\n"
                                "| 1 | Task 1 | advisor | assessment only |")
-        self.assertIn("TDD Task 1 requires code-implementer assignment", messages(text))
+        self.assertIn("TDD Task 1 requires implementation-role assignment", messages(text))
 
     def test_tdd_rejects_qa_engineer_as_unit_test_owner(self):
         text = plan(assignment="\n| Wave | Task(s) | Agent | Verified by main agent |\n|---|---|---|---|\n"
@@ -309,30 +309,125 @@ class TestCrossSection(unittest.TestCase):
 
     def test_verification_requires_build_and_tests(self):
         text = plan(verification="\n- Manual/static checks: read the diff\n")
-        self.assertIn("Verification requires build and existing tests", messages(text))
+        self.assertIn("missing Verification field: Build", messages(text))
 
-    def test_selected_review_requires_lite_and_ask_policy(self):
+    def test_selected_review_needs_no_ask_policy(self):
         text = plan(verification="\n- Build: `npm run build`\n- Existing tests: `npm test`\n"
                                  "- Code review: `code-review-lite` over changed files\n")
-        self.assertIn("selected review requires Escalation Policy: ask", messages(text))
+        self.assertNotIn("FAIL", levels(text), messages(text))
 
     def test_skipped_review_must_not_invoke_lite(self):
         text = plan(review="skipped", verification="\n- Build: `npm run build`\n- Existing tests: `npm test`\n"
                                                    "- Code review: `code-review-lite` anyway\n")
-        self.assertIn("skipped code review must not invoke code-review-lite", messages(text))
+        self.assertIn("skipped code review must not invoke a reviewer", messages(text))
 
-    def test_delegation_safety_vocabulary_is_required(self):
+    def test_delegation_needs_no_magic_safety_vocabulary(self):
         text = plan().replace(SAFETY, "Keep changes small.")
-        self.assertIn("delegation safety/working-tree-aware contract is incomplete", messages(text))
+        self.assertNotIn("FAIL", levels(text), messages(text))
 
-    def test_placeholders_block(self):
+    def test_prose_is_not_a_universal_schema(self):
         text = plan().replace("Return an empty CSV header row when the report has no rows.",
                               "Handle the export cases as needed, details T" + "BD.")
-        self.assertIn("placeholder/vague text detected", messages(text))
+        self.assertNotIn("FAIL", levels(text), messages(text))
 
+
+
+class TestFlexibleStructuredPlans(unittest.TestCase):
+    def local(self, **kwargs):
+        return plan(preflight="", **kwargs).replace("## Preflight\n", "")
+
+    def test_minimal_context_and_extra_task_model_fields(self):
+        text = self.local(context="Plan path: .plans/local.md\nUnit tests: selected\nCode review: selected")
+        text = text.replace("- Mode: existing-method", "- Model: gpt-6.1-sol\n- Effort: medium")
+        self.assertNotIn("FAIL", levels(text), messages(text))
+        self.assertFalse(any("preflight results recorded" in msg for _, msg in VERIFY.evaluate(text)))
+
+    def test_missing_minimal_context_and_invalid_decisions(self):
+        for key in ("Plan path", "Unit tests", "Code review"):
+            context = "\n".join(f"{name}: {value}" for name, value in
+                (("Plan path", ".plans/local.md"), ("Unit tests", "skipped"), ("Code review", "skipped")) if name != key)
+            self.assertIn(f"missing Context field: {key}", messages(self.local(context=context)))
+        for label in ("Unit tests", "Code review"):
+            self.assertIn(f"{label} must be selected or skipped", messages(plan().replace(f"{label}: selected", f"{label}: maybe")))
+
+    def test_assessment_provenance_is_never_user_consent(self):
+        for source in ("project", "assessment", "auto-assessment"):
+            data = VERIFY.normalize({"Unit tests": ["selected"], "Unit tests source": [source]})
+            self.assertEqual(data["Unit tests source"], [source])
+            self.assertNotIn("FAIL", levels(self.local().replace("Unit tests source: user", f"Unit tests source: {source}")))
+
+    def test_lawful_json_todo_and_appropriate_are_accepted(self):
+        text = self.local().replace("Return an empty CSV header row when the report has no rows.",
+            'Preserve TODO comments and emit appropriate JSON: {"empty": true}.')
+        self.assertNotIn("FAIL", levels(text), messages(text))
+
+    def pair(self, depends="none", files="src/other.ts"):
+        first = VERIFY.section(self.local(unit="skipped", review="skipped"), "Tasks")
+        second = first.replace("Task 1:", "Task 7:").replace("Depends on: none", f"Depends on: {depends}").replace("src/cache.ts", files)
+        return self.local(unit="skipped", review="skipped", tasks=first + second)
+
+    def test_disjoint_independent_tasks_are_accepted(self):
+        self.assertNotIn("FAIL", levels(self.pair()), messages(self.pair()))
+
+    def test_shared_files_need_direct_or_transitive_ordering(self):
+        good = self.pair("Task 1", "src/cache.ts")
+        self.assertNotIn("FAIL", levels(good), messages(good))
+        self.assertIn("overlap Files without dependency ordering", messages(self.pair(files="src/cache.ts")))
+        second = VERIFY.section(self.pair("Task 1"), "Tasks")
+        third = VERIFY.section(self.local(unit="skipped", review="skipped"), "Tasks")
+        third = third.replace("Task 1:", "Task 9:").replace("Depends on: none", "Depends on: Task 7")
+        text = self.local(unit="skipped", review="skipped", tasks=second + third)
+        self.assertNotIn("FAIL", levels(text), messages(text))
+
+    def test_duplicate_unknown_self_and_cyclic_task_dependencies_fail(self):
+        self.assertIn("duplicate Task 1", messages(self.pair().replace("Task 7:", "Task 1:")))
+        self.assertIn("depends on unknown Task 9", messages(self.pair("Task 9")))
+        self.assertIn("depends on itself", messages(self.pair("Task 7")))
+        cyclic = self.pair("Task 1").replace("Depends on: none", "Depends on: Task 7")
+        self.assertIn("dependencies contain a cycle", messages(cyclic))
+
+    def test_undefined_acceptance_reference_fails(self):
+        self.assertIn("references undefined AC-9", messages(self.local().replace("- ACs: AC-1", "- ACs: AC-9")))
+
+    def test_task_needs_an_actual_acceptance_reference(self):
+        self.assertIn("ACs must reference at least one AC-N", messages(self.local().replace("- ACs: AC-1", "- ACs: none")))
+
+    def test_nonsequential_tdd_task_id_is_checked(self):
+        text = self.local().replace("Task 1:", "Task 7:")
+        self.assertIn("TDD Task 7 requires implementation-role assignment", messages(text))
+
+    def test_flexible_implementation_roles_and_qa_boundary(self):
+        for role in ("worker (implementation role)", "default carrying implementation role", "main (tiny task)"):
+            text = self.local().replace("| code-implementer |", f"| {role} |")
+            self.assertNotIn("FAIL", levels(text), messages(text))
+        text = self.local().replace("| code-implementer |", "| worker |")
+        self.assertIn("requires implementation-role assignment", messages(text))
+
+    def test_qa_description_excluding_unit_tests_is_not_keyword_audited(self):
+        text = self.local(unit="skipped").replace("| code-implementer |", "| qa-engineer |")
+        text = text.replace("Return an empty CSV header row when the report has no rows.", "E2E only; do not write unit tests.")
+        self.assertNotIn("FAIL", levels(text), messages(text))
+
+    def test_review_pro_and_named_scoped_reviewer_are_accepted(self):
+        for evidence in ("code-review-pro over changed files", "Reviewer: Jane; scope: changed parser",
+                         "scoped code-reviewer over changed parser files"):
+            text = self.local().replace("`code-review-lite` over changed files, `Escalation Policy: ask`", evidence)
+            self.assertNotIn("FAIL", levels(text), messages(text))
+
+    def test_evidence_requires_values_and_na_reasons(self):
+        text = self.local().replace("`npm run build`", "N/A: no buildable product").replace("`npm test`", "N/A: no existing suite")
+        self.assertNotIn("FAIL", levels(text), messages(text))
+        self.assertIn("N/A requires a reason", messages(text.replace("N/A: no buildable product", "N/A")))
+        self.assertIn("must be non-empty: Build", messages(text.replace("N/A: no buildable product", "")))
+
+    def test_malformed_preflight_result_fails(self):
+        self.assertIn("malformed Preflight result", messages(plan().replace("- PF-1 ready:", "- PF-1 success:")))
+
+    def test_explicit_empty_preflight_is_malformed(self):
+        self.assertIn("provided Preflight section is empty", messages(plan(preflight="")))
 
 class TestTemplateSelfConsistency(unittest.TestCase):
-    """The template is what agents copy, so its own example must satisfy the verifier's grammar."""
+    """The fill-in template documents probe grammar without inventing ready evidence."""
 
     TEMPLATE = Path(__file__).parents[2] / "references" / "plan-template.md"
 
@@ -340,22 +435,25 @@ class TestTemplateSelfConsistency(unittest.TestCase):
         return [line.rstrip() for line in self.TEMPLATE.read_text(encoding="utf-8").splitlines()
                 if line.startswith("- PF-") or "derived path" in line]
 
-    def test_every_example_result_line_matches_the_verifier_grammar(self):
-        unmatched = [line for line in self._preflight_lines() if not VERIFY.RESULT_RE.match(line)]
+    def _filled_preflight_lines(self):
+        return [line.replace("<ready|blocked|unverifiable>", "ready").replace("<state>", "ready")
+                for line in self._preflight_lines()]
+
+    def test_filled_example_result_lines_match_the_verifier_grammar(self):
+        unmatched = [line for line in self._filled_preflight_lines() if not VERIFY.RESULT_RE.match(line)]
         self.assertEqual(unmatched, [], "template result lines the verifier cannot parse")
 
-    def test_example_autonomy_matches_its_own_aggregation(self):
+    def test_template_requires_actual_aggregate_instead_of_claiming_ready(self):
         text = self.TEMPLATE.read_text(encoding="utf-8")
-        states = {VERIFY.RESULT_RE.match(line).group("state") for line in self._preflight_lines()}
-        expected = ("verified-blocked" if "blocked" in states
-                    else "unverifiable-with-fallback" if "unverifiable" in states else "verified-ready")
-        self.assertIn(f"Autonomy: {expected}", text)
+        self.assertIn("Autonomy: <aggregate from recorded results>", text)
+        self.assertNotIn("Autonomy: verified-ready", text)
 
-    def test_example_unverifiable_result_carries_its_fallback_on_the_same_line(self):
-        for line in self._preflight_lines():
-            match = VERIFY.RESULT_RE.match(line)
-            if match.group("state") == "unverifiable":
-                self.assertIn("fallback:", match.group("detail").lower(), line)
+    def test_template_documents_unverifiable_fallback_on_the_same_line(self):
+        explicit = [line for line in self._preflight_lines() if line.startswith("- PF-")]
+        self.assertTrue(explicit)
+        for line in explicit:
+            self.assertIn("unverifiable", line)
+            self.assertIn("fallback:", line.lower())
 
     def test_every_declared_example_probe_kind_is_in_the_closed_set(self):
         preflight = VERIFY.section(self.TEMPLATE.read_text(encoding="utf-8"), "Preflight")

@@ -1,27 +1,161 @@
 {
   "skill_name": "implement-plan",
   "evals": [
-    {"id": 1, "prompt": "/implement-plan (invoked inside Claude Code plan mode, host plan file already drafted at ~/.claude/plans/csv-export-a1b2.md) add CSV export in a shared production web app with Vitest", "expected_output": "Adopt the host draft, harden it to the contract, preflight it, and promote to .plans/csv-export.md only after approval.", "expectations": ["Sets Plan path origin: host-plan-mode with evidence naming the host draft.", "Writes no repository file before approval.", "Copies the draft to .plans/<feature>.md as the first post-approval write and never deletes the host file.", "Records Status updates only in the promoted canonical file."]},
-    {"id": 2, "prompt": "$implement-plan update wording in documentation", "expected_output": "Stop the code workflow and route the document-only request normally without creating a plan.", "expectations": ["Recognizes the explicit invocation but fails the code-development eligibility gate.", "Does not create or update an implementation plan.", "Does not run preflight, invoke qa-engineer, or offer code review."]},
-    {"id": 3, "prompt": "$implement-plan --tdd --no-review change the shared pricing service", "expected_output": "Treat both flags as explicit consent and ask no quality question.", "expectations": ["Unit tests: selected with source flag; Code review: skipped with source flag.", "Records each flag verbatim in the matching reason field.", "Never offers, runs, or reports code review."]},
-    {"id": 4, "prompt": "$implement-plan add a mixed routine/backbone service change", "expected_output": "Carry Mode on every task and TDD depth only where a reason justifies it.", "expectations": ["Mode is present at simplify depth so complex-backbone still routes to design-backbone.", "Existing-method and simple-new choreography stay distinct.", "Complex-backbone pauses the same task for unchanged design-backbone and resumes it."]},
-    {"id": 5, "prompt": "$implement-plan .plans/existing.md that predates v4 and carries recommendation and TDD decision fields", "expected_output": "Normalize the old Context onto the v4 fields and re-harden the plan.", "expectations": ["Keeps the exact supplied path.", "Maps auto-assessment sources and legacy requested/not requested to explicit user decisions.", "Adds the missing Preflight section rather than approving an unprobed plan."]},
-    {"id": 6, "prompt": "$implement-plan build the PCF grid change in a repo whose node_modules lacks devDependencies", "expected_output": "Preflight blocks approval and names the fix.", "expectations": ["A node-deps probe reports blocked and names npm ci.", "Autonomy aggregates to verified-blocked, which the verifier reports as BLOCK, not FAIL.", "Approval is withheld until the blocker is resolved and preflight is re-run.", "Never improvises credentials or switches authentication mode to get past a blocked auth probe."]},
-    {"id": 7, "prompt": "$implement-plan risky task with external boundary", "expected_output": "Use allowlisted delegation and scoped evidence.", "expectations": ["Unit/component TDD dispatches to code-implementer; qa-engineer is only a separate E2E route.", "Prompts ban destructive/git/publish/install operations.", "Main agent compares working-tree-aware scope and may use one advisor pass before its single blocker retry.", "An implementer returning NEEDS_CONTEXT is answered by the main agent, never by prompting the user."]},
-    {"id": 8, "prompt": "$implement-plan execute the unchanged approved plan at .plans/cache-fix.md", "expected_output": "Re-run preflight, then execute without asking for duplicate approval.", "expectations": ["Keeps the exact existing plan path.", "Re-runs preflight as the first execute step before any fan-out.", "Treats explicit current-request approval as valid when the plan is unchanged.", "Stops for new approval only if verification requires a material plan revision."]},
-    {"id": 9, "prompt": "$implement-plan implement a small isolated null-check fix in src/cache.ts", "expected_output": "Produce a contract-valid plan by ordinary means without planning ceremony.", "expectations": ["Cold invocation outside plan mode still works.", "Runs no interview script and no explorer or architect fan-out.", "Creates one dependency-ready implementation slice.", "Does not add an automatic documentation-sync task."]},
-    {"id": 10, "prompt": "$implement-plan a Dataverse change whose only verification is an MCP query", "expected_output": "Record the unverifiable probe with a fallback and surface it at approval.", "expectations": ["Declares a manual probe rather than pretending it was checked.", "Attaches a Fallback stating the task stops and is marked blocked, never prompting.", "Surfaces the unverifiable count so the user consents to residual risk."]}
+    {
+      "id": 1,
+      "prompt": "/implement-plan adopt the host draft at ~/.claude/plans/csv-export-a1b2.md",
+      "expected_output": "Preserve host path constraints and one approval.",
+      "expectations": [
+        "Draft only where host permits; promote after approval.",
+        "Do not impose a second planning interview.",
+        "Show concrete scope, readiness and assignment before approval."
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "$implement-plan update README wording only",
+      "expected_output": "Route document-only work normally.",
+      "expectations": [
+        "Explicit invocation recognized but code eligibility fails.",
+        "No implementation preflight or delegation ceremony."
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "$implement-plan --tdd --no-review change shared pricing behavior",
+      "expected_output": "Honor explicit choices.",
+      "expectations": [
+        "TDD belongs to implementation; meaningful RED then GREEN.",
+        "No duplicate test-choice question and no review dispatch/verdict.",
+        "Preserve build and existing-suite verification."
+      ]
+    },
+    {
+      "id": 4,
+      "prompt": "$implement-plan implement complex integration logic with a known architecture",
+      "expected_output": "Plan architecture needs early; no surprise workflow switch.",
+      "expectations": [
+        "Do not automatically invoke design-backbone midway.",
+        "Assign complex logic to a supported capable model and suitable effort.",
+        "Only unresolved consequential architecture changes need user decisions."
+      ]
+    },
+    {
+      "id": 5,
+      "prompt": "$implement-plan use an old plan with auto-assessment and requested test fields",
+      "expected_output": "Adopt without falsifying consent.",
+      "expectations": [
+        "Keep supplied path and actual provenance.",
+        "Do not relabel assessment as user approval.",
+        "Do not force extra metadata unrelated to safe execution."
+      ]
+    },
+    {
+      "id": 6,
+      "prompt": "$implement-plan E2E requires Dataverse login and test data not yet agreed",
+      "expected_output": "Resolve human dependencies during planning.",
+      "expectations": [
+        "Confirm actual environment/account role and allowed mutations/cleanup.",
+        "Complete user auth before dependent execution and verify protected access.",
+        "Reachable URL or pac account listing alone is insufficient.",
+        "Unready required E2E remains blocked, not silently skipped."
+      ]
+    },
+    {
+      "id": 7,
+      "prompt": "$implement-plan small logic task and independent visual polish task; minimize interruptions",
+      "expected_output": "Use task-specific routing within platform controls.",
+      "expectations": [
+        "Separate disjoint scope; serialize overlap.",
+        "Small logic may use Luna high/max; UI uses visual brief and stronger visual candidate.",
+        "Record actual model/effort or unknown, never invented runtime."
+      ]
+    },
+    {
+      "id": 8,
+      "prompt": "$implement-plan execute unchanged approved .plans/cache-fix.md",
+      "expected_output": "Execute without duplicate approval.",
+      "expectations": [
+        "Recheck volatile dependencies.",
+        "Resolve ordinary implementation detail autonomously.",
+        "Ask only new material choices or human-only access; continue independent work."
+      ]
+    },
+    {
+      "id": 9,
+      "prompt": "$implement-plan tiny null-check fix with no external service",
+      "expected_output": "Keep process proportional.",
+      "expectations": [
+        "Main may implement directly when delegation adds no value.",
+        "No mandatory quality questionnaire, scaffold agent, or manual-auth checklist.",
+        "Show concise outcome and relevant verification."
+      ]
+    },
+    {
+      "id": 10,
+      "prompt": "$implement-plan verify with MCP and a browser that only main can access",
+      "expected_output": "Check actual worker capability and preserve honest evidence.",
+      "expectations": [
+        "Do not assume main tool access transfers to QA.",
+        "Record direct protected-read evidence and any narrower coverage.",
+        "Plan supported verification route or flag dependent checks blocked."
+      ]
+    },
+    {
+      "id": 11,
+      "prompt": "$implement-plan review with Lite; I explicitly authorize automatic Pro escalation",
+      "expected_output": "Reuse real consent without reopening it.",
+      "expectations": [
+        "Record user-authored auto provenance and downstream session requirements.",
+        "Do not manufacture auto consent from a generic approve-plan reply.",
+        "Do not bypass other review gates."
+      ]
+    },
+    {
+      "id": 12,
+      "prompt": "$implement-plan two sequential tasks modifying the same file",
+      "expected_output": "Preserve sequential ownership without forced merging.",
+      "expectations": [
+        "Explicit dependency orders writes.",
+        "Refresh baseline before second worker.",
+        "Disallow concurrent overlapping writes and preserve dirty work."
+      ]
+    },
+    {
+      "id": 13,
+      "prompt": "$implement-plan run approved work; auth expires during E2E",
+      "expected_output": "Safe recovery and focused interaction.",
+      "expectations": [
+        "Only authorized noninteractive refresh is attempted.",
+        "Continue independent tasks and report E2E blocked honestly.",
+        "Request minimum human action if necessary; do not change target/account."
+      ]
+    },
+    {
+      "id": 14,
+      "prompt": "$implement-plan simple logic on a host whose code-implementer is pinned to Sol medium",
+      "expected_output": "Respect actual runtime selection.",
+      "expectations": [
+        "Do not claim a Luna override changed the pinned role.",
+        "Use supported configurable worker with implementation contract or report actual pinned fallback.",
+        "No global agent edits or implicit cross-platform CLI fallback."
+      ]
+    },
+    {
+      "id": 15,
+      "prompt": "$implement-plan prepare task allocation and keep me updated",
+      "expected_output": "Render usable reports.",
+      "expectations": [
+        "Before approval show tasks, dependencies, owner, model/effort and Done when.",
+        "During execution distinguish implemented from verified and identify blockers.",
+        "Final task/AC status links real evidence; no invented percentages/costs."
+      ]
+    }
   ],
   "non_goals": [
-    "Do not auto-trigger without explicit user invocation.",
-    "Do not run the workflow for a non-code primary deliverable.",
-    "Do not re-implement a planning method: no interview script, no question bank, no explorer or architect counts, no exploration scaling.",
-    "Do not execute plan-supplied command strings; only keyed probes.",
-    "Do not write a repository file while a host plan path is in force.",
-    "Do not approve a plan whose Autonomy is verified-blocked.",
-    "Do not redirect output from discovered backlog context.",
-    "Do not auto-select TDD or review without a flag or the user's explicit answer to the consolidated consent question.",
-    "Do not weaken build/existing-suite verification.",
-    "Do not let agents edit plan status, prompt the user, or write outside their allowlist."
+    "Auto-triggering implement-plan or broadening its code-only workflow to non-code primary deliverables",
+    "Bypassing user/project/security permissions or downstream skill consent",
+    "Guaranteeing zero interaction despite expired access or new consequential facts",
+    "Changing shared agent definitions/platform mapping, live installation, publication, commit or push"
   ]
 }
